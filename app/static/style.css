@@ -1,0 +1,155 @@
+/* إعدادات الخلفية */
+body {
+    background: linear-gradient(135deg, #e0f7fa, #80cbc4, #4db6ac, #26a69a);
+    background-size: 200% 200%;
+    animation: gradientAnimation 15s infinite alternate;
+    transition: background-color 0.5s ease-in-out;
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Tajawal', sans-serif;
+}
+
+/* حركة تغيير الخلفية */
+@keyframes gradientAnimation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* تصميم الحاوية الرئيسية */
+.container {
+    text-align: center;
+    color: #ffffff;
+    max-width: 90%;
+}
+
+/* عنوان الموقع */
+.title {
+    font-size: 2.5em;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* لوحة التحكم */
+.dashboard {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+    width: 80%;
+    max-width: 500px;
+}
+
+/* عنوان لوحة التحكم */
+.dashboard h2 {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+}
+
+/* وصف داخل لوحة التحكم */
+.dashboard p {
+    font-size: 1.2em;
+}
+
+/* تنسيق الأزرار */
+.buttons {
+    margin-top: 20px;
+}
+
+.btn {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 10px 20px;
+    margin: 5px;
+    border-radius: 5px;
+    color: rgb(0, 0, 0);
+    text-decoration: none;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.btn:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.job-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+}
+
+.job-card {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    max-width: 300px;
+    text-align: center;
+}
+
+.apply-btn {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #6200ea;
+    color: rgb(0, 0, 0);
+    text-decoration: none;
+    border-radius: 5px;
+}
+
+.apply-btn:hover {
+    background: #3700b3;
+}
+/* تنسيق مربع الترحيب */
+.welcome-box {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    color: black; /* يجعل النص داخل المربع باللون الأسود */
+}
+
+/* تحسين تصميم بطاقات الوظائف */
+.job-card {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease-in-out;
+    color: black; /* جعل النص داخل البطاقة باللون الأسود */
+}
+/* إضافة مسافة بين بطاقات الوظائف */
+.job-card + .job-card {
+    margin-top: 15px;
+}
+
+.job-card:hover {
+    transform: scale(1.03);
+}
+
+/* زر التقديم */
+.btn-success {
+    background: #28a745;
+    border: none;
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+/* ضبط النصوص داخل البطاقات ليكون لونها أسود */
+.job-card h5,
+.job-card p {
+    color: black; /* يجعل جميع النصوص داخل البطاقات باللون الأسود */
+}
+.d-flex {
+    display: flex;
+}
+
+/* منع التصاق البطاقات ببعضها */
+.row {
+    gap: 20px;
+}

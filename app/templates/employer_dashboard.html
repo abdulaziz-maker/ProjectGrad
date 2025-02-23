@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center text-success">🏢 لوحة تحكم صاحب العمل</h2>
+    <p class="text-center lead">مرحبًا {{ user.name }}! يمكنك إدارة الوظائف الخاصة بك.</p>
+
+    <!-- زر إضافة وظيفة جديدة -->
+    <div class="text-center my-3">
+        <a href="{{ url_for('main.add_job') }}" class="btn btn-success">➕ إضافة وظيفة جديدة</a>
+    </div>
+
+    <h3 class="mt-4">📋 الوظائف التي أضفتها</h3>
+
+    {% if user.jobs %}
+        <div class="row">
+            {% for job in user.jobs %}
+                <div class="col-md-6">
+                    <div class="card my-3 shadow-sm border rounded">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary">📌 {{ job.title }}</h5>
+                            <p class="card-text">{{ job.description }}</p>
+                            <p class="card-text"><strong>🏢 الشركة:</strong> {{ job.company }}</p>
+                            <p class="card-text"><strong>📅 تاريخ النشر:</strong> {{ job.posted_date.strftime('%Y-%m-%d') }}</p>
+
+                            <!-- أزرار تعديل وحذف الوظيفة -->
+                            <div class="d-flex justify-content-between">
+                                <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-warning">✏️ تعديل</a>
+                                <a href="{{ url_for('main.delete_job', job_id=job.id) }}" class="btn btn-danger" onclick="return confirm('⚠️ هل أنت متأكد أنك تريد حذف هذه الوظيفة؟');">🗑️ حذف</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center mt-3" role="alert">
+            ❌ لا توجد وظائف مضافة حتى الآن.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

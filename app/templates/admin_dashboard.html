@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center text-danger">📊 لوحة تحكم الأدمن</h2>
+    <p class="text-center lead">مرحبًا {{ user.name }}، يمكنك هنا إدارة الوظائف والمستخدمين.</p>
+
+    <div class="row">
+        <!-- إدارة الوظائف -->
+        <div class="col-md-6 text-center">
+            <a href="{{ url_for('main.manage_jobs') }}" class="btn btn-primary btn-lg my-2">📋 إدارة الوظائف</a>
+        </div>
+
+        <!-- إدارة المستخدمين -->
+        <div class="col-md-6 text-center">
+            <a href="{{ url_for('main.manage_users') }}" class="btn btn-secondary btn-lg my-2">👥 إدارة المستخدمين</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

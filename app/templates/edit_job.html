@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>✏️ تعديل الوظيفة: {{ job.title }}</h2>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.title.label(class="form-label") }}
+            {{ form.title(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class="form-control", rows=4) }}
+        </div>
+        <div class="mb-3">
+            {{ form.company.label(class="form-label") }}
+            {{ form.company(class="form-control") }}
+        </div>
+        <button type="submit" class="btn btn-success">💾 حفظ التعديلات</button>
+        <a href="{{ url_for('main.home') }}" class="btn btn-secondary">🔙 إلغاء</a>
+    </form>
+</div>
+{% endblock %}

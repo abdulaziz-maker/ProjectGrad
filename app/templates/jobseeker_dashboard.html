@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center text-primary">🎓 لوحة تحكم الباحث عن عمل</h2>
+    <p class="text-center lead">مرحبًا {{ user.name }}! يمكنك تصفح الوظائف والتقديم عليها بسهولة.</p>
+
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body text-center">
+                    <h5 class="card-title">📜 شهاداتك</h5>
+                    <p class="card-text">قم برفع شهاداتك لزيادة فرصك في التوظيف.</p>
+                    <a href="{{ url_for('main.upload_certificate') }}" class="btn btn-primary">⬆️ رفع شهادة جديدة</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body text-center">
+                    <h5 class="card-title">💼 الوظائف المتاحة</h5>
+                    <p class="card-text">تصفح أحدث الوظائف المتاحة وتقدم إليها بسهولة.</p>
+                    <a href="{{ url_for('main.home') }}" class="btn btn-success">🔍 تصفح الوظائف</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
