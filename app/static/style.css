@@ -1,29 +1,21 @@
 /* إعدادات الخلفية */
 body {
-    background: linear-gradient(135deg, #e0f7fa, #80cbc4, #4db6ac, #26a69a);
-    background-size: 200% 200%;
-    animation: gradientAnimation 15s infinite alternate;
-    transition: background-color 0.5s ease-in-out;
-    height: 100vh;
+    background: linear-gradient(135deg, #2E8B57, #4682B4); /* اللون الثابت */
     margin: 0;
+    font-family: 'Tajawal', sans-serif;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    font-family: 'Tajawal', sans-serif;
+    min-height: 100vh;
 }
 
-/* حركة تغيير الخلفية */
-@keyframes gradientAnimation {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
+
+
 
 /* تصميم الحاوية الرئيسية */
 .container {
     text-align: center;
-    color: #ffffff;
+    color: #000000;
     max-width: 90%;
 }
 
@@ -124,7 +116,7 @@ body {
 }
 /* إضافة مسافة بين بطاقات الوظائف */
 .job-card + .job-card {
-    margin-top: 15px;
+    margin-top: 30px;
 }
 
 .job-card:hover {
@@ -151,5 +143,170 @@ body {
 
 /* منع التصاق البطاقات ببعضها */
 .row {
-    gap: 20px;
+    gap: 30px;
+}
+/* زر فتح القائمة */
+.menu-button {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 1000;
+    transition: background 0.3s;
+}
+
+.menu-button:hover {
+    background: #555;
+}
+
+/* القائمة الجانبية */
+.sidebar {
+    position: fixed;
+    top: 0;
+    right: -300px; /* مخفية افتراضيًا */
+    width: 250px;
+    height: 100%;
+    background: #222;
+    color: white;
+    box-shadow: -5px 0 10px rgba(0, 0, 0, 0.2);
+    transition: right 0.3s ease-in-out;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    padding-top: 20px;
+}
+
+/* عند فتح القائمة */
+.sidebar.active {
+    right: 0;
+}
+
+/* زر الإغلاق */
+.close-button {
+    position: absolute;
+    top: 10px;
+    left: 15px;
+    font-size: 25px;
+    cursor: pointer;
+}
+
+/* عنوان القائمة */
+.sidebar-header {
+    text-align: center;
+    padding: 10px;
+    font-size: 18px;
+    border-bottom: 1px solid #444;
+}
+
+/* عناصر القائمة */
+.sidebar-menu {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+.sidebar-menu li {
+    padding: 15px;
+    text-align: center;
+    transition: background 0.3s;
+}
+
+.sidebar-menu li a {
+    color: white;
+    text-decoration: none;
+    font-size: 16px;
+}
+
+.sidebar-menu li:hover {
+    background: #444;
+}
+
+.auth-container {
+    background: white;
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    width: 400px;
+    text-align: center;
+    margin: 50px auto;
+}
+
+/* العنوان داخل النموذج */
+.auth-container h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+/* تنسيق الحقول */
+.input-field {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: border 0.3s ease-in-out;
+}
+
+.input-field:focus {
+    border: 1px solid #2E8B57;
+    outline: none;
+}
+
+/* زر التسجيل */
+.btn-primary {
+    width: 100%;
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+/* روابط تسجيل الدخول والتسجيل */
+.text-center {
+    margin-top: 15px;
+}
+
+.text-center a {
+    color: #000000;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.text-center a:hover {
+    text-decoration: underline;
+}
+/* الوضع الداكن */
+body.dark-mode {
+    background: linear-gradient(135deg, #1a1a1a, #333333);
+    color: #ffffff;
+}
+
+/* تعديل ألوان العناصر في الوضع الداكن */
+.dark-mode .container,
+.dark-mode .dashboard {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.dark-mode .btn:hover {
+    background: rgba(255, 255, 255, 0.5);
 }

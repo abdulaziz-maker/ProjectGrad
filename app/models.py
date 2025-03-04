@@ -4,12 +4,12 @@ from datetime import datetime
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    username = db.Column(db.String(100), unique=True, nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default="JobSeeker")  # JobSeeker أو Employer فقط
-    certificates = db.relationship('Certificate', backref='user', lazy=True)
-    jobs = db.relationship('Job', backref='employer', lazy=True)
+    role = db.Column(db.String(20), nullable=False, default="JobSeeker")
+    notifications_enabled = db.Column(db.Boolean, default=True)  # تفعيل الإشعارات
+    theme = db.Column(db.String(10), default="light")  # الوضع الفاتح افتراضيًا
 
     def is_admin(self):
         return self.role == "Admin"

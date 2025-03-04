@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_user, logout_user, login_required, current_user
 from app.models import Job, User, Certificate, db
 from app import db, login_manager
-from app.forms import LoginForm, JobForm, RegistrationForm
+from app.forms import LoginForm, JobForm, RegistrationForm, SettingsForm, ProfileForm
 from werkzeug.utils import secure_filename
 import os
 
@@ -227,3 +227,50 @@ def jobseeker_dashboard():
         flash("❌ لا تملك صلاحية الوصول إلى هذه الصفحة!", "danger")
         return redirect(url_for('main.home'))
     return render_template('jobseeker_dashboard.html', user=current_user)
+
+
+@main.route("/settings", methods=["GET", "POST"])
+@login_required
+def settings():
+    form = SettingsForm()
+
+    if form.validate_on_submit():
+        if form.new_password.data:
+            current_user.password = form.new_password.data  # ملاحظة: تأكد من استخدام التشفير لاحقًا
+        current_user.notifications_enabled = form.notifications.data == "enabled"
+        current_user.theme = form.theme.data
+
+        db.session.commit()
+        flash("✅ تم تحديث الإعدادات بنجاح!", "success")
+        return redirect(url_for("main.settings"))
+
+    return render_template("settings.html", form=form)
+
+@main.route('/logout_all')
+@login_required
+def logout_all():
+    logout_user()
+    flash("🚪 تم تسجيل الخروج من جميع الجلسات!", "info")
+    return redirect(url_for('main.home'))
+
+@main.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    form = ProfileForm(obj=current_user)
+
+    if form.validate_on_submit():
+        current_user.username = form.username.data
+        current_user.email = form.email.data
+        current_user.phone = form.phone.data
+        current_user.address = form.address.data
+        current_user.bio = form.bio.data
+
+        if form.profile_picture.data:
+            picture_file = save_picture(form.profile_picture.data)
+            current_user.profile_picture = picture_file
+
+        db.session.commit()
+        flash("✅ تم تحديث ملفك الشخصي بنجاح!", "success")
+        return redirect(url_for('main.profile'))
+
+    return render_template('profile.html', form=form)

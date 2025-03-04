@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="settings-container">
+    <h2 class="settings-title">⚙️ إعدادات الحساب</h2>
+
+    <form method="POST" action="{{ url_for('main.settings') }}" class="settings-form">
+        {{ form.hidden_tag() }}
+
+        <!-- تغيير كلمة المرور -->
+        <div class="form-group">
+            <label for="new_password">🔑 كلمة المرور الجديدة</label>
+            {{ form.new_password(class="form-control", placeholder="أدخل كلمة مرور جديدة") }}
+        </div>
+
+        <!-- التحكم في الإشعارات -->
+        <div class="form-group">
+            <label for="notifications">🔔 الإشعارات</label>
+            <select name="notifications" class="form-control">
+                <option value="enabled">✅ تفعيل</option>
+                <option value="disabled">❌ تعطيل</option>
+            </select>
+        </div>
+
+        <!-- إعدادات المظهر -->
+        <div class="form-group">
+            <label for="theme">🎨 وضع المظهر</label>
+            <select name="theme" class="form-control">
+                <option value="light">☀️ الوضع الفاتح</option>
+                <option value="dark">🌙 الوضع الليلي</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">💾 حفظ التغييرات</button>
+    </form>
+
+    <hr>
+
+    <!-- تسجيل الخروج من جميع الأجهزة -->
+    <form method="POST" action="{{ url_for('main.logout_all') }}">
+        <button type="submit" class="btn btn-danger">🚪 تسجيل الخروج من جميع الأجهزة</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">👤 تعديل الملف الشخصي</h2>
+
+    <form method="POST" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+            <label for="username">اسم المستخدم</label>
+            {{ form.username(class="form-control", required=True) }}
+        </div>
+
+        <div class="form-group">
+            <label for="email">📧 البريد الإلكتروني</label>
+            {{ form.email(class="form-control", required=True) }}
+        </div>
+
+        <div class="form-group">
+            <label for="phone">📱 رقم الهاتف</label>
+            {{ form.phone(class="form-control") }}
+        </div>
+
+        <div class="form-group">
+            <label for="address">📍 العنوان</label>
+            {{ form.address(class="form-control") }}
+        </div>
+
+        <div class="form-group">
+            <label for="bio">📝 نبذة شخصية</label>
+            {{ form.bio(class="form-control") }}
+        </div>
+
+        <div class="form-group">
+            <label for="profile_picture">📸 صورة الملف الشخصي</label>
+            {{ form.profile_picture(class="form-control-file") }}
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">💾 حفظ التغييرات</button>
+    </form>
+</div>
+{% endblock %}

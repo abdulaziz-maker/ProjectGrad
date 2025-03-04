@@ -10,18 +10,17 @@
     
     <!-- خطوط Google -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}?v={{ config['SECRET_KEY'] }}">
-
 </head>
 <body>
-
+    <!-- زر فتح القائمة -->
+    <div class="menu-button" onclick="openSidebar()">☰</div>
+    
     <!-- الحاوية الرئيسية -->
     <div class="container">
         <h1 class="title">Yusur Job Portal</h1>
 
         <div class="dashboard">
-            <h2>👤 مرحبًا {{ current_user.name if current_user.is_authenticated else 'زائر' }}</h2>
-
+            <h2>👤 مرحبًا {{ current_user.username if current_user.is_authenticated else 'زائر' }}</h2>
             <div class="buttons">
                 <a href="{{ url_for('main.home') }}" class="btn">🏠 الصفحة الرئيسية</a>
 
@@ -37,7 +36,6 @@
                 {% else %}
                     <a href="{{ url_for('main.login') }}" class="btn">🔑 تسجيل الدخول</a>
                     <a href="{{ url_for('main.register') }}" class="btn btn-secondary">📝 تسجيل حساب جديد</a>
-
                 {% endif %}
             </div>
         </div>
@@ -47,20 +45,64 @@
         </div>
     </div>
 
-    <!-- كود JavaScript لجعل الخلفية متغيرة -->
-    <script>
-        function changeBackground() {
-            const colors = [
-                "linear-gradient(135deg, #e0f7fa, #80cbc4, #4db6ac)",
-                "linear-gradient(135deg, #ffcc80, #ffab40, #ff9100)",
-                "linear-gradient(135deg, #f48fb1, #f06292, #ec407a)",
-                "linear-gradient(135deg, #b39ddb, #9575cd, #7e57c2)",
-                "linear-gradient(135deg, #81d4fa, #4fc3f7, #29b6f6)"
-            ];
-            document.body.style.background = colors[Math.floor(Math.random() * colors.length)];
-        }
-        setInterval(changeBackground, 10000); // تغيير كل 10 ثوانٍ
-    </script>
+    <!-- القائمة الجانبية -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <span class="close-button" onclick="closeSidebar()">×</span>
+            <h3>القائمة</h3>
+        </div>
+        <ul class="sidebar-menu">
+            {% if current_user.is_authenticated %}
+                <li><a href="{{ url_for('main.profile') }}">👤 تعديل الملف الشخصي</a></li>
+                <li><a href="{{ url_for('main.settings') }}">⚙️ الإعدادات</a></li>
+                <li><a href="#">🔔 الإشعارات</a></li>
+                <li><a href="{{ url_for('main.logout') }}">🚪 تسجيل الخروج</a></li>
+            {% else %}
+                <li><a href="{{ url_for('main.login') }}">🔑 تسجيل الدخول</a></li>
+                <li><a href="{{ url_for('main.register') }}">📝 إنشاء حساب</a></li>
+            {% endif %}
+        </ul>
+    </div>
 
+    <!-- إعدادات المظهر -->
+    <div class="theme-toggle-container">
+        <label for="theme-toggle">🎨 وضع المظهر</label>
+        <select id="theme-toggle" name="theme" class="form-control">
+            <option value="light">🌞 الوضع الفاتح</option>
+            <option value="dark">🌙 الوضع الداكن</option>
+        </select>
+    </div>
+
+    <!-- JavaScript لتحكم بالقائمة الجانبية و المظهر -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const themeToggle = document.getElementById("theme-toggle");
+
+            // تحقق إذا كان الوضع الداكن مفعل مسبقًا
+            if (localStorage.getItem("theme") === "dark") {
+                document.body.classList.add("dark-mode");
+                themeToggle.value = "dark";
+            }
+
+            // عند تغيير المستخدم لوضع المظهر
+            themeToggle.addEventListener("change", function() {
+                if (this.value === "dark") {
+                    document.body.classList.add("dark-mode");
+                    localStorage.setItem("theme", "dark");
+                } else {
+                    document.body.classList.remove("dark-mode");
+                    localStorage.setItem("theme", "light");
+                }
+            });
+        });
+
+        function openSidebar() {
+            document.getElementById("sidebar").classList.add("active");
+        }
+
+        function closeSidebar() {
+            document.getElementById("sidebar").classList.remove("active");
+        }
+    </script>
 </body>
 </html>

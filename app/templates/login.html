@@ -4,14 +4,91 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تسجيل الدخول</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            background: linear-gradient(135deg, #2E8B57, #4682B4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .login-container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+        .input-field {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1em;
+            text-align: right;
+        }
+        .btn-primary {
+            background: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 1em;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        .text-center {
+            margin-top: 15px;
+            font-size: 1em;
+        }
+        .text-center a {
+            color: #007BFF;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .text-center a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
-    <h2>🔑 تسجيل الدخول</h2>
-    <form method="POST">
-        {{ form.hidden_tag() }}
-        <p>{{ form.email.label }} {{ form.email }}</p>
-        <p>{{ form.password.label }} {{ form.password }}</p>
-        <p>{{ form.submit }}</p>
-    </form>
+    <div class="login-container">
+        <h2>🔑 تسجيل الدخول</h2>
+        <form method="POST" class="login-form">
+            {{ form.hidden_tag() }}
+            
+            <div class="form-group">
+                <label for="email">📧 البريد الإلكتروني</label>
+                {{ form.email(class="input-field", placeholder="أدخل بريدك الإلكتروني") }}
+            </div>
+            
+            <div class="form-group">
+                <label for="password">🔒 كلمة المرور</label>
+                {{ form.password(class="input-field", placeholder="أدخل كلمة المرور") }}
+            </div>
+            
+            <div class="form-group text-center">
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+        <p class="text-center">ليس لديك حساب؟ <a href="{{ url_for('main.register') }}">إنشاء حساب جديد</a></p>
+    </div>
 </body>
 </html>

@@ -1,15 +1,26 @@
 import os
 
 class Config:
-    SECRET_KEY = os.getenv('SECRET_KEY', 'supersecretkey')  # مفتاح سري لحماية الجلسات
-    BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # المسار الأساسي للمشروع
-    SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(BASE_DIR, 'yusur.db')}"  # قاعدة بيانات SQLite
+    # مفتاح سري لحماية الجلسات
+    SECRET_KEY = os.getenv('SECRET_KEY', 'supersecretkey')
+
+    # تحديد المسار الأساسي للمشروع
+    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+    # قاعدة بيانات SQLite
+    SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(BASE_DIR, 'yusur.db')}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False  # تعطيل التعديلات التلقائية لتوفير الأداء
 
-    # إعدادات أخرى (مستقبلية)
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads/certificates')  # مجلد رفع الشهادات
+    # مسار مجلد رفع الملفات (الشهادات)
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads/certificates')
+
+    # مسار رفع صور الملف الشخصي
+    PROFILE_PIC_FOLDER = os.path.join(BASE_DIR, 'static/profile_pics')
+
+    # أنواع الملفات المسموح برفعها
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 
     @staticmethod
     def init_app(app):
-        """دالة إضافية يمكن استخدامها مستقبلاً لتهيئة الإعدادات إذا لزم الأمر."""
+        """دالة يمكن استخدامها مستقبلاً لتهيئة الإعدادات إذا لزم الأمر."""
         pass
