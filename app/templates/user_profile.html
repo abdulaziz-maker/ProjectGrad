@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">👤 الملف الشخصي</h2>
+
+    <div class="card mt-4">
+        <div class="card-body text-center">
+            <!-- ✅ صورة المستخدم -->
+            {% if user.profile_picture %}
+                <img src="{{ url_for('static', filename='profile_pics/' + user.profile_picture) }}" 
+                     class="rounded-circle img-thumbnail" width="150" height="150" alt="الصورة الشخصية">
+            {% else %}
+                <img src="{{ url_for('static', filename='profile_pics/default.png') }}" 
+                     class="rounded-circle img-thumbnail" width="150" height="150" alt="الصورة الافتراضية">
+            {% endif %}
+            
+            <h3 class="mt-3">{{ user.name or "لم يتم تحديد الاسم" }}</h3>
+            <p class="text-muted">{{ user.bio or "لا يوجد وصف بعد." }}</p>
+
+            <hr>
+
+            <!-- ✅ المعلومات الشخصية -->
+            <h4>📌 المعلومات الأساسية</h4>
+            <p><strong>📧 البريد الإلكتروني:</strong> {{ user.email }}</p>
+            <p><strong>📞 رقم الهاتف:</strong> {{ user.phone or "غير محدد" }}</p>
+            <p><strong>📍 العنوان:</strong> {{ user.address or "غير محدد" }}</p>
+
+            <hr>
+
+            <!-- ✅ حسابات التواصل الاجتماعي -->
+            <h4>🔗 الحسابات الاجتماعية</h4>
+            <p><strong>💼 LinkedIn:</strong> <a href="{{ user.linkedin or '#' }}" target="_blank">{{ user.linkedin or "غير متوفر" }}</a></p>
+            <p><strong>🐦 Twitter:</strong> <a href="{{ user.twitter or '#' }}" target="_blank">{{ user.twitter or "غير متوفر" }}</a></p>
+            <p><strong>🐙 GitHub:</strong> <a href="{{ user.github or '#' }}" target="_blank">{{ user.github or "غير متوفر" }}</a></p>
+
+            <hr>
+
+            <h4>🌟 معلومات إضافية</h4>
+            <p><strong>🎭 نوع الشخصية:</strong> {{ user.personality_type or "غير محدد" }}</p>
+            <p><strong>🏆 القيم الشخصية:</strong> {{ user.values or "غير محدد" }}</p>
+            <p><strong>🚀 إنجاز بارز:</strong> {{ user.achievement or "غير محدد" }}</p>
+
+            <div class="text-center mt-4">
+                <a href="{{ url_for('main.profile') }}" class="btn btn-primary">✏️ تعديل المعلومات</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

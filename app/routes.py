@@ -1,13 +1,16 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, Flask
+from flask import Blueprint, render_template, redirect, url_for, flash, request, Flask, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from app.models import Job, User, Certificate, db
 from app import db, login_manager
-from app.forms import LoginForm, JobForm, RegistrationForm, SettingsForm, ProfileForm
+from app.forms import LoginForm, JobForm, RegistrationForm, SettingsForm, ProfileForm, JobSeekerProfileForm
 from werkzeug.utils import secure_filename
+from datetime import datetime
 import os
 
 
-main = Blueprint('main', __name__)
+main = Blueprint('main', __name__)  # ✅ تعريف `Blueprint` مرة واحدة فقط
+app = Flask(__name__)
+app.secret_key = "your_secret_key"  # مطلوب لاستخدام flash messages
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -253,10 +256,18 @@ def logout_all():
     flash("🚪 تم تسجيل الخروج من جميع الجلسات!", "info")
     return redirect(url_for('main.home'))
 
+
+
 @main.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
     form = ProfileForm(obj=current_user)
+
+    # جلب قائمة الوظائف التي تقدم لها المستخدم
+    applied_jobs = Job.query.join(Job.applicants).filter(User.id == current_user.id).all()
+
+    # جلب قائمة الوظائف التي نشرها صاحب العمل
+    posted_jobs = Job.query.filter_by(employer_id=current_user.id).all()
 
     if form.validate_on_submit():
         current_user.username = form.username.data
@@ -265,6 +276,7 @@ def profile():
         current_user.address = form.address.data
         current_user.bio = form.bio.data
 
+        # حفظ الصورة الشخصية إذا تم تحميل صورة جديدة
         if form.profile_picture.data:
             picture_file = save_picture(form.profile_picture.data)
             current_user.profile_picture = picture_file
@@ -273,4 +285,177 @@ def profile():
         flash("✅ تم تحديث ملفك الشخصي بنجاح!", "success")
         return redirect(url_for('main.profile'))
 
-    return render_template('profile.html', form=form)
+    return render_template('profile.html', form=form, applied_jobs=applied_jobs, posted_jobs=posted_jobs,user=current_user)
+
+def save_picture(form_picture):
+    # تحديد مسار مجلد الصور داخل `static/profile_pics/`
+    picture_folder = os.path.join(current_app.root_path, 'static/profile_pics')
+
+    # 🔹 إذا لم يكن المجلد موجودًا، قم بإنشائه
+    if not os.path.exists(picture_folder):
+        os.makedirs(picture_folder)
+
+    # حفظ الصورة بعد التأكد من أن المجلد موجود
+    picture_filename = secure_filename(form_picture.filename)
+    picture_path = os.path.join(picture_folder, picture_filename)
+    form_picture.save(picture_path)
+
+    return picture_filename  # إرجاع اسم الملف للحفظ في قاعدة البيانات
+
+@main.route('/notifications')
+@login_required
+def notifications():
+    return render_template('notifications.html', user=current_user)
+
+@main.route('/jobseeker-profile', methods=['GET', 'POST'])
+@login_required
+def jobseeker_profile():
+    if current_user.role != "JobSeeker":
+        flash("❌ لا يمكنك الوصول إلى هذه الصفحة!", "danger")
+        return redirect(url_for("main.profile"))
+
+    form = JobSeekerProfileForm(obj=current_user)
+
+    if form.validate_on_submit():
+        try:
+            print("✅ يتم الآن حفظ البيانات في قاعدة البيانات...")
+
+            # ✅ حفظ البيانات في قاعدة البيانات
+            current_user.date_of_birth = form.date_of_birth.data
+            current_user.gender = form.gender.data
+            current_user.highest_education = form.highest_education.data
+            current_user.university_name = form.university_name.data
+            current_user.graduation_year = form.graduation_year.data
+            current_user.field_of_study = form.field_of_study.data
+            current_user.experience_years = form.experience_years.data
+            current_user.previous_jobs = form.previous_jobs.data
+            current_user.industry = form.industry.data
+            current_user.certifications = form.certifications.data
+            current_user.skills = form.skills.data
+            current_user.technical_skills = form.technical_skills.data
+            current_user.soft_skills = form.soft_skills.data
+            current_user.preferred_location = form.preferred_location.data
+            current_user.preferred_salary = form.preferred_salary.data
+            current_user.job_type = form.job_type.data
+            current_user.willing_to_relocate = True if form.willing_to_relocate.data == "yes" else False
+            current_user.available_start_date = form.available_start_date.data
+            current_user.languages = form.languages.data
+            current_user.language_proficiency = form.language_proficiency.data
+
+            print(f"📌 البيانات المحفوظة: {current_user}")
+
+            # ✅ حفظ التغييرات في قاعدة البيانات
+            db.session.commit()
+
+            flash("✅ تم حفظ التعديلات بنجاح!", "success")
+            return redirect(url_for("main.jobseeker_resume"))  # ✅ إعادة التوجيه لرؤية التغييرات
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ خطأ أثناء حفظ البيانات: {e}")
+            flash("❌ حدث خطأ أثناء حفظ البيانات، حاول مرة أخرى.", "danger")
+
+    return render_template("jobseeker_profile.html", form=form)
+
+@main.route('/update-profile', methods=['POST'])
+@login_required
+def update_profile():
+    try:
+        print("✅ البيانات المستلمة:", request.form)  # طباعة البيانات للتحقق
+
+        user = User.query.get(current_user.id)  # جلب المستخدم الحالي
+
+        # ✅ تحويل تاريخ الميلاد من نص إلى `datetime.date`
+        date_of_birth_str = request.form.get("date_of_birth")
+        if date_of_birth_str:  
+            user.date_of_birth = datetime.strptime(date_of_birth_str, "%Y-%m-%d").date()
+        else:
+            user.date_of_birth = None  # إذا كان الحقل فارغًا
+
+        user.date_of_birth = request.form.get("date_of_birth") or None
+        user.gender = request.form.get("gender") or None
+        user.highest_education = request.form.get("highest_education") or None
+        user.university_name = request.form.get("university_name") or None
+        user.graduation_year = request.form.get("graduation_year") or None
+        user.field_of_study = request.form.get("field_of_study") or None
+        user.experience_years = request.form.get("experience_years") or None
+        user.previous_jobs = request.form.get("previous_jobs") or None
+        user.industry = request.form.get("industry") or None
+        user.certifications = request.form.get("certifications") or None
+        user.skills = request.form.get("skills") or None
+        user.technical_skills = request.form.get("technical_skills") or None
+        user.soft_skills = request.form.get("soft_skills") or None
+        user.preferred_location = request.form.get("preferred_location") or None
+        user.preferred_salary = request.form.get("preferred_salary") or None
+        user.job_type = request.form.get("job_type") or None
+        user.willing_to_relocate = request.form.get("willing_to_relocate") or None
+        user.available_start_date = request.form.get("available_start_date") or None
+        user.languages = request.form.get("languages") or None
+        user.language_proficiency = request.form.get("language_proficiency") or None
+
+        # ✅ تحويل تاريخ بدء العمل المتوقع إلى `datetime.date`
+        available_start_date_str = request.form.get("available_start_date")
+        if available_start_date_str:
+            user.available_start_date = datetime.strptime(available_start_date_str, "%Y-%m-%d").date()
+        else:
+            user.available_start_date = None  # إذا كان الحقل فارغًا
+
+        user.languages = request.form.get("languages")
+        user.language_proficiency = request.form.get("language_proficiency")
+
+        db.session.commit()  # حفظ التغييرات
+        flash("✅ تم حفظ التغييرات بنجاح!", "success")
+        return redirect(url_for('main.jobseeker_resume'))  # 🔹 إعادة التوجيه إلى صفحة السيرة الذاتية
+
+    except Exception as e:
+        db.session.rollback()
+        print("❌ خطأ أثناء تحديث الملف الشخصي:", str(e))  # طباعة الخطأ في `Terminal`
+        flash("❌ حدث خطأ أثناء حفظ البيانات، حاول مرة أخرى!", "danger")
+        return redirect(url_for('main.jobseeker_profile'))
+
+    
+@main.route('/jobseeker-resume', methods=['GET'])
+@login_required
+def jobseeker_resume():
+    return render_template('jobseeker_resume.html', user=current_user)
+
+@main.route('/update-personal-profile', methods=['POST'])
+@login_required
+def update_personal_profile():
+    try:
+        user = User.query.get(current_user.id)
+
+        user.name = request.form.get("name")
+        user.bio = request.form.get("bio")
+        user.phone = request.form.get("phone")
+        user.address = request.form.get("address")
+        user.personality_type = request.form.get("personality_type")
+        user.linkedin = request.form.get("linkedin")
+        user.twitter = request.form.get("twitter")
+        user.github = request.form.get("github")
+        user.values = request.form.get("values")
+        user.achievement = request.form.get("achievement")
+
+        # ✅ حفظ الصورة الشخصية
+        if 'profile_picture' in request.files:
+            file = request.files['profile_picture']
+            if file.filename != '':
+                filename = secure_filename(file.filename)
+                file_path = os.path.join('static/profile_pics', filename)
+                file.save(file_path)
+                user.profile_picture = filename
+
+        db.session.commit()
+        flash("✅ تم حفظ التغييرات بنجاح!", "success")
+        return redirect(url_for('main.user_profile'))  # 🔹 توجيه المستخدم إلى الملف الشخصي العام
+
+    except Exception as e:
+        db.session.rollback()
+        print("❌ خطأ أثناء تحديث الملف الشخصي:", str(e))
+        flash("❌ حدث خطأ أثناء الحفظ، حاول مرة أخرى!", "danger")
+        return redirect(url_for('main.profile'))
+
+@main.route('/user-profile', methods=['GET'])
+@login_required
+def user_profile():
+    return render_template('user_profile.html', user=current_user)

@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="profile-container">
+        <h2 class="text-center">✏️ تعديل المعلومات</h2>
+
+        <!-- ✅ عرض رسالة نجاح بعد الحفظ -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show custom-alert" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- ✅ نموذج تعديل الملف الشخصي -->
+        <form method="POST" action="{{ url_for('main.update_profile') }}" id="profileForm" class="custom-form">
+            {{ form.hidden_tag() }}
+
+            <!-- 🔹 المعلومات الأساسية -->
+            <h3>📌 المعلومات الأساسية</h3>
+            <div class="form-group">
+                <label for="date_of_birth">📅 تاريخ الميلاد</label>
+                <input type="date" name="date_of_birth" class="form-control custom-input" value="{{ form.date_of_birth.data or '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="gender">👥 الجنس</label>
+                <select name="gender" class="form-control custom-select">
+                    <option value="male" {% if form.gender.data == 'male' %}selected{% endif %}>ذكر</option>
+                    <option value="female" {% if form.gender.data == 'female' %}selected{% endif %}>أنثى</option>
+                </select>
+            </div>
+
+            <hr>
+
+            <!-- 🔹 الخلفية التعليمية -->
+            <h3>🎓 الخلفية التعليمية</h3>
+            <div class="form-group">
+                <label for="highest_education">📚 أعلى شهادة تعليمية</label>
+                <select name="highest_education" class="form-control custom-select">
+                    <option value="high_school">ثانوي</option>
+                    <option value="bachelor">بكالوريوس</option>
+                    <option value="master">ماجستير</option>
+                    <option value="phd">دكتوراه</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="university_name">🏫 اسم الجامعة</label>
+                <input type="text" name="university_name" class="form-control custom-input" value="{{ form.university_name.data or '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="graduation_year">📅 سنة التخرج</label>
+                <select name="graduation_year" class="form-control custom-select">
+                    {% for year in range(1980, 2031) %}
+                    <option value="{{ year }}" {% if form.graduation_year.data == year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="field_of_study">🔬 التخصص الأكاديمي</label>
+                <select name="field_of_study" class="form-control custom-select">
+                    <option value="computer_science">علوم الحاسب</option>
+                    <option value="engineering">الهندسة</option>
+                    <option value="business">إدارة الأعمال</option>
+                    <option value="medicine">الطب</option>
+                    <option value="law">القانون</option>
+                    <option value="other">أخرى</option>
+                </select>
+            </div>
+
+            <hr>
+
+            <!-- 🔹 الخبرة المهنية -->
+            <h3>💼 الخبرة المهنية</h3>
+            <div class="form-group">
+                <label for="experience_years">📊 عدد سنوات الخبرة</label>
+                <select name="experience_years" class="form-control custom-select">
+                    <option value="0">بدون خبرة</option>
+                    <option value="1-3">1-3 سنوات</option>
+                    <option value="4-6">4-6 سنوات</option>
+                    <option value="7+">7 سنوات أو أكثر</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="industry">🏭 المجال الصناعي</label>
+                <select name="industry" class="form-control custom-select">
+                    <option value="technology">تقنية المعلومات</option>
+                    <option value="healthcare">الرعاية الصحية</option>
+                    <option value="finance">المالية</option>
+                    <option value="education">التعليم</option>
+                    <option value="manufacturing">التصنيع</option>
+                    <option value="other">أخرى</option>
+                </select>
+            </div>
+
+            <hr>
+
+            <!-- 🔹 تفضيلات التوظيف -->
+            <h3>📍 تفضيلات التوظيف</h3>
+            <div class="form-group">
+                <label for="preferred_location">📍 الموقع المفضل للعمل</label>
+                <select name="preferred_location" class="form-control custom-select">
+                    <option value="riyadh">الرياض</option>
+                    <option value="jeddah">جدة</option>
+                    <option value="dammam">الدمام</option>
+                    <option value="abha">أبها</option>
+                    <option value="other">مدينة أخرى</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="preferred_salary">💰 الراتب المتوقع</label>
+                <select name="preferred_salary" class="form-control custom-select">
+                    <option value="3000-5000">3000 - 5000 ريال</option>
+                    <option value="5000-8000">5000 - 8000 ريال</option>
+                    <option value="8000-12000">8000 - 12000 ريال</option>
+                    <option value="12000+">أكثر من 12000 ريال</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="job_type">🏢 نوع العمل المفضل</label>
+                <select name="job_type" class="form-control custom-select">
+                    <option value="full-time">دوام كامل</option>
+                    <option value="part-time">دوام جزئي</option>
+                    <option value="remote">عن بُعد</option>
+                    <option value="freelance">عمل حر</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="languages">🌐 عدد اللغات</label>
+                <select name="languages" class="form-control custom-select">
+                    <option value="1">لغة واحدة</option>
+                    <option value="2">لغتين</option>
+                    <option value="3">3 لغات</option>
+                    <option value="4+">أكثر من 4 لغات</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="language_proficiency">🎭 مستوى اللغة</label>
+                <select name="language_proficiency" class="form-control custom-select">
+                    <option value="beginner">مبتدئ</option>
+                    <option value="intermediate">متوسط</option>
+                    <option value="advanced">متقدم</option>
+                </select>
+            </div>
+
+            <hr>
+
+            <!-- 🔹 زر الحفظ -->
+            <button type="submit" class="btn btn-success btn-block custom-btn">💾 حفظ التغييرات</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
