@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>🎓 لوحة تحكم المستخدم</h2>
+<p>مرحبًا {{ user.name }}، يمكنك هنا رفع شهاداتك وعرض الوظائف المتاحة.</p>
+<a href="{{ url_for('main.upload_certificate') }}" class="btn">📜 إضافة شهادة</a>
+
+<h3>📋 الوظائف المتاحة</h3>
+<ul>
+    {% for job in jobs %}
+        <li>{{ job.title }} في {{ job.company }}</li>
+    {% endfor %}
+</ul>
+{% endblock %}
