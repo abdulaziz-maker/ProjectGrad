@@ -361,18 +361,24 @@ def jobseeker_profile():
 @login_required
 def update_profile():
     try:
-        print("✅ البيانات المستلمة:", request.form)  # طباعة البيانات للتحقق
+        print("✅ البيانات المستلمة:", request.form)  # تتبع
 
-        user = User.query.get(current_user.id)  # جلب المستخدم الحالي
+        user = User.query.get(current_user.id)
 
-        # ✅ تحويل تاريخ الميلاد من نص إلى `datetime.date`
+        # 🔹 تحويل التواريخ
         date_of_birth_str = request.form.get("date_of_birth")
-        if date_of_birth_str:  
+        if date_of_birth_str:
             user.date_of_birth = datetime.strptime(date_of_birth_str, "%Y-%m-%d").date()
         else:
-            user.date_of_birth = None  # إذا كان الحقل فارغًا
+            user.date_of_birth = None
 
-        user.date_of_birth = request.form.get("date_of_birth") or None
+        available_start_date_str = request.form.get("available_start_date")
+        if available_start_date_str:
+            user.available_start_date = datetime.strptime(available_start_date_str, "%Y-%m-%d").date()
+        else:
+            user.available_start_date = None
+
+        # 🔹 الحقول النصية والاختيارات
         user.gender = request.form.get("gender") or None
         user.highest_education = request.form.get("highest_education") or None
         user.university_name = request.form.get("university_name") or None
@@ -382,36 +388,38 @@ def update_profile():
         user.previous_jobs = request.form.get("previous_jobs") or None
         user.industry = request.form.get("industry") or None
         user.certifications = request.form.get("certifications") or None
-        user.skills = request.form.get("skills") or None
-        user.technical_skills = request.form.get("technical_skills") or None
-        user.soft_skills = request.form.get("soft_skills") or None
         user.preferred_location = request.form.get("preferred_location") or None
         user.preferred_salary = request.form.get("preferred_salary") or None
         user.job_type = request.form.get("job_type") or None
-        user.willing_to_relocate = request.form.get("willing_to_relocate") or None
-        user.available_start_date = request.form.get("available_start_date") or None
+        user.willing_to_relocate = request.form.get("willing_to_relocate") == "yes"
         user.languages = request.form.get("languages") or None
         user.language_proficiency = request.form.get("language_proficiency") or None
 
-        # ✅ تحويل تاريخ بدء العمل المتوقع إلى `datetime.date`
-        available_start_date_str = request.form.get("available_start_date")
-        if available_start_date_str:
-            user.available_start_date = datetime.strptime(available_start_date_str, "%Y-%m-%d").date()
-        else:
-            user.available_start_date = None  # إذا كان الحقل فارغًا
+        # 🔹 القوائم المتعددة (المهارات)
+        user.skills = ', '.join(request.form.getlist("skills[]"))
+        user.technical_skills = ', '.join(request.form.getlist("technical_skills[]"))
+        user.soft_skills = ', '.join(request.form.getlist("soft_skills[]"))
 
-        user.languages = request.form.get("languages")
-        user.language_proficiency = request.form.get("language_proficiency")
+        # 🔹 المهارات الأخرى إذا تم اختيار "أخرى"
+        if request.form.get("other_skill"):
+            user.skills += f", {request.form.get('other_skill')}"
+        if request.form.get("other_technical_skill"):
+            user.technical_skills += f", {request.form.get('other_technical_skill')}"
+        if request.form.get("other_soft_skill"):
+            user.soft_skills += f", {request.form.get('other_soft_skill')}"
 
-        db.session.commit()  # حفظ التغييرات
+        # 🔹 حفظ التعديلات
+        db.session.commit()
         flash("✅ تم حفظ التغييرات بنجاح!", "success")
-        return redirect(url_for('main.jobseeker_resume'))  # 🔹 إعادة التوجيه إلى صفحة السيرة الذاتية
+        return redirect(url_for('main.jobseeker_resume'))
 
     except Exception as e:
         db.session.rollback()
-        print("❌ خطأ أثناء تحديث الملف الشخصي:", str(e))  # طباعة الخطأ في `Terminal`
+        print("❌ خطأ أثناء تحديث الملف الشخصي:", str(e))
         flash("❌ حدث خطأ أثناء حفظ البيانات، حاول مرة أخرى!", "danger")
         return redirect(url_for('main.jobseeker_profile'))
+
+
 
     
 @main.route('/jobseeker-resume', methods=['GET'])
