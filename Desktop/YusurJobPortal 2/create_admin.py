@@ -4,14 +4,15 @@ from app.models import User
 app = create_app()
 
 with app.app_context():
-    # تحقق مما إذا كان هناك بالفعل حساب أدمن
-    admin_exists = User.query.filter_by(role="Admin").first()
-    
-    if not admin_exists:
-        # إنشاء حساب أدمن جديد
-        admin_user = User(name="admin", email="admin@admin.com", password="admin", role="Admin")
-        db.session.add(admin_user)
-        db.session.commit()
-        print("✅ تم إنشاء حساب الأدمن بنجاح!")
+    user = User.query.first()  # نحاول جلب أي مستخدم
+    if user:
+        print(f"✅ المستخدم موجود بالفعل: {user.name} - {user.email}")
     else:
-        print("⚠️ هناك بالفعل حساب أدمن في النظام.")
+        print("❌ لا يوجد مستخدم، سيتم إنشاء مستخدم جديد...")
+        new_user = User(name="Admin", email="admin@example.com", password="admin123", role="Admin")
+        db.session.add(new_user)
+        db.session.commit()
+        print("🎉 تم إنشاء المستخدم بنجاح!")
+        print("📌 استخدم هذه البيانات لتسجيل الدخول:")
+        print("📧 Email: admin@example.com")
+        print("🔑 Password: admin123")

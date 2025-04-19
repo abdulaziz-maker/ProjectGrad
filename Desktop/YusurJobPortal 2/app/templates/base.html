@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yusur Job Portal</title>
-    
+
     <!-- ربط ملف الـ CSS -->
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
-    
+
     <!-- خطوط Google -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- زر فتح القائمة -->
     <div class="menu-button" onclick="openSidebar()">☰</div>
-    
+
     <!-- الحاوية الرئيسية -->
     <div class="container">
         <h1 class="title">Yusur Job Portal</h1>
@@ -57,6 +57,8 @@
                 <li><a href="{{ url_for('main.settings') }}">⚙️ الإعدادات</a></li>
                 <li><a href="#">🔔 الإشعارات</a></li>
                 <li><a href="{{ url_for('main.logout') }}">🚪 تسجيل الخروج</a></li>
+                <li><a href="{{ url_for('main.jobseeker_profile') }}">🎯تعديل معلومات السيرة الذاتية</a></li>
+
             {% else %}
                 <li><a href="{{ url_for('main.login') }}">🔑 تسجيل الدخول</a></li>
                 <li><a href="{{ url_for('main.register') }}">📝 إنشاء حساب</a></li>
@@ -104,5 +106,49 @@
             document.getElementById("sidebar").classList.remove("active");
         }
     </script>
+    <script>
+        // ✅ التحقق من دعم المتصفح للإشعارات
+        if ("Notification" in window) {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    console.log("✅ تم السماح بالإشعارات");
+                } else {
+                    console.log("❌ تم رفض الإشعارات");
+                }
+            });
+        }
+    
+        // ✅ وظيفة لإظهار إشعار
+        function showNotification(title, message) {
+            if (Notification.permission === "granted") {
+                new Notification(title, {
+                    body: message,
+                    icon: "{{ url_for('static', filename='notification_icon.png') }}" // يمكنك تغيير الأيقونة
+                });
+            }
+        }
+    
+        // ✅ البحث عن الإشعارات الفلاشية وإظهارها كإشعارات متصفح
+        document.addEventListener("DOMContentLoaded", function() {
+            let flashMessages = document.querySelectorAll(".alert");
+            flashMessages.forEach(msg => {
+                let messageText = msg.innerText.trim();
+                if (messageText !== "") {
+                    showNotification("إشعار من Yusur Job Portal", messageText);
+                }
+            });
+        });
+    </script>
+     <!-- ✅ أضف هذا السطر قبل نهاية </body> -->
+     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+     <script>
+        // إخفاء رسائل الفلاش بعد 4 ثوانٍ
+        setTimeout(function() {
+          var alerts = document.querySelectorAll('.alert');
+          alerts.forEach(function(alert) {
+            alert.style.display = 'none';
+          });
+        }, 4000); // 4 ثواني
+      </script>
 </body>
 </html>

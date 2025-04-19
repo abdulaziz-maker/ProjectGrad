@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="profile-container">
+        <h2 class="text-center">✏️ تعديل الملف الشخصي</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show custom-alert" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('main.update_profile') }}" id="profileForm" class="custom-form">
+            {{ form.hidden_tag() }}
+
+            <!-- 🔹 المعلومات الأساسية -->
+            <h3>📌 المعلومات الأساسية</h3>
+            <div class="form-group">
+                <label>📅 تاريخ الميلاد</label>
+                <input type="date" name="date_of_birth" class="form-control" value="{{ form.date_of_birth.data }}">
+            </div>
+
+            <div class="form-group">
+                <label>👥 الجنس</label>
+                <select name="gender" class="form-control">
+                    <option value="male" {% if form.gender.data == "male" %}selected{% endif %}>ذكر</option>
+                    <option value="female" {% if form.gender.data == "female" %}selected{% endif %}>أنثى</option>
+                </select>
+            </div>
+
+            <!-- 🔹 الخلفية التعليمية -->
+            <hr>
+            <h3>🎓 الخلفية التعليمية</h3>
+            <div class="form-group">
+                <label>📚 أعلى شهادة تعليمية</label>
+                <select name="highest_education" class="form-control">
+                    <option value="high_school" {% if form.highest_education.data == "high_school" %}selected{% endif %}>ثانوي</option>
+                    <option value="bachelor" {% if form.highest_education.data == "bachelor" %}selected{% endif %}>بكالوريوس</option>
+                    <option value="master" {% if form.highest_education.data == "master" %}selected{% endif %}>ماجستير</option>
+                    <option value="phd" {% if form.highest_education.data == "phd" %}selected{% endif %}>دكتوراه</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>🏫 اسم الجامعة</label>
+                <input type="text" name="university_name" class="form-control" value="{{ form.university_name.data or '' }}">
+            </div>
+
+            <div class="form-group">
+                <label>📅 سنة التخرج</label>
+                <select name="graduation_year" class="form-control">
+                    {% for year in range(2000, 2031) %}
+                        <option value="{{ year }}" {% if form.graduation_year.data == year|string %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>📚 التخصص الأكاديمي</label>
+                <input type="text" name="field_of_study" class="form-control" value="{{ form.field_of_study.data or '' }}">
+            </div>
+
+            <!-- 🔹 الخبرة المهنية -->
+            <hr>
+            <h3>💼 الخبرة المهنية</h3>
+            <div class="form-group">
+                <label>📊 عدد سنوات الخبرة</label>
+                <select name="experience_years" class="form-control">
+                    {% for i in ["0", "1-2", "3-5", "6+"] %}
+                        <option value="{{ i }}" {% if form.experience_years.data == i %}selected{% endif %}>{{ i }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>🏢 الوظائف السابقة</label>
+                <textarea name="previous_jobs" class="form-control">{{ form.previous_jobs.data or '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>🏭 المجال الصناعي</label>
+                <select name="industry" class="form-control">
+                    {% set industries = ["IT", "Engineering", "Finance", "Marketing", "Healthcare", "Other"] %}
+                    <option value="">-- اختر مجالاً --</option>
+                    {% for ind in industries %}
+                        <option value="{{ ind }}" {% if form.industry.data == ind %}selected{% endif %}>{{ ind }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>📜 الشهادات المهنية</label>
+                <textarea name="certifications" class="form-control">{{ form.certifications.data or '' }}</textarea>
+            </div>
+
+            <!-- 🔹 المهارات -->
+            <hr>
+            <h3>💡 المهارات</h3>
+
+            <div class="form-group">
+                <label>💼 المهارات</label>
+                <textarea name="skills" class="form-control">{{ form.skills.data or '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>🔧 المهارات التقنية</label>
+                <textarea name="technical_skills" class="form-control">{{ form.technical_skills.data or '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>🗣️ المهارات الشخصية</label>
+                <textarea name="soft_skills" class="form-control">{{ form.soft_skills.data or '' }}</textarea>
+            </div>
+
+            <!-- 🔹 تفضيلات التوظيف -->
+            <hr>
+            <h3>📍 تفضيلات التوظيف</h3>
+
+            <div class="form-group">
+                <label>📍 الموقع المفضل</label>
+                <select name="preferred_location" class="form-control">
+                    {% for loc in ["riyadh", "jeddah", "dammam", "abha", "other"] %}
+                        <option value="{{ loc }}" {% if form.preferred_location.data == loc %}selected{% endif %}>{{ loc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>💰 الراتب المتوقع</label>
+                {% set salary_options = ["3000-5000", "5000-8000", "8000-12000", "12000+"] %}
+                <select name="preferred_salary" class="form-control">
+                    {% for option in salary_options %}
+                        <option value="{{ option }}" {% if form.preferred_salary.data == option %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>🏢 نوع العمل المفضل</label>
+                <select name="job_type" class="form-control">
+                    {% for jt in ["full-time", "part-time", "remote", "freelance"] %}
+                        <option value="{{ jt }}" {% if form.job_type.data == jt %}selected{% endif %}>{{ jt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>🚚 القابلية للانتقال</label>
+                <select name="willing_to_relocate" class="form-control">
+                    <option value="yes" {% if form.willing_to_relocate.data == "yes" %}selected{% endif %}>نعم</option>
+                    <option value="no" {% if form.willing_to_relocate.data == "no" %}selected{% endif %}>لا</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>📅 تاريخ بدء العمل المتوقع</label>
+                <input type="date" name="available_start_date" class="form-control" value="{{ form.available_start_date.data }}">
+            </div>
+
+            <!-- 🔹 اللغات -->
+            <hr>
+            <h3>🌍 اللغات</h3>
+            <div class="form-group">
+                <label>🗣️ عدد اللغات</label>
+                <select name="languages" class="form-control">
+                    {% for count in ["1", "2", "3", "4+"] %}
+                        <option value="{{ count }}" {% if form.languages.data == count %}selected{% endif %}>{{ count }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>🎯 مستوى اللغة</label>
+                <select name="language_proficiency" class="form-control">
+                    {% for lvl in ["beginner", "intermediate", "advanced"] %}
+                        <option value="{{ lvl }}" {% if form.language_proficiency.data == lvl %}selected{% endif %}>{{ lvl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <hr>
+            <button type="submit" class="btn btn-success btn-block custom-btn">💾 حفظ التغييرات</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

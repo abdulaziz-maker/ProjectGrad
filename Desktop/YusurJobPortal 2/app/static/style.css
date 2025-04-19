@@ -1,6 +1,6 @@
 /* إعدادات الخلفية */
 body {
-    background: linear-gradient(135deg, #2E8B57, #4682B4); /* اللون الثابت */
+    background: linear-gradient(135deg, #318c5a, #4682B4); /* اللون الثابت */
     margin: 0;
     font-family: 'Tajawal', sans-serif;
     display: flex;
@@ -15,7 +15,7 @@ body {
 /* تصميم الحاوية الرئيسية */
 .container {
     text-align: center;
-    color: #000000;
+    color: #010101;
     max-width: 90%;
 }
 
