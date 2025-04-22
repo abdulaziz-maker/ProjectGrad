@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">{{ job.title }}</h2>
+    <p><strong>📍 الشركة:</strong> {{ job.company }}</p>
+    <p><strong>📅 تاريخ النشر:</strong> {{ job.posted_date }}</p>
+    <p><strong>🏭 المجال:</strong> {{ job.industry }}</p>
+    <p><strong>💼 نوع الوظيفة:</strong> {{ job.job_type }}</p>
+    <p><strong>🛠️ المهارات المطلوبة:</strong> {{ job.skills_required }}</p>
+    <p><strong>🎯 المؤهلات:</strong> {{ job.qualifications }}</p>
+    <p><strong>📈 سنوات الخبرة المطلوبة:</strong> {{ job.experience_required }}</p>
+    <p><strong>💰 الراتب:</strong> {{ job.salary }}</p>
+    <p><strong>📍 الموقع:</strong> {{ job.location }}</p>
+</div>
+{% endblock %}

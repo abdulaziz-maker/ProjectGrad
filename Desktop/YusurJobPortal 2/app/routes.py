@@ -451,3 +451,27 @@ def update_personal_profile():
 @login_required
 def user_profile():
     return render_template('user_profile.html', user=current_user)
+
+# 📌 راوت ترشيح وظائف للباحث:
+# داخل routes.py
+from app.utils.recommender import Recommender
+@main.route('/recommended-jobs')
+@login_required
+def recommended_jobs():
+    recommended = Recommender.recommend_jobs_for_user(current_user, limit=10)
+    return render_template('recommended_jobs.html', recommended_jobs=recommended)
+
+# 📌 راوت ترشيح باحثين لوظيفة:
+@main.route("/job/<int:job_id>/recommended")
+@login_required
+def recommend_users(job_id):
+    from app.utils.recommender import Recommender
+    job = Job.query.get_or_404(job_id)
+    users = Recommender.recommend_users_for_job(job)
+    return render_template("recommended_users.html", users=users)
+
+@main.route('/job/<int:job_id>')
+@login_required
+def job_detail(job_id):
+    job = Job.query.get_or_404(job_id)
+    return render_template('job_detail.html', job=job)

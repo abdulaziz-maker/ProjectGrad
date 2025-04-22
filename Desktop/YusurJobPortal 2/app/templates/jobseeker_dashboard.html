@@ -3,10 +3,11 @@
 {% block content %}
 <div class="container mt-5">
     <h2 class="text-center text-primary">🎓 لوحة تحكم الباحث عن عمل</h2>
-    <p class="text-center lead">مرحبًا {{ user.name }}! يمكنك تصفح الوظائف والتقديم عليها بسهولة.</p>
+    <p class="text-center lead">مرحبًا {{ user.username }}! يمكنك تصفح الوظائف والتقديم عليها بسهولة.</p>
 
     <div class="row justify-content-center mt-4">
-        <div class="col-md-6">
+        <!-- رفع الشهادات -->
+        <div class="col-md-4">
             <div class="card shadow-sm border-0">
                 <div class="card-body text-center">
                     <h5 class="card-title">📜 شهاداتك</h5>
@@ -16,12 +17,24 @@
             </div>
         </div>
 
-        <div class="col-md-6">
+        <!-- الوظائف المتاحة -->
+        <div class="col-md-4">
             <div class="card shadow-sm border-0">
                 <div class="card-body text-center">
                     <h5 class="card-title">💼 الوظائف المتاحة</h5>
                     <p class="card-text">تصفح أحدث الوظائف المتاحة وتقدم إليها بسهولة.</p>
                     <a href="{{ url_for('main.home') }}" class="btn btn-success">🔍 تصفح الوظائف</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- الوظائف الموصى بها -->
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body text-center">
+                    <h5 class="card-title">✨ الوظائف الموصى بها</h5>
+                    <p class="card-text">نقترح عليك هذه الوظائف بناءً على ملفك الشخصي.</p>
+                    <a href="{{ url_for('main.recommended_jobs') }}" class="btn btn-warning">⭐ عرض الوظائف الموصى بها</a>
                 </div>
             </div>
         </div>

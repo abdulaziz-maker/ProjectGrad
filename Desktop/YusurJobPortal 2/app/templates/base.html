@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yusur Job Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='employer_dashboard.css') }}">
 
     <!-- ربط ملف الـ CSS -->
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
@@ -57,11 +58,15 @@
                 <li><a href="{{ url_for('main.settings') }}">⚙️ الإعدادات</a></li>
                 <li><a href="#">🔔 الإشعارات</a></li>
                 <li><a href="{{ url_for('main.logout') }}">🚪 تسجيل الخروج</a></li>
-                <li><a href="{{ url_for('main.jobseeker_profile') }}">🎯تعديل معلومات السيرة الذاتية</a></li>
-
-            {% else %}
-                <li><a href="{{ url_for('main.login') }}">🔑 تسجيل الدخول</a></li>
-                <li><a href="{{ url_for('main.register') }}">📝 إنشاء حساب</a></li>
+        
+                {% if current_user.is_job_seeker() %}
+                    <li><a href="{{ url_for('main.jobseeker_profile') }}">🎯 تعديل معلومات السيرة الذاتية</a></li>
+                    <li><a href="{{ url_for('main.recommended_jobs') }}">💡 الوظائف الموصى بها</a></li>
+                {% endif %}
+        
+                {% if current_user.is_employer() %}
+                    <li><a href="{{ url_for('main.employer_dashboard') }}">📋 لوحة التحكم</a></li>
+                {% endif %}
             {% endif %}
         </ul>
     </div>

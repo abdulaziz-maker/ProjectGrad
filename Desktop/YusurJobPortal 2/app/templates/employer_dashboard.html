@@ -1,40 +1,38 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="text-center text-success">🏢 لوحة تحكم صاحب العمل</h2>
-    <p class="text-center lead">مرحبًا {{ user.name }}! يمكنك إدارة الوظائف الخاصة بك.</p>
+<div class="employer-dashboard-box container mt-5">
+    <h2>🏢 لوحة تحكم صاحب العمل</h2>
+    <p class="text-center">مرحبًا {{ user.name }}! يمكنك إدارة الوظائف الخاصة بك.</p>
 
     <!-- زر إضافة وظيفة جديدة -->
     <div class="text-center my-3">
-        <a href="{{ url_for('main.add_job') }}" class="btn btn-success">➕ إضافةوظيفة جديدة</a>
+        <a href="{{ url_for('main.add_job') }}" class="btn btn-warning">➕ إضافة وظيفة جديدة</a>
     </div>
 
-    <h3 class="mt-4">📋 الوظائف التي أضفتها</h3>
+    <h3>📋 الوظائف التي أضفتها</h3>
 
     {% if jobs %}
         <div class="row">
             {% for job in jobs %}
                 <div class="col-md-6">
-                    <div class="card my-3 shadow-sm border rounded">
-                        <div class="card-body">
-                            <h5 class="card-title text-primary">📌 {{ job.title }}</h5>
-                            <p class="card-text">{{ job.description }}</p>
-                            <p class="card-text"><strong>🏢 الشركة:</strong> {{ job.company }}</p>
-                            <p class="card-text"><strong>📅 تاريخ النشر:</strong> {{ job.posted_date.strftime('%Y-%m-%d') }}</p>
+                    <div class="job-listing">
+                        <h5>📌 {{ job.title }}</h5>
+                        <p>{{ job.description }}</p>
+                        <p><strong>🏢 الشركة:</strong> {{ job.company }}</p>
+                        <p><strong>📅 تاريخ النشر:</strong> {{ job.posted_date.strftime('%Y-%m-%d') }}</p>
 
-                            <!-- أزرار تعديل وحذف الوظيفة -->
-                            <div class="d-flex justify-content-between">
-                                <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn btn-warning">✏️ تعديل</a>
-                                <a href="{{ url_for('main.delete_job', job_id=job.id) }}" class="btn btn-danger" onclick="return confirm('⚠️ هل أنت متأكد أنك تريد حذف هذه الوظيفة؟');">🗑️ حذف</a>
-                            </div>
+                        <div class="action-buttons">
+                            <a href="{{ url_for('main.edit_job', job_id=job.id) }}">✏️ تعديل</a>
+                            <a href="{{ url_for('main.delete_job', job_id=job.id) }}" onclick="return confirm('⚠️ هل أنت متأكد أنك تريد حذف هذه الوظيفة؟');">🗑️ حذف</a>
+                            <a href="{{ url_for('main.recommend_users', job_id=job.id) }}">👥 عرض المرشحين</a>
                         </div>
                     </div>
                 </div>
             {% endfor %}
         </div>
     {% else %}
-        <div class="alert alert-info text-center mt-3" role="alert">
+        <div class="alert alert-info mt-4">
             ❌ لا توجد وظائف مضافة حتى الآن.
         </div>
     {% endif %}

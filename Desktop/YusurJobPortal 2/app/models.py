@@ -9,6 +9,8 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="JobSeeker")
+    company_name = db.Column(db.String(100), nullable=True)  # ✅ أضف هذا السطر
+
 
     notifications_enabled = db.Column(db.Boolean, default=True)
     theme = db.Column(db.String(10), default="light")

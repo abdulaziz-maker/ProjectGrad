@@ -1,0 +1,85 @@
+/* خلفية وأساسيات الصفحة */
+.custom-login-body {
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    font-family: 'Tajawal', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+/* الكرت الخاص بتسجيل الدخول */
+.custom-login-card {
+    background: #1a1a2e;
+    color: #fff;
+    border-radius: 12px;
+    padding: 30px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* عنوان داخل الكرت */
+.custom-login-title {
+    text-align: center;
+    font-size: 1.8rem;
+    margin-bottom: 25px;
+    color: #fff;
+}
+
+.custom-login-field {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.custom-login-input {
+    width: 100%;
+    padding: 12px 12px 12px 45px; /* ← هنا خففنا من الجهة اليسار */
+    border: none;
+    border-radius: 6px;
+    background: #16213e;
+    color: #fff;
+    font-size: 1em;
+    direction: rtl;
+}
+
+.custom-login-icon {
+    position: absolute;
+    top: 50%;
+    right: 15px; /* ← صارت على اليمين بدال اليسار */
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    fill: #aaa;
+}
+
+/* زر تسجيل الدخول */
+.custom-login-btn {
+    width: 100%;
+    padding: 12px;
+    background: #feca57;
+    border: none;
+    color: #000;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.custom-login-btn:hover {
+    background: #ffd369;
+}
+
+/* رابط نسيت كلمة المرور */
+.custom-login-link {
+    display: block;
+    text-align: center;
+    margin-top: 15px;
+    color: #ddd;
+    font-size: 0.9em;
+}
+
+.custom-login-link:hover {
+    color: #feca57;
+}

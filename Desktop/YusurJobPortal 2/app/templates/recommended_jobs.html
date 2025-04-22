@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">🔍 الوظائف الموصى بها لك</h2>
+
+    {% if recommended_jobs %}
+        {% for job in recommended_jobs %}
+            <div class="card my-3 p-3 shadow-sm">
+                <h4>{{ job.title }}</h4>
+                <p><strong>🧭 الموقع:</strong> {{ job.location }}</p>
+                <p><strong>🏭 المجال:</strong> {{ job.industry }}</p>
+                <p><strong>💬 المهارات المطلوبة:</strong> {{ job.skills_required }}</p>
+                <a href="{{ url_for('main.job_detail', job_id=job.id) }}" class="btn btn-primary">عرض التفاصيل</a>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-center text-muted">لا توجد وظائف موصى بها حالياً.</p>
+    {% endif %}
+</div>
+{% endblock %}
