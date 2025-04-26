@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>رفع الشهادة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='upload_certificate.css') }}">
+</head>
+<body class="upload-page">
+
+<div class="upload-box">
+    <h2 class="mb-3">📜 رفع شهادة مهنية</h2>
+    <p class="text-muted">يرجى تحميل شهادة بتنسيق (PDF, JPG, PNG)</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form action="{{ url_for('main.upload_certificate') }}" method="POST" enctype="multipart/form-data">
+        <div class="mb-3">
+            <input type="file" class="form-control" name="certificate" accept=".pdf,.jpg,.png" required>
+        </div>
+        <button type="submit">📤 رفع الشهادة</button>
+    </form>
+
+    <a href="{{ url_for('main.jobseeker_dashboard') }}" class="btn">🔙 العودة إلى لوحة التحكم</a>
+</div>
+
+</body>
+</html>

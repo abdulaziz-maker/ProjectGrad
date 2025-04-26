@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-center mt-4">📌 إضافة وظيفة جديدة</h2>
+    <form method="POST" class="mt-4">
+        {{ form.hidden_tag() }}
+        <p><strong>🏢 اسم الشركة:</strong> {{ current_user.company_name }}</p>
+
+        <!-- اسم الشركة -->
+        <div class="form-group">
+            <label><i class="fa fa-building"></i> اسم الشركة:</label>
+            {% if current_user.company_name %}
+            <p class="form-control-plaintext">{{ current_user.company_name }}</p>
+            {% else %}
+            <p class="text-danger">❌ لم يتم تعيين اسم الشركة</p>
+            {% endif %}
+        </div>
+
+        <!-- عنوان الوظيفة -->
+        <div class="form-group">
+            <label>{{ form.job_title.label }}</label>
+            {{ form.job_title(class="form-control") }}
+        </div>
+
+        <!-- نوع الوظيفة -->
+        <div class="form-group">
+            <label>💼 نوع الوظيفة</label>
+            <select name="job_type" class="form-control">
+                <option value="full_time">دوام كامل</option>
+                <option value="part_time">دوام جزئي</option>
+                <option value="remote">عن بُعد</option>
+                <option value="freelance">عمل حر</option>
+            </select>
+        </div>
+
+        <!-- المجال الصناعي -->
+        <div class="form-group">
+            <label>🏭 المجال الصناعي</label>
+            <select name="industry" class="form-control">
+                <option value="IT">تقنية المعلومات</option>
+                <option value="Engineering">الهندسة</option>
+                <option value="Marketing">التسويق</option>
+                <option value="Education">التعليم</option>
+                <option value="Finance">المالية</option>
+                <option value="Other">أخرى</option>
+            </select>
+        </div>
+
+        <!-- المهارات المطلوبة -->
+        <div class="form-group">
+            <label>{{ form.skills_required.label }}</label>
+            {{ form.skills_required(class="form-control", rows="3") }}
+        </div>
+
+        <!-- المؤهلات -->
+        <div class="form-group">
+            <label>🎓 المؤهلات المطلوبة</label>
+            <select name="qualifications" class="form-control">
+                <option value="High School">ثانوية عامة</option>
+                <option value="Diploma">دبلوم</option>
+                <option value="Bachelor">بكالوريوس</option>
+                <option value="Master">ماجستير</option>
+                <option value="PhD">دكتوراه</option>
+                <option value="Other">أخرى</option>
+            </select>
+        </div>
+
+        <!-- الخبرة المطلوبة -->
+        <div class="form-group">
+            <label>📆 سنوات الخبرة المطلوبة</label>
+            <select name="experience_required" class="form-control">
+                <option value="0">بدون خبرة</option>
+                <option value="1-2">1-2 سنوات</option>
+                <option value="3-5">3-5 سنوات</option>
+                <option value="6+">أكثر من 6 سنوات</option>
+            </select>
+        </div>
+
+        <!-- الراتب -->
+        <div class="form-group">
+            <label>{{ form.salary.label }}</label>
+            {{ form.salary(class="form-control") }}
+        </div>
+
+        <!-- الموقع -->
+        <div class="form-group">
+            <label>📍 موقع الوظيفة</label>
+            <select name="location" class="form-control">
+                <option value="riyadh">الرياض</option>
+                <option value="jeddah">جدة</option>
+                <option value="dammam">الدمام</option>
+                <option value="abha">أبها</option>
+                <option value="other">أخرى</option>
+            </select>
+        </div>
+
+        <!-- وصف الوظيفة -->
+        <div class="form-group">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class="form-control", rows="4") }}
+            {% for error in form.description.errors %}
+                <small class="text-danger">{{ error }}</small>
+            {% endfor %}
+        </div>
+
+        <!-- زر الإرسال -->
+        <button type="submit" class="btn btn-primary btn-block mt-3">
+            💼 {{ form.submit.label }}
+        </button>
+    </form>
+</div>
+{% endblock %}

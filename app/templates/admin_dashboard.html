@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">📊 لوحة تحكم الأدمن</h2>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="alert alert-info">👥 إجمالي المستخدمين: {{ total_users }}</div>
+            <div class="alert alert-success">🔎 الباحثين عن عمل: {{ job_seekers }}</div>
+            <div class="alert alert-warning">🏢 أصحاب العمل: {{ employers }}</div>
+        </div>
+        <div class="col-md-6">
+            <div class="alert alert-primary">💼 إجمالي الوظائف: {{ total_jobs }}</div>
+            <div class="alert alert-secondary">📄 إجمالي التقديمات: {{ total_applications }}</div>
+            <div class="alert alert-success">✅ التقديمات المقبولة: {{ accepted_apps }} ({{ acceptance_rate }}%)</div>
+            <div class="alert alert-danger">❌ التقديمات المرفوضة: {{ rejected_apps }} ({{ rejection_rate }}%)</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

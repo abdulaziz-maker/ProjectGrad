@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yusur Job Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='employer_dashboard.css') }}">
+
+    <!-- ربط ملف الـ CSS -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- خطوط Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- زر فتح القائمة -->
+    <div class="menu-button" onclick="openSidebar()">☰</div>
+
+    <!-- الحاوية الرئيسية -->
+    <div class="container">
+        <h1 class="title">Yusur Job Portal</h1>
+
+        <div class="dashboard">
+            <h2>👤 مرحبًا {{ current_user.username if current_user.is_authenticated else 'زائر' }}</h2>
+            <div class="buttons">
+                <a href="{{ url_for('main.home') }}" class="btn">🏠 الصفحة الرئيسية</a>
+
+                {% if current_user.is_authenticated %}
+                    {% if current_user.role == 'Admin' %}
+                        <a href="{{ url_for('main.admin_dashboard') }}" class="btn">📊 لوحة تحكم الأدمن</a>
+                        <a href="{{ url_for('main.add_job') }}" class="btn">➕ إضافة وظيفة</a>
+                    {% elif current_user.role == 'JobSeeker' %}
+                        <a href="{{ url_for('main.jobseeker_dashboard') }}" class="btn">🎓 لوحة المستخدم</a>
+                        <a href="{{ url_for('main.upload_certificate') }}" class="btn">📜 إضافة شهادة</a>
+                    {% endif %}
+                    <a href="{{ url_for('main.logout') }}" class="btn btn-danger">🚪 تسجيل الخروج</a>
+                {% else %}
+                    <a href="{{ url_for('main.login') }}" class="btn">🔑 تسجيل الدخول</a>
+                    <a href="{{ url_for('main.register') }}" class="btn btn-secondary">📝 تسجيل حساب جديد</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- القائمة الجانبية -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <span class="close-button" onclick="closeSidebar()">×</span>
+            <h3>القائمة</h3>
+        </div>
+        <ul class="sidebar-menu">
+            {% if current_user.is_authenticated %}
+                <li><a href="{{ url_for('main.profile') }}">👤 تعديل الملف الشخصي</a></li>
+                <li><a href="{{ url_for('main.settings') }}">⚙️ الإعدادات</a></li>
+                <li><a href="#">🔔 الإشعارات</a></li>
+                <li><a href="{{ url_for('main.logout') }}">🚪 تسجيل الخروج</a></li>
+        
+                {% if current_user.is_job_seeker() %}
+                    <li><a href="{{ url_for('main.jobseeker_profile') }}">🎯 تعديل معلومات السيرة الذاتية</a></li>
+                    <li><a href="{{ url_for('main.recommended_jobs') }}">💡 الوظائف الموصى بها</a></li>
+                {% endif %}
+        
+                {% if current_user.is_employer() %}
+                    <li><a href="{{ url_for('main.employer_dashboard') }}">📋 لوحة التحكم</a></li>
+                {% endif %}
+            {% endif %}
+        </ul>
+    </div>
+
+    <!-- إعدادات المظهر -->
+    <div class="theme-toggle-container">
+        <label for="theme-toggle">🎨 وضع المظهر</label>
+        <select id="theme-toggle" name="theme" class="form-control">
+            <option value="light">🌞 الوضع الفاتح</option>
+            <option value="dark">🌙 الوضع الداكن</option>
+        </select>
+    </div>
+
+    <!-- JavaScript لتحكم بالقائمة الجانبية و المظهر -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const themeToggle = document.getElementById("theme-toggle");
+
+            // تحقق إذا كان الوضع الداكن مفعل مسبقًا
+            if (localStorage.getItem("theme") === "dark") {
+                document.body.classList.add("dark-mode");
+                themeToggle.value = "dark";
+            }
+
+            // عند تغيير المستخدم لوضع المظهر
+            themeToggle.addEventListener("change", function() {
+                if (this.value === "dark") {
+                    document.body.classList.add("dark-mode");
+                    localStorage.setItem("theme", "dark");
+                } else {
+                    document.body.classList.remove("dark-mode");
+                    localStorage.setItem("theme", "light");
+                }
+            });
+        });
+
+        function openSidebar() {
+            document.getElementById("sidebar").classList.add("active");
+        }
+
+        function closeSidebar() {
+            document.getElementById("sidebar").classList.remove("active");
+        }
+    </script>
+    <script>
+        // ✅ التحقق من دعم المتصفح للإشعارات
+        if ("Notification" in window) {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    console.log("✅ تم السماح بالإشعارات");
+                } else {
+                    console.log("❌ تم رفض الإشعارات");
+                }
+            });
+        }
+    
+        // ✅ وظيفة لإظهار إشعار
+        function showNotification(title, message) {
+            if (Notification.permission === "granted") {
+                new Notification(title, {
+                    body: message,
+                    icon: "{{ url_for('static', filename='notification_icon.png') }}" // يمكنك تغيير الأيقونة
+                });
+            }
+        }
+    
+        // ✅ البحث عن الإشعارات الفلاشية وإظهارها كإشعارات متصفح
+        document.addEventListener("DOMContentLoaded", function() {
+            let flashMessages = document.querySelectorAll(".alert");
+            flashMessages.forEach(msg => {
+                let messageText = msg.innerText.trim();
+                if (messageText !== "") {
+                    showNotification("إشعار من Yusur Job Portal", messageText);
+                }
+            });
+        });
+    </script>
+     <!-- ✅ أضف هذا السطر قبل نهاية </body> -->
+     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+     <script>
+        // إخفاء رسائل الفلاش بعد 4 ثوانٍ
+        setTimeout(function() {
+          var alerts = document.querySelectorAll('.alert');
+          alerts.forEach(function(alert) {
+            alert.style.display = 'none';
+          });
+        }, 4000); // 4 ثواني
+      </script>
+</body>
+</html>

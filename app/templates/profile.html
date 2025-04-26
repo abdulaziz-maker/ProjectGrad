@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">👤 تعديل الملف الشخصي</h2>
+
+    <form method="POST" action="{{ url_for('main.update_personal_profile') }}" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+
+        <!-- ✅ صورة المستخدم -->
+        <div class="form-group text-center">
+            <label>👤 الصورة الشخصية</label>
+            {% if user.profile_picture %}
+                <img src="{{ url_for('static', filename='profile_pics/' + user.profile_picture) }}" 
+                     class="rounded-circle img-thumbnail" width="150" alt="الصورة الشخصية">
+            {% else %}
+                <img src="{{ url_for('static', filename='profile_pics/default.jpg') }}" 
+                     class="rounded-circle img-thumbnail" width="150" alt="الصورة الافتراضية">
+            {% endif %}
+            <input type="file" name="profile_picture" class="form-control mt-2">
+        </div>
+
+        <hr>
+
+        <!-- 📛 الاسم الكامل -->
+        <div class="form-group">
+            <label>📛 الاسم الكامل</label>
+            <input type="text" name="name" class="form-control" value="{{ user.name }}">
+        </div>
+
+        <!-- 📝 نبذة تعريفية -->
+        <div class="form-group">
+            <label>📝 نبذة عنك</label>
+            <textarea name="bio" class="form-control" rows="3">{{ user.bio }}</textarea>
+        </div>
+
+        <!-- 📞 رقم الهاتف -->
+        <div class="form-group">
+            <label>📞 رقم الهاتف</label>
+            <input type="text" name="phone" class="form-control" value="{{ user.phone }}">
+        </div>
+        <div class="form-group">
+            <label for="email">📧 البريد الإلكتروني</label>
+            {{ form.email(class="form-control", required=True) }}
+        </div>
+
+        <!-- 📍 العنوان -->
+        <div class="form-group">
+            <label>📍 العنوان</label>
+            <input type="text" name="address" class="form-control" value="{{ user.address }}">
+        </div>
+
+        <!-- 🎭 نمط الشخصية -->
+        <div class="form-group">
+            <label>🎭 نمط الشخصية</label>
+            <select name="personality_type" class="form-control">
+                <option value="analytical" {% if user.personality_type == "analytical" %}selected{% endif %}>تحليلي</option>
+                <option value="creative" {% if user.personality_type == "creative" %}selected{% endif %}>إبداعي</option>
+                <option value="leader" {% if user.personality_type == "leader" %}selected{% endif %}>قيادي</option>
+                <option value="team_player" {% if user.personality_type == "team_player" %}selected{% endif %}>يحب العمل الجماعي</option>
+            </select>
+        </div>
+
+        <!-- 🔗 حسابات التواصل الاجتماعي -->
+        <h4 class="mt-4">🔗 حسابات التواصل الاجتماعي</h4>
+        <div class="form-group">
+            <label>💼 LinkedIn</label>
+            <input type="text" name="linkedin" class="form-control" value="{{ user.linkedin }}">
+        </div>
+
+        <div class="form-group">
+            <label>🐦 Twitter</label>
+            <input type="text" name="twitter" class="form-control" value="{{ user.twitter }}">
+        </div>
+
+        <div class="form-group">
+            <label>🐙 GitHub</label>
+            <input type="text" name="github" class="form-control" value="{{ user.github }}">
+        </div>
+
+        <!-- 🎯 القيم الشخصية -->
+        <div class="form-group">
+            <label>🎯 أهم 3 قيم شخصية</label>
+            <input type="text" name="values" class="form-control" value="{{ user.values }}">
+        </div>
+
+        <!-- 🏆 أكبر إنجاز شخصي -->
+        <div class="form-group">
+            <label>🏆 أكبر إنجاز شخصي تفخر به</label>
+            <textarea name="achievement" class="form-control" rows="3">{{ user.achievement }}</textarea>
+        </div>
+
+        <hr>
+
+        <button type="submit" class="btn btn-success btn-block">💾 حفظ التغييرات</button>
+    </form>
+</div>
+{% endblock %}

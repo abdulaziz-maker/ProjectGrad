@@ -1,0 +1,74 @@
+.employer-dashboard-box {
+    background: linear-gradient(135deg, #1e3c72, #2a5298); /* خلفية مشابهة لتسجيل الدخول */
+    padding: 40px 20px;
+    border-radius: 12px;
+    color: white;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    
+    font-family: 'Tajawal', sans-serif;
+    
+    
+    align-items: center;
+    height: 60vh;
+    margin: 20px;
+}
+
+
+.employer-dashboard-box h2,
+.employer-dashboard-box h3 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #ffffff;
+}
+
+.job-listing {
+    background-color: #1e293b; /* نفس كرت تسجيل الدخول */
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+    color: white;
+}
+
+.job-listing h5 {
+    color: #facc15; /* لون مميز للعنوان */
+    font-size: 1.3em;
+    margin-bottom: 10px;
+}
+
+.job-listing p {
+    margin: 5px 0;
+    color: #e2e8f0;
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-top: 15px;
+}
+
+.action-buttons a {
+    flex: 1 1 auto;
+    margin: 5px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background-color: #3b82f6;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    transition: background 0.3s;
+}
+
+.action-buttons a:hover {
+    background-color: #2563eb;
+}
+
+.alert-info {
+    background-color: #fef3c7;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+    color: #92400e;
+    font-weight: bold;
+}
