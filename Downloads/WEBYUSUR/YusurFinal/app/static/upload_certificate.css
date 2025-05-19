@@ -1,0 +1,58 @@
+.upload-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1e3c72, #2a5298); /* نفس خلفية صفحة تسجيل الدخول */
+    padding: 20px;
+}
+
+.upload-box {
+    background-color: #0f172a;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 100%;
+    color: white;
+    text-align: center;
+}
+
+.upload-box h2 {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.upload-box p {
+    color: #cbd5e1;
+    margin-bottom: 20px;
+}
+
+.upload-box input[type="file"] {
+    margin-bottom: 20px;
+}
+
+.upload-box button,
+.upload-box a.btn {
+    display: block;
+    width: 100%;
+    margin-top: 15px;
+    padding: 12px;
+    font-weight: bold;
+    border-radius: 6px;
+    border: none;
+    text-decoration: none;
+    color: #000;
+    background-color: #facc15;
+    transition: background-color 0.3s;
+}
+
+.upload-box a.btn {
+    background-color: #424242;
+    color: #fff;
+    margin-bottom: 20px; /* يفصل بين الزرين */
+}
+
+.upload-box a.btn:hover {
+    background-color: #333;
+}

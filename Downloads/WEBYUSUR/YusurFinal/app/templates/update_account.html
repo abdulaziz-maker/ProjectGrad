@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center">🔄 تحديث الحساب</h2>
+    <form method="POST" action="{{ url_for('main.update_account') }}">
+    
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+            <label for="name" class="form-label">الاسم</label>
+            {{ form.name(class="form-control") }}
+        </div>
+
+        <div class="mb-3">
+            <label for="email" class="form-label">البريد الإلكتروني</label>
+            {{ form.email(class="form-control") }}
+        </div>
+
+        {% if user.role != "Admin" %}
+        <div class="mb-3">
+            <label for="phone" class="form-label">رقم الهاتف</label>
+            {{ form.phone(class="form-control") }}
+        </div>
+        {% endif %}
+
+        {% if user.role == "Employer" %}
+        <div class="mb-3">
+            <label for="address" class="form-label">العنوان</label>
+            {{ form.address(class="form-control") }}
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary">{{ form.submit.label }}</button>
+    </form>
+</div>
+{% endblock %}

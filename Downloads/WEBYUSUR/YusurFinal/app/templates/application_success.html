@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5 text-center">
+    <h2>{{ message }}</h2>
+
+    <div class="mt-4">
+        <a href="{{ url_for('main.jobseeker_home') }}" class="btn btn-primary mx-2">🔙 العودة للوظائف</a>
+        <a href="{{ url_for('main.recommended_jobs') }}" class="btn btn-info mx-2">👁️ الوظائف الموصى بها</a>
+        <a href="{{ url_for('main.my_applications') }}" class="btn btn-success mx-2">📝 متابعة طلباتي</a>
+    </div>
+</div>
+{% endblock %}

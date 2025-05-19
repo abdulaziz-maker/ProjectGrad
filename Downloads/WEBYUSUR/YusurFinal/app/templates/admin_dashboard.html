@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="text-center mx-auto">📊 لوحة تحكم الأدمن</h2>
+    </div>
+
+    <!-- ✅ الإحصائيات -->
+    <div id="stats">
+        <p>⏳ تحميل الإحصائيات...</p>
+    </div>
+
+    <style>
+        canvas {
+            width: 280px !important;
+            height: 280px !important;
+            margin: auto;
+        }
+    </style>
+
+    <div class="row mt-5">
+        <div class="col-md-6 text-center">
+            <h5>👥 توزيع المستخدمين</h5>
+            <canvas id="usersChart"></canvas>
+        </div>
+        <div class="col-md-6 text-center">
+            <h5>📄 حالة التقديمات</h5>
+            <canvas id="applicationsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ JavaScript للتحديث التلقائي والرسوم -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    function renderCharts(userStats, appStats){
+        // 🔥 مستخدمين
+        new Chart(document.getElementById('usersChart'), {
+            type: 'pie',
+            data: {
+                labels: ['باحثين عن عمل', 'أصحاب عمل'],
+                datasets: [{
+                    data: [userStats.job_seekers, userStats.employers],
+                    backgroundColor: ['#36A2EB', '#FFCE56']
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#FFFFFF',  // ✅ لون النص أبيض
+                            font: {
+                                size: 14
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 🔥 تقديمات
+        new Chart(document.getElementById('applicationsChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['مقبولة', 'مرفوضة', 'قيد المراجعة'],
+                datasets: [{
+                    data: [appStats.accepted, appStats.rejected, appStats.pending],
+                    backgroundColor: ['#4BC0C0', '#FF6384', '#FF9F40']
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#FFFFFF',  // ✅ لون النص أبيض
+                            font: {
+                                size: 14
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ✅ تحديث الإحصائيات والرسوم
+    function loadStats(){
+        fetch('/admin-stats-json')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('stats').innerHTML = data.html;
+            renderCharts(data.userStats, data.appStats);
+        });
+    }
+
+    loadStats();
+    setInterval(loadStats, 5000);
+</script>
+{% endblock %}

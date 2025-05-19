@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<table class="table table-bordered mt-4">
+    <thead>
+        <tr>
+            <th>👤 الاسم</th>
+            <th>📧 البريد الإلكتروني</th>
+            <th>🏷️ نوع الحساب</th>
+            <th>🛠️ التحكم</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.username }}</td>
+            <td>{{ user.email }}</td>
+            <td>{{ user.role }}</td>
+            <td>
+                {% if user.role != 'Admin' %}
+                <form method="POST" action="{{ url_for('main.delete_user', user_id=user.id) }}" onsubmit="return confirm('❌ هل أنت متأكد من حذف المستخدم؟');">
+                    <button type="submit" class="btn btn-danger btn-sm">🗑️ حذف</button>
+                </form>
+                {% else %}
+                🔒 لا يمكن حذف الأدمن
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

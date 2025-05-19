@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Yusur Job Portal{% endblock %}</title>
+
+    <!-- Bootstrap ✅ -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- خطوط أنيقة -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- ملف التنسيق الرئيسي -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <style>
+        html {
+            scroll-behavior: smooth; /* سمووث بكل الموقع */
+        }
+    </style>
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+    
+        .yusur-form-container {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 18px;
+            max-width: 900px;
+            margin: 60px auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e5e7eb;
+            font-size: 17px;
+            transition: transform 0.3s ease;
+        }
+    
+        .yusur-form-container:hover {
+            transform: translateY(-3px);
+        }
+    
+        .yusur-form-container input,
+        .yusur-form-container textarea,
+        .yusur-form-container select {
+            padding: 14px 18px;
+            border-radius: 12px;
+            border: 1px solid #d1d5db;
+            background-color: #f9fafb;
+            width: 100%;
+            margin-bottom: 20px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            font-size: 15px;
+        }
+    
+        .yusur-form-container input:focus,
+        .yusur-form-container textarea:focus,
+        .yusur-form-container select:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            outline: none;
+        }
+    
+        .yusur-form-container button {
+            background-color: #6366f1;
+            color: white;
+            padding: 14px;
+            border-radius: 10px;
+            border: none;
+            font-size: 16px;
+            width: 100%;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+    
+        .yusur-form-container button:hover {
+            background-color: #4f46e5;
+            transform: scale(1.02);
+        }
+    
+        .yusur-form-container h2 {
+            text-align: center;
+            font-weight: bold;
+            font-size: 26px;
+            color: #333;
+            margin-bottom: 30px;
+        }
+    
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .yusur-form-container {
+                padding: 25px;
+                margin: 20px;
+            }
+    
+            .yusur-form-container h2 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- الهيدر -->
+    <header class="main-header">
+        <div class="container fade-section">
+            <div class="header-content">
+                <h1 class="logo">Yusur</h1>
+                <nav class="nav">
+                    <a href="{{ url_for('main.landing') }}">🏠 الرئيسية</a>
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.is_job_seeker() %}
+                        {% elif current_user.is_employer() %}
+                            
+                        {% endif %}
+                        <a href="{{ url_for('main.profile') }}">👤 ملفي</a>
+                        <a href="{{ url_for('main.logout') }}">🚪 تسجيل الخروج</a>
+                    {% else %}
+                        <a href="{{ url_for('main.login') }}">🔑 تسجيل الدخول</a>
+                        <a href="{{ url_for('main.register') }}">📝 إنشاء حساب</a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- محتوى الصفحات -->
+    <main class="main-content">
+        <div class="container fade-section">
+
+             <!-- ✅ عرض الرسائل -->
+             {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show mt-4" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- الفوتر -->
+    <footer class="main-footer">
+        <div class="container">
+            <p>جميع الحقوق محفوظة © منصة Yusur 2025</p>
+        </div>
+    </footer>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // ✨ تحريك الصفحة الرئيسية (إن وُجد عنصر fade-in-page)
+            const page = document.querySelector('.fade-in-page');
+            if (page) {
+                setTimeout(() => {
+                    page.classList.add('visible');
+                }, 100);
+            }
+        
+            // ✅ تحريك الأقسام عند ظهورها في الشاشة
+            const sections = document.querySelectorAll('.fade-section');
+            if (sections.length > 0) {
+                const observer = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.05 });
+        
+                sections.forEach(section => observer.observe(section));
+            }
+        
+            // ✅ إظهار الفوتر عند الوصول أسفل الصفحة
+            const footer = document.querySelector('.main-footer');
+            if (footer) {
+                window.addEventListener('scroll', () => {
+                    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 10) {
+                        footer.classList.add('visible');
+                    } else {
+                        footer.classList.remove('visible');
+                    }
+                });
+            }
+        });
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+
+</body>
+</html>

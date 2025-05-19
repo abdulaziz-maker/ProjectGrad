@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">👥 المتقدمين على: {{ job.title }}</h2>
+
+    {% if applicants %}
+        <table class="table mt-4">
+            <thead>
+                <tr>
+                    <th>👤 الاسم</th>
+                    <th>📧 البريد الإلكتروني</th>
+                    <th>📅 تاريخ التقديم</th>
+                    <th>📊 نسبة التطابق</th>
+                    <th>⚙️ الحالة</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in applicants %}
+                <tr>
+                    <td>{{ app.user.username }}</td>
+                    <td>{{ app.user.email }}</td>
+                    <td>{{ app.applied_date.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        {% if app.match_percent is not none %}
+                            {{ app.match_percent }}%
+                        {% else %}
+                            غير متوفر
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if app.status == 'مقبول' %}
+                            <span class="text-success">✅ مقبول</span>
+                        {% elif app.status == 'مرفوض' %}
+                            <span class="text-danger">❌ مرفوض</span>
+                        {% else %}
+                            <span class="text-warning">⏳ قيد المراجعة</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('main.view_applicant_detail', app_id=app.id) }}" class="btn btn-info btn-sm">👁️ عرض التفاصيل</a>
+
+                    </td>
+                    
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-center text-muted mt-4">❌ لا يوجد متقدمين لهذه الوظيفة حتى الآن.</p>
+    {% endif %}
+</div>
+{% endblock %}

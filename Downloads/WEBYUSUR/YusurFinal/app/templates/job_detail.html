@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="job-detail-container fade-section">
+    <h2 class="job-title">📄 {{ job.title }}</h2>
+
+    <div class="job-info-box shadow p-4 rounded bg-white mt-4">
+        <p><strong>🏢 اسم الشركة:</strong> {{ job.employer.username or 'غير محددة' }}</p>
+        <p><strong>📅 تاريخ النشر:</strong> {{ job.posted_date.strftime('%Y-%m-%d') }}</p>
+        <p><strong>🏭 المجال:</strong> {{ job.industry or 'غير محدد' }}</p>
+        <p><strong>💼 نوع الوظيفة:</strong> {{ job.job_type or 'غير محدد' }}</p>
+        <p><strong>🛠️ المهارات المطلوبة:</strong> {{ job.skills_required or 'غير محددة' }}</p>
+        <p><strong>🎓 المؤهلات:</strong> {{ job.qualifications or 'غير محددة' }}</p>
+        <p><strong>⏱️ سنوات الخبرة المطلوبة:</strong> {{ job.experience_required or 'غير محددة' }}</p>
+        <p><strong>💰 الراتب:</strong> {{ job.salary or 'غير محدد' }}</p>
+        <p><strong>📍 الموقع:</strong> {{ job.location or 'غير محدد' }}</p>
+    </div>
+
+    <div class="button-group mt-4">
+        <form action="{{ url_for('main.apply_job', job_id=job.id) }}" method="post" style="display:inline;">
+            <button type="submit" class="btn btn-primary">📩 التقديم على الوظيفة</button>
+        </form>
+        <a href="{{ url_for('main.jobseeker_home') }}" class="btn btn-secondary ms-2">↩️ العودة</a>
+    </div>
+</div>
+{% endblock %}

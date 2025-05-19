@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>منصة Yusur</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .landing-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 50px 20px;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            color: #6b7280;
+            margin-bottom: 15px;
+        }
+        .main-title {
+            font-size: 3rem;
+            font-weight: bold;
+            background: linear-gradient(to right, #6366f1, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+            padding:20px
+        }
+        p.description {
+            font-size: 1.2rem;
+            color: #555;
+            margin-bottom: 30px;
+        }
+        .landing-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .btn {
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            color: white;
+            transition: background 0.3s ease;
+            min-width: 150px;
+        }
+        .btn-login {
+            background-color: #3b82f6;
+        }
+        .btn-login:hover {
+            background-color: #2563eb;
+        }
+        .btn-register {
+            background-color: #9333ea;
+        }
+        .btn-register:hover {
+            background-color: #7e22ce;
+        }
+        .btn-contact {
+            margin-top: 35px;
+            padding: 10px 20px;
+            background-color: #0ea5e9;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 1rem;
+        }
+        .btn-contact:hover {
+            background-color: #0284c7;
+            
+        }
+        footer {
+            background-color:rgb(80, 83, 85);
+            text-align: center;
+            padding: 15px 0;
+            font-size: 0.9rem;
+            color: white;
+        }
+    
+        /* From Uiverse.io by Knights-kalpesh */ 
+        .tooltip-container {
+          height: 55px;
+          width: 90px;
+          border-radius: 5px;
+          background-color: #fff;
+          background-image: linear-gradient(
+            to left bottom,
+            #f2f5f8,
+            #ecf1f2,
+            #e7eceb,
+            #e3e7e4,
+            #e1e2de
+          );
+          border: 1px solid white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0px 10px 10px rgba(0, 0, 0, 0.151);
+          position: relative;
+          transition: transform 0.3s ease;
+        }
+        
+        .tooltip-container::before {
+          position: absolute;
+          content: "";
+          top: -50%;
+          clip-path: polygon(50% 0, 0 100%, 100% 100%);
+          border-radius: 5px;
+          background-color: fff;
+          background-image: linear-gradient(
+            to left bottom,
+            #f2f5f8,
+            #e4eaec,
+            #d8dfde,
+            #cdd3cf,
+            #c5c7c1
+          );
+          width: 100%;
+          height: 50%;
+          transform-style: preserve-3d;
+          transform: perspective(1000px) rotateX(-150deg) translateY(-110%);
+          transition: transform 0.3s ease;
+        }
+        
+        .tooltip-container .text {
+          color: rgb(32, 30, 30);
+          font-weight: bold;
+          font-size: 40px;
+        }
+        
+        .tooltip {
+          position: absolute;
+          top: -20px;
+          opacity: 0;
+          background: linear-gradient(-90deg, rgba(0, 0, 0, 0.05) 1px, white 1px),
+            linear-gradient(rgba(0, 0, 0, 0.05) 1px, white 1px),
+            linear-gradient(-90deg, rgba(0, 0, 0, 0.04) 1px, white 1px),
+            linear-gradient(rgba(0, 0, 0, 0.04) 1px, white 1px),
+            linear-gradient(white 3px, #f2f2f2 3px, #f2f2f2 78px, white 78px),
+            linear-gradient(-90deg, #aaa 1px, white 1px),
+            linear-gradient(-90deg, white 3px, #f2f2f2 3px, #f2f2f2 78px, white 78px),
+            linear-gradient(#aaa 1px, white 1px), #f2f2f2;
+          background-size:
+            4px 4px,
+            4px 4px,
+            80px 80px,
+            80px 80px,
+            80px 80px,
+            80px 80px,
+            80px 80px,
+            80px 80px;
+          padding: 5px 10px;
+          border: 1px solid rgb(206, 204, 204);
+        
+          height: 70px;
+          width: 110px;
+          border-radius: 5px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition-duration: 0.2s;
+          pointer-events: none;
+          letter-spacing: 0.5px;
+          font-size: 18px;
+          font-weight: 600;
+          text-shadow: 10px salmon;
+        }
+        .tooltip-container:hover {
+          border-top-left-radius: 0;
+          border-top-right-radius: 0;
+        }
+        
+        .tooltip-container:hover::before {
+          transform: rotateY(0);
+          background-image: none;
+          background-color: white;
+        }
+        
+        .tooltip-container:hover .tooltip {
+          top: -90px;
+          opacity: 1;
+          transition-duration: 0.3s;
+        }
+        .custom-spacing {
+            margin-top: 60px; /* 🔥 تتحكم هنا، زوّد أو نقص */
+          }
+          .shake-on-hover:hover {
+            animation: shake 0.5s;
+            animation-iteration-count: 1;
+          }
+          
+          @keyframes shake {
+            0% { transform: translate(0px, 0px) rotate(0deg); }
+            20% { transform: translate(-3px, 3px) rotate(-5deg); }
+            40% { transform: translate(3px, -3px) rotate(5deg); }
+            60% { transform: translate(-3px, 3px) rotate(-5deg); }
+            80% { transform: translate(3px, -3px) rotate(5deg); }
+            100% { transform: translate(0px, 0px) rotate(0deg); }
+          }
+        
+            
+    </style>
+</head>
+<body>
+
+<div class="landing-container">
+    <div class="subtitle">منصة تربط أصحاب العمل بالباحثين عن عمل</div>
+    <div class="main-title">ابدأ رحلتك المهنية بثقة</div>
+    <p class="description">مع يُسر ، تبدأ طريقك نحو مستقبل أفضل بطريقة سهلة واحترافية.</p>
+
+    <div class="landing-buttons">
+        <a href="{{ url_for('main.login') }}" class="btn btn-login">🔑 تسجيل الدخول</a>
+        <a href="{{ url_for('main.register') }}" class="btn btn-register">📝 إنشاء حساب</a>
+    </div>
+
+    <div class="tooltip-container custom-spacing shake-on-hover">
+      <a href="{{ url_for('main.contact') }}" class="btn-contact">📩 تواصل معنا</a>
+
+       
+    </div>
+</div>
+
+<footer>
+    جميع الحقوق محفوظة © 2025 منصة Yusur
+</footer>
+<div class="page-footer-pattern"></div>
+</body>
+</html>

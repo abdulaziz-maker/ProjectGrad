@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إنشاء حساب - Yusur Job Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom right, #dbeafe, #f3e8ff);
+        }
+        .register-container {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 360px;
+            max-width: 90%;
+            text-align: center;
+        }
+        .register-container h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, #6366f1, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .form-group {
+            margin-bottom: 15px;
+            text-align: right;
+        }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 6px;
+            color: #333;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .btn-submit {
+            width: 100%;
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-top: 20px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        .btn-submit:hover {
+            background: #4f46e5;
+        }
+        .login-link {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .login-link a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="register-container">
+    <h2>📝 إنشاء حساب جديد</h2>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        
+        <div class="form-group">
+            {{ form.username.label }}
+            {{ form.username(size=32) }}
+        </div>
+      
+        <div class="form-group">
+            {{ form.email.label }}
+            {{ form.email(size=32) }}
+        </div>
+
+        <div class="form-group">
+            {{ form.password.label }}
+            {{ form.password(size=32) }}
+        </div>
+
+        <div class="form-group">
+            {{ form.confirm_password.label }}
+            {{ form.confirm_password(size=32) }}
+        </div>
+
+        <div class="form-group">
+            {{ form.role.label }}
+            {{ form.role() }}
+        </div>
+       
+
+        <button type="submit" class="btn-submit">🚀 تسجيل</button>
+
+        <div class="login-link">
+            لديك حساب بالفعل؟ <a href="{{ url_for('main.login') }}">تسجيل الدخول</a>
+        </div>
+    </form>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const roleSelect = document.querySelector('select[name="role"]');
+        const companyField = document.querySelector('.company-name-field');
+
+        function toggleCompanyField() {
+            if (roleSelect.value === 'Employer') {
+                companyField.style.display = 'block';
+            } else {
+                companyField.style.display = 'none';
+            }
+        }
+
+        roleSelect.addEventListener('change', toggleCompanyField);
+        toggleCompanyField();  // لتفعيل الحالة الافتراضية عند تحميل الصفحة
+    });
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const roleSelect = document.querySelector('select[name="role"]');
+        const usernameLabel = document.querySelector('label[for="username"]');
+
+        function updateLabel() {
+            if (roleSelect.value === 'Employer') {
+                usernameLabel.textContent = 'اسم الشركة';
+            } else {
+                usernameLabel.textContent = 'اسم المستخدم';
+            }
+        }
+
+        roleSelect.addEventListener('change', updateLabel);
+        updateLabel(); // لتحديثه مباشرةً عند فتح الصفحة
+    });
+</script>
+</body>
+</html>

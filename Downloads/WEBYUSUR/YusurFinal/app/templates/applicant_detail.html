@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">👤 تفاصيل المتقدم: {{ user.username }}</h2>
+
+    <p><strong>📧 البريد الإلكتروني:</strong> {{ user.email }}</p>
+    <p><strong>📞 رقم الهاتف:</strong> {{ user.phone or 'غير متوفر' }}</p>
+    <hr>
+
+    <h4>🎓 الخلفية التعليمية</h4>
+    <p><strong>الشهادة:</strong> {{ user.highest_education or 'غير متوفر' }}</p>
+    <p><strong>اسم الجامعة:</strong> {{ user.university_name or 'غير متوفر' }}</p>
+    <p><strong>سنة التخرج:</strong> {{ user.graduation_year or 'غير متوفر' }}</p>
+    <p><strong>التخصص:</strong> {{ user.field_of_study or 'غير متوفر' }}</p>
+
+    <hr>
+    <h4>💼 الخبرة المهنية</h4>
+    <p><strong>سنوات الخبرة:</strong> {{ user.experience_years or 'غير متوفر' }}</p>
+    <p><strong>الوظائف السابقة:</strong> {{ user.previous_jobs or 'غير متوفر' }}</p>
+    <p><strong>المجال الصناعي:</strong> {{ user.industry or 'غير متوفر' }}</p>
+
+    <hr>
+    <h4>📜 الشهادات المهنية</h4>
+    <p>{{ user.certifications or 'غير متوفر' }}</p>
+
+    <hr>
+    <h4>💡 المهارات</h4>
+    <p>{{ user.skills or 'غير متوفر' }}</p>
+
+    <div class="mt-4 text-center">
+        <a href="{{ url_for('main.view_applicants', job_id=job.id) }}" class="btn btn-secondary">🔙 العودة إلى المتقدمين</a>
+    </div>
+    <div class="mt-4 text-center">
+        <form action="{{ url_for('main.update_application_status', app_id=app.id, new_status='مقبول') }}" method="POST" style="display:inline;">
+            <button type="submit" class="btn btn-success">✅ قبول</button>
+        </form>
+        <form action="{{ url_for('main.update_application_status', app_id=app.id, new_status='مرفوض') }}" method="POST" style="display:inline;">
+            <button type="submit" class="btn btn-danger">❌ رفض</button>
+        </form>
+        <br><br>
+    </div>
+    
+</div>
+{% endblock %}

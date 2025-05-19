@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5 fade-section">
+    <h2 class="main-title text-center">✨ الوظائف الموصى بها لك</h2>
+
+    <div class="row mt-4">
+        {% if recommended_jobs %}
+            {% for job, match_percent in recommended_jobs %}
+                <div class="col-md-6 mb-4">
+                    <div class="job-card">
+                        <div class="job-header">
+                            <h3>{{ job.title }}</h3>
+                            <span class="badge">{{ job.industry or 'مجال غير محدد' }}</span>
+                        </div>
+                        <div class="job-details">
+                            <p>🏢 <strong>الشركة:</strong> {{ job.employer.username or 'غير محددة' }}</p>
+                            <p>📍 <strong>الموقع:</strong> {{ job.location or 'غير محدد' }}</p>
+                            <p>📝 <strong>المهارات المطلوبة:</strong> {{ job.skills_required or 'غير محددة' }}</p>
+                            <p>📊 <strong>نسبة التطابق:</strong> {{ match_percent }}%</p>
+                        </div>
+                        <div class="button-group">
+                            <a href="{{ url_for('main.job_detail', job_id=job.id) }}" class="btn-view">📄 عرض التفاصيل</a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="alert alert-info text-center">
+                    🚫 لا توجد وظائف موصى بها حالياً بنسبة تطابق 50% أو أكثر.
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    <div style="height: 100px;"></div>
+</div>
+{% endblock %}

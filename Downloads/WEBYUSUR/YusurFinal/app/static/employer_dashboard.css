@@ -1,0 +1,111 @@
+/* تنسيقات صندوق لوحة التحكم */
+.employer-dashboard-box {
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    padding: 20px;
+    border-radius: 12px;
+    color: white;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    font-family: 'Tajawal', sans-serif;
+    align-items: center;
+    width: 100%;
+    max-width: 400px; /* ✅ تضييق العرض */
+    margin: 20px auto; /* ✅ وسط الصفحة */
+    text-align: center;
+}
+
+/* عناوين في صندوق لوحة التحكم */
+.employer-dashboard-box h2,
+.employer-dashboard-box h3 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #ffffff;
+}
+
+/* تنسيقات كروت عرض الوظائف */
+.job-listing {
+    background-color: #1e293b; /* نفس ستايل كرت تسجيل الدخول */
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* تأثير hover على الكرت */
+.job-listing:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* تنسيق عنوان الوظيفة */
+.job-listing h5 {
+    color: #facc15; /* لون مميز للعنوان */
+    font-size: 1.3em;
+    margin-bottom: 10px;
+}
+
+/* النصوص داخل الكرت */
+.job-listing p {
+    margin: 5px 0;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+}
+
+/* تنسيقات أزرار العمليات */
+.action-buttons {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-top: 15px;
+}
+
+.action-buttons a,
+.action-buttons button {
+    flex: 1 1 auto;
+    margin: 5px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background-color: #3b82f6;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    transition: background 0.3s;
+    font-size: 0.9rem;
+}
+
+/* تأثير hover للأزرار */
+.action-buttons a:hover,
+.action-buttons button:hover {
+    background-color: #2563eb;
+}
+
+/* تنسيق زر الحذف */
+.action-buttons button.btn-danger {
+    background-color: #ef4444;
+    border: none;
+}
+
+.action-buttons button.btn-danger:hover {
+    background-color: #dc2626;
+}
+
+/* تنسيق تنبيه عدم وجود وظائف */
+.alert-info {
+    background-color: #fef3c7;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+    color: #92400e;
+    font-weight: bold;
+}
+
+/* تخفيف المسافة بين الكروت في الأجهزة الصغيرة */
+@media (max-width: 768px) {
+    .action-buttons {
+        flex-direction: column;
+    }
+}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container fade-section">
+    <h2 class="main-title text-center mb-5">📘 طلباتي</h2>
+
+    {% if applications %}
+        <div class="row">
+            {% for app in applications %}
+            <div class="col-md-6 mb-4">
+                <div class="job-card position-relative">
+                    <!-- ✅ شريط الحالة في الأعلى -->
+                    <div class="status-pill {{ 'status-accepted' if app.status == 'مقبول' else 'status-rejected' if app.status == 'مرفوض' else 'status-pending' }}">
+                        {% if app.status == 'مقبول' %}
+                            ✅ تم القبول
+                        {% elif app.status == 'مرفوض' %}
+                            ❌ تم الرفض
+                        {% else %}
+                            ⏳ قيد المراجعة
+                        {% endif %}
+                    </div>
+            
+                    <div class="job-header mb-3 mt-3">
+                        <h3>📌 {{ app.job.title }}</h3>
+                        <span class="badge">{{ app.job.employer.username }}</span>
+                    </div>
+                    <div class="job-details">
+                        <p>📅 تاريخ التقديم: {{ app.applied_date.strftime('%Y-%m-%d') }}</p>
+                    </div>
+                    <div class="button-group">
+                        <a href="{{ url_for('main.job_detail', job_id=app.job.id) }}" class="btn-view">📄 عرض الوظيفة</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center mt-5">
+            ❌ لم تقم بالتقديم على أي وظيفة بعد.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

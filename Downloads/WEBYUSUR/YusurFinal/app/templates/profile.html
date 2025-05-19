@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if user.is_employer() %}
+<style>
+    .employer-profile-card {
+        background: white;
+        padding: 50px 60px;
+        border-radius: 16px;
+        max-width: 960px;
+        margin: 40px auto;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e5e7eb;
+        font-size: 17px;
+    }
+
+    .employer-profile-card h2 {
+        text-align: center;
+        font-size: 30px;
+        font-weight: 800;
+        margin-bottom: 40px;
+        color: #1f2937;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        font-size: 17px;
+        margin-bottom: 8px;
+        display: inline-block;
+        color: #374151;
+    }
+
+    .form-group input, .form-group textarea, .form-group select {
+        width: 100%;
+        padding: 14px 18px;
+        border-radius: 12px;
+        border: 1px solid #d1d5db;
+        background-color: #f9fafb;
+        font-size: 15.5px;
+        transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .form-group input:hover,
+    .form-group textarea:hover,
+    .form-group select:hover {
+        background-color: #f3f4f6;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+        outline: none;
+    }
+
+    .profile-picture-box {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .profile-picture-box img {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #e5e7eb;
+        transition: transform 0.25s ease;
+    }
+
+    .profile-picture-box img:hover {
+        transform: scale(1.08);
+    }
+
+    .btn-save {
+        background-color: #6366f1;
+        color: white;
+        font-size: 18px;
+        padding: 16px;
+        border-radius: 12px;
+        border: none;
+        width: 100%;
+        transition: background 0.3s ease;
+    }
+
+    .btn-save:hover {
+        background-color: #4f46e5;
+    }
+
+    footer.main-footer {
+        margin-top: 80px;
+    }
+
+    @media (max-width: 768px) {
+        .employer-profile-card {
+            padding: 30px 20px;
+        }
+    }
+</style>
+{% endif %}
+
+{% if user.is_job_seeker() %}
+<style>
+    .jobseeker-profile-card {
+        background: #ffffff;
+        padding: 50px 60px;
+        border-radius: 16px;
+        max-width: 960px;
+        margin: 40px auto;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+        border: 1px solid #e5e7eb;
+        font-size: 17px;
+    }
+
+    .jobseeker-profile-card h2 {
+        text-align: center;
+        font-size: 30px;
+        font-weight: bold;
+        margin-bottom: 40px;
+        color: #1f2937;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        font-size: 17px;
+        color: #374151;
+        margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 14px 18px;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        background-color: #f9fafb;
+        font-size: 15px;
+        transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .form-group input:hover,
+    .form-group textarea:hover,
+    .form-group select:hover {
+        background-color: #f3f4f6;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.2);
+        outline: none;
+    }
+
+    .btn-save {
+        background-color: #3b82f6;
+        color: white;
+        font-size: 18px;
+        padding: 15px;
+        border-radius: 10px;
+        border: none;
+        width: 100%;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-save:hover {
+        background-color: #2563eb;
+    }
+</style>
+{% endif %}
+
+
+<div class="{% if user.is_employer() %}employer-profile-card{% else %}container mt-5{% endif %}">
+    <h2 class="text-center">👤 تعديل الملف الشخصي</h2>
+
+    <form method="POST" action="{{ url_for('main.update_personal_profile') }}" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+
+        <!-- صورة -->
+        <div class="profile-picture-box">
+            <label>👤 الصورة الشخصية</label><br>
+            {% if user.profile_picture %}
+                <img src="{{ url_for('static', filename='profile_pics/' + (user.profile_picture or 'default_profile.png')) }}" alt="الصورة الشخصية">
+            {% else %}
+                <img src="{{ url_for('static', filename='profile_pics/default.jpg') }}" alt="الصورة الافتراضية">
+            {% endif %}
+            <input type="file" name="profile_picture" class="form-control mt-2">
+        </div>
+
+        <!-- الاسم -->
+        <div class="form-group">
+            <label>{% if user.is_employer() %}🏢 اسم الشركة{% else %}📛 الاسم الكامل{% endif %}</label>
+            <input type="text" name="username" class="form-control" value="{{ user.username }}">
+        </div>
+
+        <!-- الإيميل -->
+        <div class="form-group">
+            <label>📧 البريد الإلكتروني</label>
+            {{ form.email(class="form-control", required=True) }}
+        </div>
+
+        <!-- الهاتف -->
+        <div class="form-group">
+            <label>📞 رقم الهاتف</label>
+            <input type="text" name="phone" class="form-control" value="{{ user.phone }}">
+        </div>
+        <!--
+        {% if user.is_employer() %}
+        <div class="form-group">
+            <label>💬 طريقة تواصل المرشحين</label>
+            <input type="text" name="contact_method" class="form-control" value="{{ user.contact_method or '' }}" placeholder="مثال: 0500000000 أو example@company.com">
+        </div>
+        {% endif %}
+        -->
+
+
+        <!-- العنوان -->
+        <div class="form-group">
+            <label>📍 العنوان</label>
+            <input type="text" name="address" class="form-control" value="{{ user.address }}">
+        </div>
+
+        <!-- النبذة -->
+        <div class="form-group">
+            <label>{% if user.is_employer() %}📝 نبذة عن الشركة{% else %}📝 نبذة عنك{% endif %}</label>
+            <textarea name="bio" class="form-control" rows="3">{{ user.bio }}</textarea>
+        </div>
+
+        {% if user.is_job_seeker() %}
+        <hr>
+        <h4 class="mt-4">🔗 حسابات التواصل الاجتماعي</h4>
+
+        <div class="form-group">
+            <label>💼 LinkedIn</label>
+            <input type="text" name="linkedin" class="form-control" value="{{ user.linkedin }}">
+        </div>
+
+        <div class="form-group">
+            <label>🐦 Twitter</label>
+            <input type="text" name="twitter" class="form-control" value="{{ user.twitter }}">
+        </div>
+
+        <div class="form-group">
+            <label>🐙 GitHub</label>
+            <input type="text" name="github" class="form-control" value="{{ user.github }}">
+        </div>
+
+        <hr>
+
+        <div class="form-group">
+            <label>🎭 نمط الشخصية</label>
+            <select name="personality_type" class="form-control">
+                <option value="analytical" {% if user.personality_type == "analytical" %}selected{% endif %}>تحليلي</option>
+                <option value="creative" {% if user.personality_type == "creative" %}selected{% endif %}>إبداعي</option>
+                <option value="leader" {% if user.personality_type == "leader" %}selected{% endif %}>قيادي</option>
+                <option value="team_player" {% if user.personality_type == "team_player" %}selected{% endif %}>يحب العمل الجماعي</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>🎯 أهم 3 قيم شخصية</label>
+            <input type="text" name="values" class="form-control" value="{{ user.personal_values }}">
+        </div>
+
+        <div class="form-group">
+            <label>🏆 أكبر إنجاز شخصي تفخر به</label>
+            <textarea name="achievement" class="form-control" rows="3">{{ user.achievement }}</textarea>
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn-save">💾 حفظ التغييرات</button>
+    </form>
+</div>
+{% endblock %}

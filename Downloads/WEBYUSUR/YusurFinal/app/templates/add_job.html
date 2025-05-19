@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="yusur-form-container">  <!-- ✅ ضفنا هذا الكونتينر الجميل -->
+
+    <h2 class="main-title">📌 إضافة وظيفة جديدة</h2>
+
+    <form method="POST">
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+            <label>{{ form.job_title.label }}</label>
+            {{ form.job_title(class="form-control") }}
+        </div>
+
+        <div class="form-group">
+            <label>{{ form.job_type.label }}</label>
+            {{ form.job_type(class="form-control") }}
+        </div>
+
+        <div class="form-group">
+            <label>{{ form.industry.label }}</label>
+            {{ form.industry(class="form-control") }}
+        </div>
+
+        <div class="form-group">
+            <label>{{ form.skills_required.label }}</label>
+            {{ form.skills_required(class="form-control", rows="3") }}
+        </div>
+
+        <div class="form-group">
+            <label>{{ form.qualifications.label }}</label>
+            {{ form.qualifications(class="form-control") }}
+        </div>
+
+        <div class="form-group">
+            <label>{{ form.experience_required.label }}</label>
+            {{ form.experience_required(class="form-control") }}
+        </div>
+
+        <div class="form-group">
+            <label>{{ form.salary.label }}</label>
+            {{ form.salary(class="form-control") }}
+        </div>
+
+        <div class="form-group">
+            <label>{{ form.location.label }}</label>
+            {{ form.location(class="form-control") }}
+        </div>
+
+        <div class="form-group">
+            <label>{{ form.description.label }}</label>
+            {{ form.description(class="form-control", rows="4") }}
+        </div>
+
+        <button type="submit" class="btn-primary">➕ إضافة الوظيفة</button>
+    </form>
+
+</div>  <!-- ✅ أغلق الكونتينر -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sections = document.querySelectorAll('.fade-section');
+    
+        const options = {
+            threshold: 0.2
+        };
+    
+        const observer = new IntersectionObserver(function(entries, observer) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, options);
+    
+        sections.forEach(section => {
+            observer.observe(section);
+        });
+    });
+    </script>
+{% endblock %}

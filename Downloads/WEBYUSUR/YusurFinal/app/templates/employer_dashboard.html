@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="employer-dashboard-box">
+        <h2>🏢 لوحة تحكم صاحب العمل</h2>
+        <h3>مرحبًا {{ user.username }}!</h3>
+
+        <div class="text-center my-4">
+            <a href="{{ url_for('main.add_job') }}" class="btn-dashboard add-job">➕ إضافة وظيفة جديدة</a>
+        </div>
+    </div>
+
+    <div class="row mt-5">
+        {% if jobs %}
+            {% for job in jobs %}
+                <div class="col-md-6 mb-4">
+                    <div class="job-listing">
+                        <h5>{{ job.title }}</h5>
+                        <p><strong>🏭 المجال:</strong> {{ job.industry or 'غير محدد' }}</p>
+                        <p><strong>📍 الموقع:</strong> {{ job.location or 'غير محدد' }}</p>
+                        <p><strong>💰 الراتب:</strong> {{ job.salary or 'غير محدد' }}</p>
+
+                        <div class="button-group" style="justify-content: flex-start; margin-top: 15px;">
+                            <a href="{{ url_for('main.view_applicants', job_id=job.id) }}" class="btn-view">👥 عرض المرشحين</a>
+                            <a href="{{ url_for('main.edit_job', job_id=job.id) }}" class="btn-edit">📝 تعديل الوظيفة</a>
+                            <form method="POST" action="{{ url_for('main.delete_job', job_id=job.id) }}" style="display:inline;">
+                                <button type="submit" class="btn-delete" onclick="return confirm('هل أنت متأكد من حذف الوظيفة؟')">🗑️ حذف</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    ❗ لا توجد وظائف مضافة بعد.
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

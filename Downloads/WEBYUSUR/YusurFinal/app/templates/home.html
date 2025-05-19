@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center mb-4">💼 الوظائف المتاحة</h1>
+
+    <!-- زر "إضافة وظيفة" يظهر فقط لأصحاب العمل -->
+    {% if current_user.is_authenticated and current_user.role == "Employer" %}
+        <div class="text-center my-4">
+            <a href="{{ url_for('main.add_job') }}" class="btn btn-primary">➕ إضافة وظيفة</a>
+        </div>
+    {% endif %}
+
+    {% if jobs %}
+        <div class="row justify-content-center">
+            {% for job in jobs %}
+                {# {% if job.posted_date >= today_date %}  <!-- تعليق فلترة الوظائف القديمة --> #}
+                <div class="col-md-5 col-lg-4 mx-2 d-flex align-items-stretch">
+                    <div class="card job-card shadow-sm border-0 w-100">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title text-primary">📌 {{ job.title }}</h5>
+                            <p class="card-text flex-grow-1">{{ job.description }}</p>
+                            <p class="card-text"><strong>🏢 الشركة:</strong> {{ current_user.username }}</p>
+                            <p class="card-text"><strong>📅 تاريخ النشر:</strong> {{ job.posted_date.strftime('%Y-%m-%d') }}</p>
+                            <p class="card-text"><strong>💰 الراتب:</strong> {{ job.salary }} ريال</p>
+                            <p class="card-text"><strong>📆 سنوات الخبرة المطلوبة:</strong> {{ job.experience_required }} سنوات</p>
+
+                            <div class="mt-auto text-center">
+                                <!-- زر التقديم يظهر فقط للباحث عن عمل -->
+                                {% if current_user.is_authenticated and current_user.role == 'JobSeeker' %}
+                                    <a href="#" class="btn btn-success w-100 mt-auto">📩 التقديم على الوظيفة</a>
+                                {% endif %}
+
+                                <!-- أزرار تعديل وحذف لصاحب الوظيفة فقط -->
+                                {% if current_user.is_authenticated and job.employer_id == current_user.id %}
+                                    <div class="d-flex justify-content-between mt-2">
+                                        <a href="{{ url_for('main.edit_job', job_id=job.id) }}" 
+                                           class="btn btn-warning flex-fill mx-1">✏️ تعديل</a>
+                                        <a href="{{ url_for('main.delete_job', job_id=job.id) }}" 
+                                           class="btn btn-danger flex-fill mx-1"
+                                           onclick="return confirm('⚠️ هل أنت متأكد أنك تريد حذف هذه الوظيفة؟');">
+                                           🗑️ حذف
+                                        </a>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {# {% endif %}  <!-- نهاية تعليق الفلترة --> #}
+
+                <!-- ينشئ صف جديد بعد كل وظيفتين -->
+                {% if loop.index % 2 == 0 %}
+                    </div><div class="row justify-content-center">
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center mt-4" role="alert">
+            ❌ لا توجد وظائف متاحة حاليًا. حاول مرة أخرى لاحقًا.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+<!-- زر فتح القائمة -->
+<div class="menu-button" onclick="openSidebar()">☰</div>
+
+<!-- القائمة الجانبية -->
+<div id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+        <span class="close-button" onclick="closeSidebar()">×</span>
+        <h3>القائمة</h3>
+    </div>
+    <ul class="sidebar-menu">
+        <li><a href="{{ url_for('main.profile') }}">👤 تعديل الملف الشخصي</a></li>
+        <li><a href="{{ url_for('main.settings') }}">⚙️ الإعدادات</a></li>
+        <li><a href="#">🔔 الإشعارات</a></li>
+        <li><a href="{{ url_for('main.logout') }}">🚪 تسجيل الخروج</a></li>
+    </ul>
+</div>
+
+<!-- JavaScript للتحكم بالقائمة الجانبية -->
+<script>
+function openSidebar() {
+    document.getElementById("sidebar").classList.add("active");
+}
+
+function closeSidebar() {
+    document.getElementById("sidebar").classList.remove("active");
+}
+</script>

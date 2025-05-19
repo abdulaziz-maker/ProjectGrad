@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-5">
+    <h2 class="text-center">📄 السيرة الذاتية</h2>
+
+    <div class="card p-4 shadow-sm">
+        <h3>👤 المعلومات الشخصية</h3>
+        <p><strong>📧 البريد الإلكتروني:</strong> {{ user.email }}</p>
+        <p><strong>📅 تاريخ الميلاد:</strong> {{ user.date_of_birth }}</p>
+        <p><strong>👥 الجنس:</strong> {{ "ذكر" if user.gender == "male" else "أنثى" }}</p>
+
+        <hr>
+
+        <h3>🎓 الخلفية التعليمية</h3>
+        <p><strong>📚 أعلى شهادة تعليمية:</strong> {{ user.highest_education }}</p>
+        <p><strong>🏫 اسم الجامعة:</strong> {{ user.university_name }}</p>
+        <p><strong>📅 سنة التخرج:</strong> {{ user.graduation_year }}</p>
+        <p><strong>🔬 التخصص الأكاديمي:</strong> {{ user.field_of_study }}</p>
+
+        <hr>
+
+        <h3>💼 الخبرة المهنية</h3>
+        <p><strong>📊 عدد سنوات الخبرة:</strong> {{ user.experience_years }}</p>
+        <p><strong>🏢 الوظائف السابقة:</strong> {{ user.previous_jobs }}</p>
+        <p><strong>🏭 المجال الصناعي:</strong> {{ user.industry }}</p>
+        <p><strong>📜 الشهادات المهنية:</strong> {{ user.certifications }}</p>
+
+        <hr>
+
+        <h3>💡 المهارات</h3>
+        <p><strong>💼 المهارات العامة:</strong> {{ user.skills }}</p>
+        <p><strong>🔧 المهارات التقنية:</strong> {{ user.technical_skills }}</p>
+        <p><strong>🗣️ المهارات الشخصية:</strong> {{ user.soft_skills }}</p>
+
+        <hr>
+
+        <h3>📍 تفضيلات التوظيف</h3>
+        <p><strong>📍 الموقع المفضل للعمل:</strong> {{ user.preferred_location }}</p>
+        <p><strong>💰 الراتب المتوقع:</strong> {{ user.preferred_salary }}</p>
+        <p><strong>🏢 نوع العمل المفضل:</strong> {{ user.job_type }}</p>
+        <p><strong>🚚 القابلية للانتقال:</strong> {{ "نعم" if user.willing_to_relocate else "لا" }}</p>
+        <p><strong>📅 تاريخ بدء العمل المتوقع:</strong> {{ user.available_start_date }}</p>
+
+        <hr>
+
+        <h3>🌍 اللغات</h3>
+        <p><strong>🗣️ عدد اللغات:</strong> {{ user.languages }}</p>
+        <p><strong>🎯 مستوى اللغة:</strong> {{ user.language_proficiency }}</p>
+
+        <hr>
+
+        <h3>📜 الشهادات المرفوعة</h3>
+        {% if user.certificates %}
+            <ul>
+                {% for cert in user.certificates %}
+                    <li>
+                        <a href="{{ url_for('static', filename='uploads/certificates/' + cert.file_path.split('/')[-1]) }}" target="_blank">
+                            📂 عرض الشهادة {{ loop.index }}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>❌ لا توجد شهادات مرفوعة.</p>
+        {% endif %}
+
+        <hr>
+
+        <div class="text-center">
+            <a href="{{ url_for('main.jobseeker_profile') }}" class="btn btn-primary mb-2">✏️ تعديل المعلومات</a>
+            <a href="{{ url_for('main.user_profile') }}" class="btn btn-secondary">🔙 العودة إلى الملف الشخصي</a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

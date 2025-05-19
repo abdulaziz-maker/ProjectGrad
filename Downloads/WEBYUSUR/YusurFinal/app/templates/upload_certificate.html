@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5 fade-in-page">
+    <div class="upload-box shadow-lg p-5 rounded bg-light text-white">
+        <h2 class="text-center gradient-text mb-4">📜 رفع شهادة مهنية</h2>
+        <p class="text-light text-center">يرجى تحميل شهادة بتنسيق (PDF, JPG, PNG)</p>
+
+       
+
+        <form action="{{ url_for('main.upload_certificate') }}" method="POST" enctype="multipart/form-data" class="mt-4">
+            <div class="mb-3">
+                <input type="file" class="form-control" name="certificate" accept=".pdf,.jpg,.png" required>
+            </div>
+            <button type="submit" class="btn btn-warning w-100 fw-bold">📤 رفع الشهادة</button>
+        </form>
+        <hr class="my-5">
+
+    <h3 class="text-center gradient-text mb-4">📂 الشهادات المرفوعة</h3>
+
+{% if certificates %}
+    <div class="list-group">
+        {% for cert in certificates %}
+            <div class="list-group-item d-flex justify-content-between align-items-center bg-light mb-2 rounded">
+                <span>📝 {{ cert.file_path.split('/')[-1] }}</span>
+                <div>
+                    <a href="{{ url_for('main.view_certificate', certificate_id=cert.id) }}" class="btn btn-sm btn-info me-2" target="_blank">👁️ عرض</a>
+                    <form action="{{ url_for('main.delete_certificate', certificate_id=cert.id) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('هل أنت متأكد من حذف هذه الشهادة؟')">🗑️ حذف</button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="alert alert-warning text-center mt-4">
+        ⚠️ لم تقم برفع أي شهادة بعد.
+    </div>
+{% endif %}
+
+
+        <a href="{{ url_for('main.jobseeker_dashboard') }}" class="btn btn-secondary w-100 mt-3 fw-bold">🔙 العودة إلى لوحة التحكم</a>
+    </div>
+</div>
+{% endblock %}
