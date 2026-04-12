@@ -1,0 +1,725 @@
+@import "tailwindcss";
+
+/* ── Brand color palette (المواهب الناشئة) ── */
+@theme {
+  --color-brand-black:  #000000;
+  --color-brand-white:  #ffffff;
+  --color-brand-ink:    #0a0a0a;
+  --color-brand-paper:  #fafafa;
+  --color-brand-accent: #1a1a1a;
+}
+
+/* ============================================================
+   THEME TOKENS — CSS custom properties for light/dark mode
+   ============================================================ */
+:root {
+  --text-primary: #e8eaf0;
+  --text-secondary: #8b90a5;
+  --text-muted: #555b75;
+  --text-data: #c0c4d4;
+  --bg-body: #0c0f1a;
+  --bg-card: #171c32;
+  --bg-elevated: #1e2440;
+  --bg-subtle: #111527;
+  --bg-sidebar: rgba(17, 21, 39, 0.88);
+  --bg-header: rgba(12, 15, 26, 0.82);
+  --bg-glass: rgba(17, 21, 39, 0.75);
+  --border-color: rgba(255, 255, 255, 0.06);
+  --border-faint: rgba(255, 255, 255, 0.03);
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --hover-bg: rgba(255, 255, 255, 0.04);
+  --progress-track: rgba(255, 255, 255, 0.06);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.08);
+  --card-shadow-hover: 0 0 20px rgba(99, 102, 241, 0.06), 0 4px 16px rgba(0, 0, 0, 0.3);
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --text-primary: #1e2338;
+  --text-secondary: #5a6080;
+  --text-muted: #8b90a5;
+  --text-data: #3a4468;
+  --bg-body: #f0f2f8;
+  --bg-card: #ffffff;
+  --bg-elevated: #e8edf5;
+  --bg-subtle: #f5f7fc;
+  --bg-sidebar: rgba(248, 249, 253, 0.94);
+  --bg-header: rgba(240, 242, 248, 0.88);
+  --bg-glass: rgba(255, 255, 255, 0.82);
+  --border-color: rgba(0, 0, 0, 0.07);
+  --border-faint: rgba(0, 0, 0, 0.04);
+  --border-soft: rgba(0, 0, 0, 0.10);
+  --border-subtle: rgba(0, 0, 0, 0.13);
+  --hover-bg: rgba(0, 0, 0, 0.03);
+  --progress-track: rgba(0, 0, 0, 0.07);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.12);
+  --card-shadow-hover: 0 0 20px rgba(99, 102, 241, 0.08), 0 4px 16px rgba(0, 0, 0, 0.08);
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-surface-0: #0c0f1a;
+  --color-surface-1: #111527;
+  --color-surface-2: #171c32;
+  --color-surface-3: #1e2440;
+  --color-surface-glass: rgba(17, 21, 39, 0.75);
+  --color-accent: #6366f1;
+  --color-accent-light: #818cf8;
+  --color-accent-glow: rgba(99, 102, 241, 0.25);
+  --color-success: #22c55e;
+  --color-success-glow: rgba(34, 197, 94, 0.2);
+  --color-warning: #f59e0b;
+  --color-warning-glow: rgba(245, 158, 11, 0.2);
+  --color-danger: #ef4444;
+  --color-danger-glow: rgba(239, 68, 68, 0.2);
+  --color-cyan: #06b6d4;
+  --color-cyan-glow: rgba(6, 182, 212, 0.2);
+  --color-text-primary: #e8eaf0;
+  --color-text-secondary: #8b90a5;
+  --color-text-muted: #555b75;
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-active: rgba(99, 102, 241, 0.4);
+  --font-sans: 'IBM Plex Sans Arabic', 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+/* ============================================================
+   BASE — DARK COMMAND CENTER
+   ============================================================ */
+html {
+  direction: rtl;
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+
+body {
+  font-family: 'IBM Plex Sans Arabic', 'Inter', sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+}
+
+/* Monospace for data */
+.font-mono {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* ============================================================
+   ANIMATIONS — Snappy 200ms, no bounce
+   ============================================================ */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--glow-color, rgba(99,102,241,0.3)); }
+  50%      { box-shadow: 0 0 16px 4px var(--glow-color, rgba(99,102,241,0.15)); }
+}
+@keyframes progressFill {
+  from { stroke-dashoffset: var(--circumference, 283); }
+}
+@keyframes progressBarGrow {
+  from { width: 0; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in     { animation: fadeIn 200ms ease-out both; }
+.animate-fade-in-up  { animation: fadeInUp 250ms ease-out both; }
+.animate-slide-right { animation: slideInRight 200ms ease-out both; }
+.animate-scale-in    { animation: scaleIn 200ms ease-out both; }
+.animate-glow        { animation: glowPulse 2s ease-in-out infinite; }
+
+/* Stagger children — 50ms increments for snappiness */
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 50ms; }
+.stagger > *:nth-child(3) { animation-delay: 100ms; }
+.stagger > *:nth-child(4) { animation-delay: 150ms; }
+.stagger > *:nth-child(5) { animation-delay: 200ms; }
+.stagger > *:nth-child(6) { animation-delay: 250ms; }
+.stagger > *:nth-child(7) { animation-delay: 300ms; }
+.stagger > *:nth-child(8) { animation-delay: 350ms; }
+
+/* ============================================================
+   CARD SYSTEM — Rich depth, magnetic hover
+   ============================================================ */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  position: relative;
+  will-change: transform, opacity;
+  /* Spring hover — cubic-bezier mimics spring physics (overshoot then settle) */
+  transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 500ms ease,
+              border-color 200ms ease,
+              box-shadow 350ms ease;
+}
+/* Spotlight layer — follows cursor via --mouse-x/y set by JS */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  background: radial-gradient(500px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(99,102,241,0.07), transparent 40%);
+  transition: opacity 300ms ease;
+  pointer-events: none;
+  z-index: 1;
+}
+.card:hover::before { opacity: 1; }
+.card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(99, 102, 241, 0.38);
+  box-shadow: 0 0 28px rgba(99,102,241,0.10), 0 20px 48px rgba(0,0,0,0.18);
+}
+.card:active {
+  transform: translateY(-2px) scale(0.99);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+
+.card-static {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  position: relative;
+  transition: opacity 500ms ease,
+              background-color 200ms ease,
+              border-color 250ms ease,
+              box-shadow 250ms ease,
+              transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.card-static::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  background: radial-gradient(400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(99,102,241,0.05), transparent 40%);
+  transition: opacity 300ms ease;
+  pointer-events: none;
+}
+.card-static:hover::before { opacity: 1; }
+.card-static:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-soft);
+  box-shadow: 0 0 20px rgba(99,102,241,0.05), 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.card-glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  transition: border-color 200ms ease, box-shadow 200ms ease,
+              transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.card-glass:hover {
+  border-color: rgba(99,102,241,0.22);
+  box-shadow: 0 0 30px rgba(99,102,241,0.07);
+  transform: translateY(-3px);
+}
+
+/* ── Cursor ambient glow ── */
+#cursor-glow {
+  position: fixed;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(99,102,241,0.055) 0%, rgba(6,182,212,0.02) 40%, transparent 65%);
+  transition: opacity 400ms ease;
+}
+
+/* ── Stat card icon spring ── */
+@keyframes icon-spring-bounce {
+  0%   { transform: scale(1) rotate(0deg); }
+  28%  { transform: scale(1.4) rotate(-12deg); }
+  52%  { transform: scale(0.88) rotate(6deg); }
+  72%  { transform: scale(1.12) rotate(-3deg); }
+  88%  { transform: scale(0.97) rotate(1deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@keyframes ping-out {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes shimmer-sweep {
+  0%   { transform: translateX(100%) skewX(-15deg); }
+  100% { transform: translateX(-200%) skewX(-15deg); }
+}
+
+.group:hover .icon-spring {
+  animation: icon-spring-bounce 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.group:hover .icon-ping {
+  animation: ping-out 0.55s ease-out both;
+}
+.group:hover .shimmer-line {
+  animation: shimmer-sweep 0.7s ease both;
+}
+
+/* ============================================================
+   SCROLL REVEAL — JS adds .sr-in when card enters viewport
+   ============================================================ */
+.sr-pending {
+  opacity: 0 !important;
+}
+.sr-in {
+  opacity: 1 !important;
+}
+
+/* ============================================================
+   SIDEBAR — Collapsible with smooth transition
+   ============================================================ */
+.sidebar-root {
+  transition: width 320ms cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 320ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar-label {
+  transition: opacity 200ms ease, max-width 300ms ease, transform 200ms ease;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.sidebar-badge {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+.sidebar-toggle-btn {
+  transition: transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              color 200ms ease,
+              background-color 200ms ease;
+}
+.sidebar-toggle-btn.rotated { transform: rotate(180deg); }
+
+/* ============================================================
+   BUTTONS — Precise, no-nonsense
+   ============================================================ */
+.btn-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 300ms ease,
+              filter 200ms ease;
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary:hover {
+  box-shadow: 0 0 24px rgba(99,102,241,0.4), 0 4px 16px rgba(99,102,241,0.15);
+  transform: translateY(-2px) scale(1.02);
+  filter: brightness(1.1);
+}
+.btn-primary:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 0 8px rgba(99,102,241,0.2);
+  transition-duration: 60ms;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 200ms ease-in-out;
+}
+.btn-ghost:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+  border-color: rgba(99,102,241,0.25);
+  box-shadow: 0 0 12px rgba(99,102,241,0.06);
+  transform: translateY(-1px);
+}
+.btn-ghost:active {
+  transform: translateY(0);
+  transition-duration: 60ms;
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 200ms ease-in-out;
+}
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.18);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  transform: translateY(-1px);
+}
+.btn-danger:active {
+  transform: translateY(0);
+  transition-duration: 60ms;
+}
+
+/* Ripple */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.15) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 200ms;
+}
+.btn-ripple:active::after {
+  opacity: 1;
+}
+
+/* ============================================================
+   PROGRESS RING — SVG-based
+   ============================================================ */
+.progress-ring-track {
+  stroke: var(--progress-track);
+  fill: none;
+}
+.progress-ring-fill {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 800ms ease-out;
+  filter: drop-shadow(0 0 4px var(--ring-glow, rgba(99,102,241,0.4)));
+}
+
+/* ============================================================
+   PROGRESS BAR — Linear
+   ============================================================ */
+.progress-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--progress-track);
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  animation: progressBarGrow 800ms ease-out both;
+}
+.progress-bar-fill.indigo { background: linear-gradient(90deg, #6366f1, #818cf8); }
+.progress-bar-fill.green  { background: linear-gradient(90deg, #22c55e, #4ade80); }
+.progress-bar-fill.yellow { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.progress-bar-fill.red    { background: linear-gradient(90deg, #ef4444, #f87171); }
+.progress-bar-fill.cyan   { background: linear-gradient(90deg, #06b6d4, #22d3ee); }
+
+/* ============================================================
+   TABLE SYSTEM — Clean data display
+   ============================================================ */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+table thead th {
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  text-align: right;
+}
+table tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-faint);
+  font-size: 0.875rem;
+  color: var(--text-data);
+}
+table tbody tr {
+  transition: background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  cursor: default;
+  position: relative;
+}
+table tbody tr:hover {
+  background: rgba(99, 102, 241, 0.05);
+  box-shadow: inset -3px 0 0 #6366f1;
+}
+table tbody tr:hover td {
+  color: var(--text-primary);
+}
+table tbody tr:active {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+/* ============================================================
+   BADGES & TAGS
+   ============================================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: transform 200ms ease, filter 200ms ease;
+}
+.badge:hover {
+  transform: scale(1.08);
+  filter: brightness(1.15);
+}
+.badge-indigo  { background: rgba(99,102,241,0.12); color: #818cf8; }
+.badge-green   { background: rgba(34,197,94,0.12);  color: #4ade80; }
+.badge-yellow  { background: rgba(245,158,11,0.12); color: #fbbf24; }
+.badge-red     { background: rgba(239,68,68,0.12);  color: #f87171; }
+.badge-cyan    { background: rgba(6,182,212,0.12);   color: #22d3ee; }
+.badge-neutral { background: rgba(255,255,255,0.06); color: #8b90a5; }
+
+/* ============================================================
+   GLOW EFFECTS
+   ============================================================ */
+.glow-indigo { box-shadow: 0 0 20px rgba(99, 102, 241, 0.15); }
+.glow-green  { box-shadow: 0 0 20px rgba(34, 197, 94, 0.15); }
+.glow-cyan   { box-shadow: 0 0 20px rgba(6, 182, 212, 0.15); }
+.glow-danger { box-shadow: 0 0 20px rgba(239, 68, 68, 0.15); }
+
+/* ============================================================
+   INPUT SYSTEM
+   ============================================================ */
+input:not([type=checkbox]):not([type=radio]),
+select,
+textarea {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  color: var(--text-primary);
+  transition: all 200ms ease-in-out;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+input:hover:not(:focus),
+select:hover:not(:focus),
+textarea:hover:not(:focus) {
+  border-color: var(--border-subtle);
+  background: var(--bg-card);
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1), 0 0 16px rgba(99,102,241,0.06);
+  background: var(--bg-card);
+}
+
+/* ============================================================
+   SCROLLBAR — Minimal
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-subtle);
+}
+
+/* ============================================================
+   INTERACTIVE LIST ROWS
+   ============================================================ */
+.list-row {
+  transition: background-color 180ms ease, border-color 180ms ease, transform 250ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 180ms ease;
+  border-radius: 8px;
+  position: relative;
+}
+.list-row:hover {
+  background: var(--hover-bg);
+  border-color: var(--border-soft) !important;
+  transform: translateX(-3px);
+  box-shadow: 4px 0 0 #6366f1;
+}
+.list-row:active {
+  transform: translateX(-1px);
+  transition-duration: 60ms;
+}
+
+/* Clickable card — hover lifts AND glows */
+.card-interactive {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  transition: transform 280ms cubic-bezier(0.34,1.56,0.64,1),
+              border-color 200ms ease,
+              box-shadow 300ms ease;
+  cursor: pointer;
+  position: relative;
+}
+.card-interactive::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  background: radial-gradient(600px circle at var(--mouse-x,50%) var(--mouse-y,50%), rgba(99,102,241,0.08), transparent 40%);
+  transition: opacity 300ms ease;
+  pointer-events: none;
+}
+.card-interactive:hover::before { opacity: 1; }
+.card-interactive:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 28px rgba(99,102,241,0.1), 0 8px 32px rgba(0,0,0,0.15);
+  transform: translateY(-3px) scale(1.01);
+}
+.card-interactive:active {
+  transform: translateY(-1px) scale(1.005);
+  transition-duration: 60ms;
+}
+
+/* ============================================================
+   BOOK LOADER — Opens & closes with glow
+   ============================================================ */
+@keyframes loader-text-shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+/* Left cover: hinge at spine (right edge), opens left */
+@keyframes book-cover-left {
+  0%, 10%   { transform: scaleX(1); }
+  40%, 60%  { transform: scaleX(0.04); }
+  90%, 100% { transform: scaleX(1); }
+}
+/* Right cover: hinge at spine (left edge), opens right */
+@keyframes book-cover-right {
+  0%, 10%   { transform: scaleX(1); }
+  40%, 60%  { transform: scaleX(0.04); }
+  90%, 100% { transform: scaleX(1); }
+}
+/* Inner page lines appear when open */
+@keyframes book-pages-appear {
+  0%, 20%   { opacity: 0; }
+  42%, 58%  { opacity: 1; }
+  80%, 100% { opacity: 0; }
+}
+/* Inner warm glow when book is open */
+@keyframes book-open-glow {
+  0%, 22%   { opacity: 0; }
+  44%, 56%  { opacity: 1; }
+  78%, 100% { opacity: 0; }
+}
+/* Gentle float */
+@keyframes book-float {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-6px); }
+}
+
+.loader-text {
+  background: linear-gradient(90deg, #6366f1 0%, #818cf8 30%, #06b6d4 50%, #818cf8 70%, #6366f1 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: loader-text-shimmer 2.4s linear infinite;
+}
+.book-loader-wrap {
+  animation: book-float 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 6px 20px rgba(99,102,241,0.3));
+}
+.book-cover-left {
+  transform-box: fill-box;
+  transform-origin: 100% 50%;
+  animation: book-cover-left 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.book-cover-right {
+  transform-box: fill-box;
+  transform-origin: 0% 50%;
+  animation: book-cover-right 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.book-pages {
+  animation: book-pages-appear 3.2s ease-in-out infinite;
+}
+.book-open-glow {
+  animation: book-open-glow 3.2s ease-in-out infinite;
+}
+
+/* ============================================================
+   GLOW LINK — for text links that should glow on hover
+   ============================================================ */
+a[href]:not(.card):not(.btn-primary):not(.btn-ghost):not(.btn-danger) {
+  transition: color 200ms ease, text-shadow 200ms ease;
+}
+a[href]:not(.card):not(.btn-primary):not(.btn-ghost):not(.btn-danger):hover {
+  text-shadow: 0 0 12px rgba(99,102,241,0.2);
+}
+
+/* ============================================================
+   ICON CONTAINERS — hover glow matching their color
+   ============================================================ */
+.icon-box {
+  transition: transform 250ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease, filter 200ms ease;
+}
+.icon-box:hover {
+  transform: scale(1.12) rotate(-3deg);
+  filter: brightness(1.2);
+}
+
+/* ============================================================
+   TOAST (sonner)
+   ============================================================ */
+[data-sonner-toaster] [data-sonner-toast] {
+  font-family: 'IBM Plex Sans Arabic', 'Inter', sans-serif !important;
+  border-radius: 8px !important;
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-soft) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ============================================================
+   PRINT
+   ============================================================ */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; color: black; }
+}
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+.text-gradient {
+  background: linear-gradient(135deg, #6366f1, #06b6d4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.border-glow {
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.08);
+}
+
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+}
