@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
 // SECURITY: no hardcoded fallbacks — fail loudly if env is missing.
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -8,39 +8,32 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 }
 
 /**
- * Returns a storage key that is unique per browser tab.
+ * Browser-side Supabase client.
  *
- * Why: localStorage is shared across ALL tabs in the same origin.
- * If Tab A is logged in as User 1 and Tab B logs in as User 2,
- * Supabase overwrites the shared localStorage key — logging out Tab A.
+ * IMPORTANT: we use `createBrowserClient` from `@supabase/ssr` (NOT the raw
+ * `createClient` from `@supabase/supabase-js`). This writes the session to
+ * cookies so the Next.js middleware (which reads cookies server-side) can
+ * see the user is authenticated.
  *
- * Fix: use sessionStorage to assign each tab a unique ID, then use that
- * ID as the Supabase storageKey. sessionStorage is isolated per tab
- * (not shared), so each tab holds its own independent session.
+ * Previously this file used `createClient` with `storageKey` pointing at
+ * localStorage, which meant the middleware never saw the session — every
+ * request to a protected route (e.g. /dashboard) was redirected back to
+ * /login, creating an infinite "جاري الدخول..." loop after a successful
+ * sign-in. Switching to the cookie-backed SSR client fixes that.
  */
-function getTabStorageKey(): string {
-  if (typeof window === 'undefined') {
-    // Server-side rendering — key doesn't matter here
-    return 'mawahib_session'
-  }
-  const TAB_ID_KEY = 'mawahib_tab_id'
-  let tabId = sessionStorage.getItem(TAB_ID_KEY)
-  if (!tabId) {
-    tabId = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2))
-    sessionStorage.setItem(TAB_ID_KEY, tabId)
-  }
-  return `mawahib_session_${tabId}`
-}
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  cookieOptions: {
+    // Cookies must be readable by middleware across the whole app
+    path: '/',
+    sameSite: 'lax',
+    // `secure` is auto-enabled on https by the SSR helper
+  },
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // Each tab gets its own isolated session key — prevents cross-tab logout
-    storageKey: getTabStorageKey(),
-    // Serialize token refreshes within the same tab using the Web Locks API.
-    // Prevents race conditions when autoRefreshToken fires multiple times.
+    // Serialize token refreshes to prevent race conditions when
+    // autoRefreshToken fires multiple times across tabs.
     lock: async <T>(name: string, _acquireTimeout: number, fn: () => Promise<T>): Promise<T> => {
       if (typeof navigator !== 'undefined' && 'locks' in navigator) {
         return navigator.locks.request(name, fn as () => PromiseLike<T>) as Promise<T>
