@@ -6,6 +6,7 @@ import {
   CalendarCheck, Star, MessageSquare, FileText,
   Wallet, Settings, X, Grid3x3,
   ClipboardCheck, ListChecks, LogOut, ShieldCheck, ChevronLeft, Bell,
+  ClipboardList, Target, ArrowLeftRight, BookHeart,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -28,10 +29,14 @@ const navItems: NavItem[] = [
   // === مدير الدفعة ===
   { href: '/manager/dashboard',    icon: LayoutDashboard, label: 'لوحة الدفعة',        badge: 0, roles: ['batch_manager'] },
   { href: '/manager/supervisors',  icon: UserCheck,       label: 'مشرفو دفعتي',        badge: 0, roles: ['batch_manager'] },
+  { href: '/manager/assignments',  icon: ArrowLeftRight,  label: 'تكليف المشرفين',      badge: 0, roles: ['batch_manager'] },
+  { href: '/followups/manager',    icon: ClipboardList,   label: 'متابعات الدفعة',      badge: 0, roles: ['batch_manager'] },
   { href: '/manager/reports',      icon: FileText,        label: 'تقارير الدفعة',       badge: 0, roles: ['batch_manager'] },
 
   // === المشرف / المعلم ===
   { href: '/dashboard',       icon: LayoutDashboard, label: 'لوحة التحكم',      badge: 0, roles: ['supervisor', 'teacher'] },
+  { href: '/followups',       icon: ClipboardList,   label: 'المتابعات',         badge: 0, roles: ['supervisor', 'teacher', 'ceo'] },
+  { href: '/followups/checklist', icon: ListChecks,  label: 'قائمة اليوم',       badge: 0, roles: ['supervisor', 'teacher'] },
 
   // === مشترك ===
   { href: '/batches',     icon: Grid3x3,         label: 'خريطة الطلاب والحفظ',   badge: 0 },
@@ -42,6 +47,8 @@ const navItems: NavItem[] = [
   { href: '/attendance',  icon: CalendarCheck,   label: 'الحضور والغياب',         badge: 0 },
   { href: '/programs',    icon: Star,            label: 'البرامج التربوية',       badge: 2 },
   { href: '/meetings',    icon: MessageSquare,   label: 'الاجتماعات',             badge: 1 },
+  { href: '/admin/bulk-plan', icon: Target,      label: 'إنشاء خطة جماعي',        badge: 0,  roles: ['ceo'] },
+  { href: '/reminders/saved', icon: BookHeart,   label: 'التذكيرات المحفوظة',    badge: 0 },
   { href: '/reports',         icon: FileText,     label: 'التقارير',               badge: 0 },
   { href: '/notifications',   icon: Bell,         label: 'الإشعارات',              badge: 0 },
   { href: '/budget',      icon: Wallet,          label: 'الميزانية والعهد',       badge: 5,  roles: ['ceo'] },
