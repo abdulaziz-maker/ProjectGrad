@@ -197,6 +197,7 @@ export default function SupervisorsPage() {
       strengths: '',
       weaknesses: '',
       batch_id: parseInt(form.batch_id),
+      user_id: null,
     }
     try {
       await upsertSupervisor(newSup)
