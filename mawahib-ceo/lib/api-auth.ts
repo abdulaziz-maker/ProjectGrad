@@ -40,7 +40,9 @@ export async function requireAuth(
 
   const role = (data.user.user_metadata?.role as string) ?? null
 
-  if (allowedRoles && role && !allowedRoles.includes(role)) {
+  // SECURITY: if allowedRoles is supplied, user must have a role AND it must match.
+  // Previously, a user with null role bypassed the check (`role &&` short-circuited).
+  if (allowedRoles && (!role || !allowedRoles.includes(role))) {
     return {
       user: null,
       error: NextResponse.json({ error: 'لا تملك صلاحية للوصول' }, { status: 403 }),

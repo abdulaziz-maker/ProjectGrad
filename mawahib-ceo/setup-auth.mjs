@@ -6,13 +6,24 @@
  */
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = 'https://kfexsycnpnldbjrwaohw.supabase.co'
-const ANON_KEY = 'sb_publishable_YH4CTdhzByRdRL65Q62Z0Q_OxuAKYwp'
+// SECURITY: never hardcode URLs, keys, or passwords. Read from env.
+//   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+//   CEO_EMAIL, CEO_PASSWORD, CEO_NAME
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+if (!SUPABASE_URL || !ANON_KEY) {
+  console.error('❌ NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_ANON_KEY مطلوبان')
+  process.exit(1)
+}
 const sb = createClient(SUPABASE_URL, ANON_KEY)
 
-const CEO_EMAIL    = 'abdulaziz1ayman@gmail.com'
-const CEO_PASSWORD = 'Mawahib@2026'
-const CEO_NAME     = 'عبدالعزيز — المدير التنفيذي'
+const CEO_EMAIL    = process.env.CEO_EMAIL
+const CEO_PASSWORD = process.env.CEO_PASSWORD
+const CEO_NAME     = process.env.CEO_NAME ?? 'المدير التنفيذي'
+if (!CEO_EMAIL || !CEO_PASSWORD) {
+  console.error('❌ CEO_EMAIL و CEO_PASSWORD مطلوبان في env قبل التشغيل')
+  process.exit(1)
+}
 
 async function run() {
   console.log('\n🔐 إعداد نظام المصادقة...\n')

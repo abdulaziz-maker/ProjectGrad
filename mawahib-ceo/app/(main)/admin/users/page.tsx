@@ -185,9 +185,14 @@ export default function AdminUsersPage() {
 
         // Create new account with new credentials
         const newEmail = editForm.newEmail || oldProfile?.email || ''
-        const newPassword = editForm.newPassword || 'Mawahib@2026' // fallback
+        // SECURITY: no hardcoded fallback password. Require admin to type it.
+        const newPassword = editForm.newPassword
 
         if (!newEmail) { toast.error('الإيميل مطلوب'); setSavingEdit(false); return }
+        if (!newPassword || newPassword.length < 8) {
+          toast.error('كلمة المرور مطلوبة (8 أحرف على الأقل)')
+          setSavingEdit(false); return
+        }
 
         // Save CEO session
         const { data: ceoSession } = await supabase.auth.getSession()

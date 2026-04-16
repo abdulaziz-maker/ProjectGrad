@@ -8,9 +8,14 @@ import { getEscalationLevel } from '@/lib/quran-followup'
  * Creates/updates escalation records based on severity.
  */
 export async function GET(request: Request) {
-  // Auth check for cron
+  // Auth check for cron — requires CRON_SECRET or Vercel cron header.
+  // NEVER match when CRON_SECRET is unset (prevents "Bearer undefined" bypass).
+  const secret = process.env.CRON_SECRET
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const isVercelCron = request.headers.get('x-vercel-cron') === '1'
+  const isAuthorized =
+    (!!secret && authHeader === `Bearer ${secret}`) || isVercelCron
+  if (!isAuthorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
