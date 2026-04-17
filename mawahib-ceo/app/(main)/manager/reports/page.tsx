@@ -9,9 +9,11 @@ import { useRouter } from 'next/navigation'
 import {
   Users, BookOpen, CalendarCheck,
   Loader2, ChevronLeft, TrendingUp,
-  ClipboardCheck, AlertTriangle,
+  ClipboardCheck, AlertTriangle, Download,
 } from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
+import * as XLSX from 'xlsx'
 
 function scoreColor(pct: number) {
   return pct >= 80 ? '#22c55e' : pct >= 60 ? '#6366f1' : pct >= 40 ? '#f59e0b' : '#ef4444'
@@ -98,6 +100,54 @@ export default function ManagerReportsPage() {
     }
   }, [students, supervisors, attendance, juzProgress])
 
+  /** تصدير تقرير الأداء الكامل (KPIs + أداء المشرفين + حالة المتابعة) إلى Excel. */
+  const exportReport = () => {
+    const wb = XLSX.utils.book_new()
+
+    // ورقة 1: ملخص
+    const summary = [
+      { 'البند': 'إجمالي الطلاب',      'القيمة': report.totalStudents },
+      { 'البند': 'أجزاء محفوظة',       'القيمة': report.memorized },
+      { 'البند': 'متوسط الإنجاز (%)', 'القيمة': report.avgCompletion },
+      { 'البند': 'الحضور الأسبوعي (%)','القيمة': report.attendancePct },
+      { 'البند': 'متابعة الأسبوع (%)', 'القيمة': report.followupPct },
+      { 'البند': 'متابَعون',           'القيمة': report.followedCount },
+      { 'البند': 'لم تتم متابعتهم',    'القيمة': report.unfollowedCount },
+    ]
+    const ws1 = XLSX.utils.json_to_sheet(summary)
+    ws1['!views'] = [{ RTL: true }]
+    XLSX.utils.book_append_sheet(wb, ws1, 'الملخص')
+
+    // ورقة 2: أداء المشرفين
+    const supRows = report.perSupervisor.map(s => ({
+      'المشرف': s.name,
+      'عدد الطلاب': s.studentCount,
+      'متوسط إنجاز طلابه (%)': s.avgCompletion,
+      'حضور طلابه (%)': s.attendancePct,
+    }))
+    const ws2 = XLSX.utils.json_to_sheet(supRows)
+    ws2['!views'] = [{ RTL: true }]
+    XLSX.utils.book_append_sheet(wb, ws2, 'أداء المشرفين')
+
+    // ورقة 3: حالة المتابعة لكل طالب
+    const active = students.filter(s => s.status === 'active' || !s.status)
+    const fuRows = active.map(s => ({
+      'الطالب': s.name,
+      'المشرف': s.supervisor_name,
+      'تمت المتابعة هذا الأسبوع': report.wasFollowedThisWeek(s) ? 'نعم' : 'لا',
+      'آخر متابعة': s.last_followup ?? '',
+      'الإنجاز (%)': s.completion_percentage || 0,
+    }))
+    const ws3 = XLSX.utils.json_to_sheet(fuRows)
+    ws3['!views'] = [{ RTL: true }]
+    XLSX.utils.book_append_sheet(wb, ws3, 'حالة المتابعة')
+
+    const today = new Date().toISOString().split('T')[0]
+    const fname = `تقرير_دفعة_${batchId ?? 'غير_محدد'}_${today}.xlsx`
+    XLSX.writeFile(wb, fname)
+    toast.success('تم تصدير التقرير')
+  }
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -118,6 +168,14 @@ export default function ManagerReportsPage() {
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>ملخص أداء الدفعة هذا الأسبوع</p>
           </div>
         </div>
+        <button
+          onClick={exportReport}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-colors"
+          style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+        >
+          <Download className="w-4 h-4" />
+          تصدير Excel
+        </button>
       </div>
 
       {/* Summary Cards */}
