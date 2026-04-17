@@ -1,27 +1,18 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { Eye, EyeOff, Loader2, BookOpen } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [checking, setChecking] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        router.replace('/dashboard')
-      } else {
-        setChecking(false)
-      }
-    })
-  }, [router])
+  // ملاحظة: لم نعد نفحص الجلسة هنا يدوياً — الـ middleware يعيد توجيه
+  // المستخدم المسجَّل من /login إلى /dashboard قبل أن تصل الصفحة. إزالة هذا
+  // الفحص يجنّبنا عرض Loader أولي إضافي يظهر ثم يختفي بسرعة.
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -31,20 +22,11 @@ export default function LoginPage() {
     if (authErr) {
       setError('البريد الإلكتروني أو كلمة المرور غير صحيحة')
       setLoading(false)
-    } else {
-      router.replace('/dashboard')
+      return
     }
-  }
-
-  if (checking) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: 'var(--bg-body)' }}
-      >
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#6366f1' }} />
-      </div>
-    )
+    // بعد النجاح نستخدم تحميلاً كاملاً للصفحة حتى يقرأ الـ middleware
+    // الكوكيز المحدّثة ويقرر التوجيه بلا دورة إضافية من الـ router.
+    window.location.replace('/dashboard')
   }
 
   return (

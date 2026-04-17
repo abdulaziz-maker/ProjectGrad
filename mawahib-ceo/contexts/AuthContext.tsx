@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react'
 import { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { UserProfile, getProfile } from '@/lib/auth'
@@ -12,34 +12,45 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue>({ session: null, profile: null, loading: true })
 
+/**
+ * مزوّد المصادقة — مُحسَّن لتسريع تسجيل الدخول.
+ *
+ * قبل: كان يستدعي `getSession()` ثم `onAuthStateChange` يطلق معاً، ويجلب
+ * الملف الشخصي مرتين في التحميل الأول، ويعيد جلبه في كل `TOKEN_REFRESHED`،
+ * ولا يُرفع `loading=false` حتى ينتهي جلب الملف. الشاشة كانت تقفل حتى
+ * ينتهي كل ذلك.
+ *
+ * بعد: نعتمد على `onAuthStateChange` وحده — يطلق `INITIAL_SESSION` فوراً
+ * عند التركيب، فلا حاجة لـ `getSession()` منفصل. نرفع `loading=false` بمجرد
+ * معرفة الجلسة، ونجلب الملف الشخصي في الخلفية دون حجب الواجهة. ونتجاهل
+ * أحداث `TOKEN_REFRESHED` لأن هوية المستخدم لم تتغير.
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const lastUserIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    // Get initial session from localStorage
-    supabase.auth.getSession().then(async ({ data }) => {
-      const s = data.session
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s)
-      if (s?.user) {
-        const p = await getProfile(s.user.id)
-        setProfile(p)
-      }
+      // نعرف الآن هل المستخدم مسجّل أو لا — يمكن رفع قفل الواجهة.
       setLoading(false)
-    })
 
-    // Listen for auth changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
-      setSession(s)
-      if (s?.user) {
-        const p = await getProfile(s.user.id)
-        setProfile(p)
-      } else {
+      const userId = s?.user?.id ?? null
+      if (!userId) {
         setProfile(null)
+        lastUserIdRef.current = null
+        return
       }
-      // Only set loading false if still loading
-      setLoading(false)
+
+      // لا تجلب الملف الشخصي إلا إذا تغيّر المستخدم فعلاً.
+      // TOKEN_REFRESHED يطلق كثيراً ولا يحتاج جلبا جديدا.
+      if (userId === lastUserIdRef.current) return
+      lastUserIdRef.current = userId
+
+      // جلب في الخلفية — لا يحجب عرض الصفحة.
+      getProfile(userId).then(p => setProfile(p)).catch(() => setProfile(null))
     })
 
     return () => subscription.unsubscribe()
