@@ -48,6 +48,7 @@ const navItems: NavItem[] = [
   { href: '/programs',    icon: Star,            label: 'البرامج التربوية',       badge: 2 },
   { href: '/meetings',    icon: MessageSquare,   label: 'الاجتماعات',             badge: 1 },
   { href: '/admin/bulk-plan', icon: Target,      label: 'إنشاء خطة جماعي',        badge: 0,  roles: ['ceo'] },
+  { href: '/matn/manage',     icon: BookOpen,    label: 'إدارة المتون',            badge: 0,  roles: ['ceo'] },
   { href: '/reminders/saved', icon: BookHeart,   label: 'التذكيرات المحفوظة',    badge: 0 },
   { href: '/reports',         icon: FileText,     label: 'التقارير',               badge: 0 },
   { href: '/notifications',   icon: Bell,         label: 'الإشعارات',              badge: 0 },
