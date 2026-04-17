@@ -2,15 +2,20 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   getStudents, getSupervisors, getAllAttendance, getJuzProgress, getBatches,
+  getExams, getMeetings, getPrograms,
+  getSupervisorAttendanceForDate,
   type DBStudent, type DBSupervisor, type DBAttendanceRecord, type DBJuzProgress, type DBBatch,
+  type DBExam, type DBMeeting, type DBProgram,
 } from '@/lib/db'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import {
   Users, BookOpen, CalendarCheck, UserCheck, TrendingUp,
   AlertTriangle, Loader2, Trophy, Target,
+  ClipboardCheck, Star, MessageSquare, FileText, ArrowLeft,
 } from 'lucide-react'
 import Link from 'next/link'
+import { todayStr } from '@/lib/hijri'
 
 const PROGRAM_START = new Date('2026-02-27')
 
@@ -29,6 +34,10 @@ export default function ManagerDashboardPage() {
   const [attendance, setAttendance] = useState<DBAttendanceRecord[]>([])
   const [juzProgress, setJuzProgress] = useState<DBJuzProgress[]>([])
   const [batch, setBatch] = useState<DBBatch | null>(null)
+  const [exams, setExams] = useState<DBExam[]>([])
+  const [meetings, setMeetings] = useState<DBMeeting[]>([])
+  const [programs, setPrograms] = useState<DBProgram[]>([])
+  const [supAttToday, setSupAttToday] = useState<{ present: number; total: number }>({ present: 0, total: 0 })
 
   useEffect(() => {
     if (profile && profile.role !== 'batch_manager') router.replace('/dashboard')
@@ -38,12 +47,23 @@ export default function ManagerDashboardPage() {
     if (!batchId) return
     Promise.all([
       getStudents(), getSupervisors(), getAllAttendance(), getJuzProgress(), getBatches(),
-    ]).then(([s, sv, a, j, b]) => {
-      setStudents(s.filter(st => st.batch_id === batchId))
+      getExams(), getMeetings(), getPrograms(),
+      getSupervisorAttendanceForDate(batchId, todayStr()).catch(() => []),
+    ]).then(([s, sv, a, j, b, ex, mt, pr, supAtt]) => {
+      const batchStudents = s.filter(st => st.batch_id === batchId)
+      const batchStudentIds = new Set(batchStudents.map(st => st.id))
+      setStudents(batchStudents)
       setSupervisors(sv.filter(sup => sup.batch_id === batchId))
       setAttendance(a.filter(att => att.batch_id === String(batchId)))
-      setJuzProgress(j.filter(jp => s.some(st => st.batch_id === batchId && st.id === jp.student_id)))
+      setJuzProgress(j.filter(jp => batchStudentIds.has(jp.student_id)))
       setBatch(b.find(bt => bt.id === batchId) ?? null)
+      setExams(ex.filter(e => e.batch_id === batchId || batchStudentIds.has(e.student_id)))
+      setMeetings(mt)
+      setPrograms(pr.filter(p => p.batch_id === String(batchId) || p.batch_id === 'all'))
+
+      const present = supAtt.filter(r => r.status === 'present').length
+      setSupAttToday({ present, total: supAtt.length })
+
       setLoading(false)
     })
   }, [batchId])
@@ -63,10 +83,44 @@ export default function ManagerDashboardPage() {
       ? Math.round((weekAttendance.filter(a => a.status === 'present').length / weekAttendance.length) * 100)
       : 0
 
+    // حضور اليوم فقط
+    const today = todayStr()
+    const todayAtt = attendance.filter(a => a.date === today)
+    const todayPresent = todayAtt.filter(a => a.status === 'present').length
+    const todayAttPct = todayAtt.length > 0 ? Math.round((todayPresent / todayAtt.length) * 100) : 0
+
+    // المتابعة الأسبوعية
+    const followedCount = students.filter(s => {
+      if (!s.last_followup) return false
+      return new Date(s.last_followup) >= weekStart
+    }).length
+    const followupPct = totalStudents > 0 ? Math.round((followedCount / totalStudents) * 100) : 0
+
+    // أقرب اختبار قادم
+    const upcomingExam = [...exams]
+      .filter(e => e.date >= today && e.status === 'scheduled')
+      .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))[0]
+
+    // أقرب برنامج تربوي قادم
+    const upcomingProgram = [...programs]
+      .filter(p => p.start_date >= today && p.status !== 'completed')
+      .sort((a, b) => a.start_date.localeCompare(b.start_date))[0]
+
+    // آخر اجتماع مجدول
+    const upcomingMeeting = [...meetings]
+      .filter(m => m.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date))[0]
+
     const struggling = students.filter(s => (s.completion_percentage || 0) < 40).length
 
-    return { totalStudents, totalJuz, avgCompletion, attendancePct, struggling, totalSupervisors: supervisors.length }
-  }, [students, juzProgress, attendance, supervisors])
+    return {
+      totalStudents, totalJuz, avgCompletion, attendancePct, struggling,
+      totalSupervisors: supervisors.length,
+      todayPresent, todayAtt: todayAtt.length, todayAttPct,
+      followedCount, followupPct,
+      upcomingExam, upcomingProgram, upcomingMeeting,
+    }
+  }, [students, juzProgress, attendance, supervisors, exams, programs, meetings])
 
   if (loading) {
     return (
@@ -106,6 +160,123 @@ export default function ManagerDashboardPage() {
             <p className="text-xl font-bold" style={{ color: kpi.color }}>{kpi.value}</p>
           </div>
         ))}
+      </div>
+
+      {/* ملخص كل قسم (بطاقات مفصَّلة مع روابط تفاصيل) */}
+      <div>
+        <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--text-secondary)' }}>ملخص الأقسام</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* الطلاب */}
+          <Link href="/students" className="card rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4" style={{ color: '#6366f1' }} />
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>الطلاب</h3>
+              </div>
+              <ArrowLeft className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
+            </div>
+            <p className="text-2xl font-bold mb-1" style={{ color: '#6366f1' }}>{stats.totalStudents}</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              حضور اليوم: <span className="font-semibold" style={{ color: scoreColor(stats.todayAttPct) }}>{stats.todayPresent}</span> / {stats.todayAtt}
+              {stats.todayAtt > 0 && ` (${stats.todayAttPct}%)`}
+            </p>
+            <p className="text-[11px] mt-1" style={{ color: '#6366f1' }}>عرض التفاصيل ←</p>
+          </Link>
+
+          {/* المشرفون */}
+          <Link href="/manager/supervisors" className="card rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4" style={{ color: '#06b6d4' }} />
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>المشرفون</h3>
+              </div>
+              <ArrowLeft className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
+            </div>
+            <p className="text-2xl font-bold mb-1" style={{ color: '#06b6d4' }}>{stats.totalSupervisors}</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {supAttToday.total > 0
+                ? <>حضور اليوم: <span className="font-semibold" style={{ color: scoreColor(Math.round((supAttToday.present / supAttToday.total) * 100)) }}>{supAttToday.present}</span> / {supAttToday.total}</>
+                : 'لم يُسجَّل حضور اليوم بعد'}
+            </p>
+            <p className="text-[11px] mt-1" style={{ color: '#06b6d4' }}>عرض التفاصيل ←</p>
+          </Link>
+
+          {/* التقارير */}
+          <Link href="/manager/reports" className="card rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" style={{ color: '#f59e0b' }} />
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>التقارير</h3>
+              </div>
+              <ArrowLeft className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
+            </div>
+            <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>إنجاز أسبوعي: <span className="font-semibold" style={{ color: scoreColor(stats.avgCompletion) }}>{stats.avgCompletion}%</span></p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>متابعة: <span className="font-semibold" style={{ color: scoreColor(stats.followupPct) }}>{stats.followupPct}%</span></p>
+            <p className="text-[11px] mt-1" style={{ color: '#f59e0b' }}>عرض التفاصيل ←</p>
+          </Link>
+
+          {/* أقرب اختبار */}
+          <Link href="/exams" className="card rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <ClipboardCheck className="w-4 h-4" style={{ color: '#8b5cf6' }} />
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>أقرب اختبار</h3>
+              </div>
+              <ArrowLeft className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
+            </div>
+            {stats.upcomingExam ? (
+              <>
+                <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{stats.upcomingExam.student_name}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  الجزء {stats.upcomingExam.juz_number} — {stats.upcomingExam.date} {stats.upcomingExam.time}
+                </p>
+              </>
+            ) : (
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>لا توجد اختبارات مجدولة</p>
+            )}
+            <p className="text-[11px] mt-1" style={{ color: '#8b5cf6' }}>عرض الجدول ←</p>
+          </Link>
+
+          {/* البرنامج القادم */}
+          <Link href="/programs" className="card rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4" style={{ color: '#22c55e' }} />
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>البرنامج القادم</h3>
+              </div>
+              <ArrowLeft className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
+            </div>
+            {stats.upcomingProgram ? (
+              <>
+                <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{stats.upcomingProgram.name}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{stats.upcomingProgram.start_date}</p>
+              </>
+            ) : (
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>لا توجد برامج مجدولة</p>
+            )}
+            <p className="text-[11px] mt-1" style={{ color: '#22c55e' }}>عرض التفاصيل ←</p>
+          </Link>
+
+          {/* أقرب اجتماع */}
+          <Link href="/meetings" className="card rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" style={{ color: '#ec4899' }} />
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>أقرب اجتماع</h3>
+              </div>
+              <ArrowLeft className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
+            </div>
+            {stats.upcomingMeeting ? (
+              <>
+                <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{stats.upcomingMeeting.type}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{stats.upcomingMeeting.date} {stats.upcomingMeeting.time}</p>
+              </>
+            ) : (
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>لا توجد اجتماعات مجدولة</p>
+            )}
+            <p className="text-[11px] mt-1" style={{ color: '#ec4899' }}>عرض التفاصيل ←</p>
+          </Link>
+        </div>
       </div>
 
       {/* Supervisors Overview */}
