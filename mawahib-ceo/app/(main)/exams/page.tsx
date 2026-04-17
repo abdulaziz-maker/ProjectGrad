@@ -7,22 +7,32 @@ import { getBatchName } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 
 const DAYS_AR = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
 
-function getThisWeekDates(): string[] {
-  const today = new Date('2026-04-06') // fixed date for demo
-  const day = today.getDay() // 0=Sun
+/** إرجاع أيام أسبوع محدَّد بالإزاحة (0 = الأسبوع الحالي، -1 السابق، 1 التالي). */
+function getWeekDates(weekOffset: number = 0): string[] {
+  const base = new Date()
+  base.setHours(0, 0, 0, 0)
+  const day = base.getDay() // 0=Sun
   const week: string[] = []
   for (let i = 0; i < 7; i++) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - day + i)
+    const d = new Date(base)
+    d.setDate(base.getDate() - day + i + (weekOffset * 7))
     week.push(d.toISOString().split('T')[0])
   }
   return week
 }
 
+/** تاريخ اليوم بصيغة ISO (YYYY-MM-DD). */
+function todayIso(): string {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString().split('T')[0]
+}
+
 function formatDateAr(dateStr: string): string {
   const d = new Date(dateStr)
-  return `${DAYS_AR[d.getDay()]} ${d.getDate()} أبريل`
+  return `${DAYS_AR[d.getDay()]} ${d.getDate()} ${MONTHS_AR[d.getMonth()]}`
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -34,32 +44,44 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 
 export default function ExamsPage() {
   const { profile } = useAuth()
-  const isSupervisor = profile?.role === 'supervisor' || profile?.role === 'teacher'
+  const role = profile?.role ?? null
+  const isCeo = role === 'ceo'
   const myBatchId = profile?.batch_id ?? null
+
+  const today = todayIso()
 
   const [exams, setExams] = useState<DBExam[]>([])
   const [students, setStudents] = useState<DBStudent[]>([])
   const [supervisors, setSupervisors] = useState<DBSupervisor[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [selectedDay, setSelectedDay] = useState('2026-04-06')
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [selectedDay, setSelectedDay] = useState(today)
   const [markingExam, setMarkingExam] = useState<string | null>(null)
   const [score, setScore] = useState('')
   const [form, setForm] = useState({
     studentId: '',
     juzNumber: '1',
     examiner: '',
-    date: '2026-04-06',
+    date: today,
     time: '10:00',
     notes: '',
   })
 
-  const weekDates = getThisWeekDates()
-  const today = '2026-04-06'
+  const weekDates = getWeekDates(weekOffset)
 
-  const visibleExams = (isSupervisor && myBatchId !== null)
-    ? exams.filter(e => e.batch_id === myBatchId)
-    : exams
+  // كل المسجّلين يرون كل الاختبارات (read-only للدفعات الأخرى في حالة المشرف/مدير الدفعة).
+  const visibleExams = exams
+
+  // هل يستطيع المستخدم تعديل/حذف هذا الاختبار؟
+  const canEditExam = (exam: DBExam): boolean => {
+    if (isCeo) return true
+    if (role === 'batch_manager' || role === 'supervisor' || role === 'teacher') {
+      return myBatchId !== null && exam.batch_id === myBatchId
+    }
+    return false
+  }
+  const isOtherBatch = (exam: DBExam): boolean => !isCeo && myBatchId !== null && exam.batch_id !== myBatchId
 
   useEffect(() => {
     async function fetchData() {
@@ -97,7 +119,7 @@ export default function ExamsPage() {
       id: `e${Date.now()}`,
       student_id: form.studentId,
       student_name: student.name,
-      batch_id: isSupervisor && myBatchId !== null ? myBatchId : (students.find(s => s.id === form.studentId)?.batch_id ?? 0),
+      batch_id: (!isCeo && myBatchId !== null) ? myBatchId : (students.find(s => s.id === form.studentId)?.batch_id ?? 0),
       juz_number: Number(form.juzNumber),
       examiner: form.examiner,
       date: form.date,
@@ -208,7 +230,7 @@ export default function ExamsPage() {
               >
                 <option value="">اختر الطالب</option>
                 {(() => {
-                  const studentOptions = (isSupervisor && myBatchId !== null)
+                  const studentOptions = (!isCeo && myBatchId !== null)
                     ? students.filter(s => s.batch_id === myBatchId)
                     : students
                   return [...new Set(studentOptions.map(s => s.batch_id))].sort().map(batch => (
@@ -287,6 +309,45 @@ export default function ExamsPage() {
 
       {/* Weekly calendar */}
       <div className="card-static overflow-hidden">
+        {/* Week navigation */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5" style={{ background: 'rgba(99,102,241,0.04)' }}>
+          <button
+            onClick={() => { setWeekOffset(w => w - 1); setSelectedDay(getWeekDates(weekOffset - 1)[0]) }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:bg-white/5"
+            style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+            الأسبوع السابق
+          </button>
+
+          <div className="text-center">
+            <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+              {weekOffset === 0 ? 'الأسبوع الحالي' : weekOffset === 1 ? 'الأسبوع التالي' : weekOffset === -1 ? 'الأسبوع السابق' : weekOffset > 0 ? `بعد ${weekOffset} أسابيع` : `قبل ${-weekOffset} أسابيع`}
+            </p>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              {formatDateAr(weekDates[0])} — {formatDateAr(weekDates[5])}
+            </p>
+            {weekOffset !== 0 && (
+              <button
+                onClick={() => { setWeekOffset(0); setSelectedDay(today) }}
+                className="mt-1 text-[11px] px-2 py-0.5 rounded font-medium"
+                style={{ color: '#6366f1', background: 'rgba(99,102,241,0.1)' }}
+              >
+                ← العودة للأسبوع الحالي
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() => { setWeekOffset(w => w + 1); setSelectedDay(getWeekDates(weekOffset + 1)[0]) }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:bg-white/5"
+            style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+          >
+            الأسبوع التالي
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
         {/* Day selector */}
         <div className="flex overflow-x-auto border-b border-white/5">
           {weekDates.slice(0, 6).map(date => {
@@ -328,8 +389,20 @@ export default function ExamsPage() {
           ) : (
             <div className="space-y-3">
               <p className="text-xs font-medium mb-3" style={{ color: 'var(--text-muted)' }}>{formatDateAr(selectedDay)} — <span className="font-mono">{dayExams.length}</span> اختبار</p>
-              {dayExams.map(exam => (
-                <div key={exam.id} className={`flex items-center gap-4 p-4 rounded-xl border ${exam.status === 'scheduled' ? 'border-indigo-500/20' : exam.status === 'passed' ? 'border-green-500/20' : exam.status === 'failed' ? 'border-red-500/20' : 'border-white/10'}`} style={{ background: exam.status === 'scheduled' ? 'rgba(99,102,241,0.06)' : exam.status === 'passed' ? 'rgba(34,197,94,0.06)' : exam.status === 'failed' ? 'rgba(239,68,68,0.06)' : 'transparent' }}>
+              {dayExams.map(exam => {
+                const readOnly = isOtherBatch(exam)
+                const bgColor = readOnly
+                  ? 'rgba(148,163,184,0.08)'
+                  : exam.status === 'scheduled' ? 'rgba(99,102,241,0.06)'
+                  : exam.status === 'passed' ? 'rgba(34,197,94,0.06)'
+                  : exam.status === 'failed' ? 'rgba(239,68,68,0.06)' : 'transparent'
+                const borderCls = readOnly
+                  ? 'border-slate-400/30'
+                  : exam.status === 'scheduled' ? 'border-indigo-500/20'
+                  : exam.status === 'passed' ? 'border-green-500/20'
+                  : exam.status === 'failed' ? 'border-red-500/20' : 'border-white/10'
+                return (
+                <div key={exam.id} className={`flex items-center gap-4 p-4 rounded-xl border ${borderCls}`} style={{ background: bgColor, opacity: readOnly ? 0.75 : 1 }}>
                   {/* Time */}
                   <div className="text-center min-w-12">
                     <p className="font-bold text-sm font-mono" style={{ color: 'var(--text-primary)' }}>{exam.time}</p>
@@ -355,10 +428,15 @@ export default function ExamsPage() {
 
                   {/* Status + actions */}
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {readOnly && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(148,163,184,0.2)', color: '#64748b' }}>
+                        قراءة فقط
+                      </span>
+                    )}
                     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${(STATUS_CONFIG[exam.status] || STATUS_CONFIG.scheduled).color}`}>
                       {(STATUS_CONFIG[exam.status] || STATUS_CONFIG.scheduled).label}
                     </span>
-                    {exam.status === 'scheduled' && (
+                    {!readOnly && exam.status === 'scheduled' && (
                       <>
                         {markingExam === exam.id ? (
                           <div className="flex items-center gap-2">
@@ -388,12 +466,14 @@ export default function ExamsPage() {
                         )}
                       </>
                     )}
-                    <button onClick={() => handleDeleteExam(exam.id)} className="text-gray-300 hover:text-red-400 p-1">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                    {canEditExam(exam) && (
+                      <button onClick={() => handleDeleteExam(exam.id)} className="text-gray-300 hover:text-red-400 p-1">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>
