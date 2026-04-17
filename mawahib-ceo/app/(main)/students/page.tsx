@@ -5,11 +5,13 @@ import Link from 'next/link'
 import { getStudents, getSupervisors, upsertStudent, getJuzProgress, DBStudent, DBSupervisor } from '@/lib/db'
 import { toHijriDisplay } from '@/lib/hijri'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Download } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import * as XLSX from 'xlsx'
 
 const BATCH_OPTIONS = [46, 48, 44, 42] as const
-const PAGE_SIZE = 10
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 0] as const // 0 = عرض الكل
+const DEFAULT_PAGE_SIZE = 25
 
 const emptyForm = {
   name: '',
@@ -18,6 +20,23 @@ const emptyForm = {
   enrollment_date: '',
   status: 'active' as 'active' | 'suspended',
   notes: '',
+  national_id: '',
+  birth_date: '',
+  parent_phone: '',
+}
+
+/** تحقق من رقم الهوية (١٠ أرقام). فارغاً يُعتبر مقبولاً. */
+function validateNationalId(v: string): string | null {
+  if (!v) return null
+  if (!/^\d{10}$/.test(v)) return 'رقم الهوية يجب أن يكون ١٠ أرقام'
+  return null
+}
+
+/** تحقق من رقم الجوال (٩-١٥ رقم). فارغاً يُعتبر مقبولاً. */
+function validatePhone(v: string): string | null {
+  if (!v) return null
+  if (!/^[0-9+]{9,15}$/.test(v)) return 'رقم الجوال غير صحيح (٩-١٥ رقم)'
+  return null
 }
 
 export default function StudentsPage() {
@@ -32,10 +51,12 @@ export default function StudentsPage() {
   const [batchFilter, setBatchFilter] = useState<number | ''>('')
   const [statusFilter, setStatusFilter] = useState<'active' | 'suspended' | ''>('')
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE)
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [formErrors, setFormErrors] = useState<{ national_id?: string; parent_phone?: string }>({})
 
   useEffect(() => {
     async function load() {
@@ -86,8 +107,39 @@ export default function StudentsPage() {
     return list
   }, [students, search, batchFilter, statusFilter, isSupervisor, supervisorBatchId])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const effectivePageSize = pageSize === 0 ? filtered.length || 1 : pageSize
+  const totalPages = Math.max(1, Math.ceil(filtered.length / effectivePageSize))
+  const paginated = pageSize === 0
+    ? filtered
+    : filtered.slice((page - 1) * pageSize, page * pageSize)
+
+  /** تصدير الطلاب المفلترين الحاليين إلى ملف Excel. */
+  const exportToExcel = () => {
+    const rows = filtered.map((s, i) => ({
+      '#': i + 1,
+      'الاسم': s.name,
+      'الدفعة': s.batch_id,
+      'المشرف': s.supervisor_name,
+      'رقم الهوية': s.national_id ?? '',
+      'تاريخ الميلاد': s.birth_date ?? '',
+      'جوال ولي الأمر': s.parent_phone ?? '',
+      'تاريخ الالتحاق': s.enrollment_date ?? '',
+      'الحالة': s.status === 'active' ? 'نشط' : s.status === 'suspended' ? 'متعثر' : 'متخرج',
+      'الأجزاء المحفوظة': s.juz_completed,
+      'نسبة الإنجاز': `${s.completion_percentage}%`,
+      'آخر متابعة': s.last_followup ?? '',
+      'ملاحظات': s.notes ?? '',
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    // RTL للصفحة
+    ws['!views'] = [{ RTL: true }]
+    const wb = XLSX.utils.book_new()
+    const batchLabel = batchFilter === '' ? 'كل_الدفعات' : `دفعة_${batchFilter}`
+    XLSX.utils.book_append_sheet(wb, ws, 'الطلاب')
+    const today = new Date().toISOString().split('T')[0]
+    XLSX.writeFile(wb, `الطلاب_${batchLabel}_${today}.xlsx`)
+    toast.success(`تم تصدير ${rows.length} طالب إلى Excel`)
+  }
 
   const totalCount = students.length
   const activeCount = students.filter(s => s.status === 'active').length
@@ -101,6 +153,7 @@ export default function StudentsPage() {
   const openAdd = () => {
     setEditingId(null)
     setForm(emptyForm)
+    setFormErrors({})
     setShowModal(true)
   }
 
@@ -113,12 +166,30 @@ export default function StudentsPage() {
       enrollment_date: s.enrollment_date,
       status: s.status === 'graduated' ? 'active' : (s.status as 'active' | 'suspended'),
       notes: s.notes,
+      national_id: s.national_id ?? '',
+      birth_date: s.birth_date ?? '',
+      parent_phone: s.parent_phone ?? '',
     })
+    setFormErrors({})
     setShowModal(true)
   }
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.supervisor_id) return
+
+    // Validation
+    const errs: { national_id?: string; parent_phone?: string } = {}
+    const nidErr = validateNationalId(form.national_id)
+    if (nidErr) errs.national_id = nidErr
+    const phoneErr = validatePhone(form.parent_phone)
+    if (phoneErr) errs.parent_phone = phoneErr
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs)
+      toast.error('يُرجى تصحيح الحقول المعلَّمة')
+      return
+    }
+    setFormErrors({})
+
     setSaving(true)
     try {
       const supName = supervisorName(form.supervisor_id)
@@ -136,6 +207,9 @@ export default function StudentsPage() {
         juz_completed: existing?.juz_completed ?? 0,
         completion_percentage: existing?.completion_percentage ?? 0,
         last_followup: existing?.last_followup ?? null,
+        national_id: form.national_id || '',
+        birth_date: form.birth_date || null,
+        parent_phone: form.parent_phone || '',
       }
       await upsertStudent(student)
       if (editingId) {
@@ -174,13 +248,24 @@ export default function StudentsPage() {
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>الطلاب</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>إدارة ومتابعة جميع الطلاب</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="btn-primary btn-ripple flex items-center gap-2 text-white px-4 py-2 rounded-xl text-sm font-medium"
-        >
-          <span className="text-lg leading-none">+</span>
-          إضافة طالب
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportToExcel}
+            disabled={filtered.length === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-colors disabled:opacity-50"
+            style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+          >
+            <Download className="w-4 h-4" />
+            تصدير Excel
+          </button>
+          <button
+            onClick={openAdd}
+            className="btn-primary btn-ripple flex items-center gap-2 text-white px-4 py-2 rounded-xl text-sm font-medium"
+          >
+            <span className="text-lg leading-none">+</span>
+            إضافة طالب
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -228,6 +313,16 @@ export default function StudentsPage() {
             <option value="active">نشط</option>
             <option value="suspended">متعثر</option>
           </select>
+          <select
+            value={pageSize}
+            onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+            title="عدد الصفوف في الصفحة"
+          >
+            {PAGE_SIZE_OPTIONS.map(size => (
+              <option key={size} value={size}>{size === 0 ? 'عرض الكل' : `${size} لكل صفحة`}</option>
+            ))}
+          </select>
           <span className="flex items-center text-sm" style={{ color: 'var(--text-muted)' }}>{filtered.length} طالب</span>
         </div>
       </div>
@@ -256,7 +351,7 @@ export default function StudentsPage() {
               ) : (
                 paginated.map((s, idx) => (
                   <tr key={s.id} className="hover:opacity-90 transition-colors">
-                    <td className="px-4 py-3" style={{ color: 'var(--text-muted)' }}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                    <td className="px-4 py-3" style={{ color: 'var(--text-muted)' }}>{(pageSize === 0 ? 0 : (page - 1) * pageSize) + idx + 1}</td>
                     <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{s.name}</td>
                     <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>دفعة {s.batch_id}</td>
                     <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{s.supervisor_name}</td>
@@ -315,10 +410,10 @@ export default function StudentsPage() {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {pageSize !== 0 && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              عرض {Math.min((page - 1) * PAGE_SIZE + 1, filtered.length)}–{Math.min(page * PAGE_SIZE, filtered.length)} من {filtered.length}
+              عرض {Math.min((page - 1) * pageSize + 1, filtered.length)}–{Math.min(page * pageSize, filtered.length)} من {filtered.length}
             </p>
             <div className="flex gap-1">
               <button
@@ -418,6 +513,57 @@ export default function StudentsPage() {
                 />
                 {hijriDate && (
                   <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{hijriDate}</p>
+                )}
+              </div>
+
+              {/* البيانات الشخصية */}
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  رقم الهوية الوطنية
+                  <span className="text-[10px] mr-1" style={{ color: 'var(--text-muted)' }}>(١٠ أرقام — اختياري)</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={form.national_id}
+                  onChange={e => setForm(f => ({ ...f, national_id: e.target.value.replace(/\D/g, '') }))}
+                  className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20 ${formErrors.national_id ? 'border-red-400' : 'border-gray-200'}`}
+                  placeholder="1012345678"
+                />
+                {formErrors.national_id && (
+                  <p className="text-[11px] text-red-500 mt-1">{formErrors.national_id}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>تاريخ الميلاد</label>
+                <input
+                  type="date"
+                  value={form.birth_date}
+                  onChange={e => setForm(f => ({ ...f, birth_date: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+                />
+                {form.birth_date && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{toHijriDisplay(form.birth_date)}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  رقم جوال ولي الأمر
+                  <span className="text-[10px] mr-1" style={{ color: 'var(--text-muted)' }}>(اختياري)</span>
+                </label>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  value={form.parent_phone}
+                  onChange={e => setForm(f => ({ ...f, parent_phone: e.target.value }))}
+                  className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20 ${formErrors.parent_phone ? 'border-red-400' : 'border-gray-200'}`}
+                  placeholder="05XXXXXXXX"
+                />
+                {formErrors.parent_phone && (
+                  <p className="text-[11px] text-red-500 mt-1">{formErrors.parent_phone}</p>
                 )}
               </div>
 
