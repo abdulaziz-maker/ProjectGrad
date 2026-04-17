@@ -144,7 +144,7 @@ export function savePrograms(p: StoredProgram[]) {
 export interface AttendanceDay {
   date: string
   batchId: string
-  records: Record<string, 'present' | 'absent' | 'late'>
+  records: Record<string, 'present' | 'absent' | 'excused' | 'late'>
 }
 
 export function loadAttendance(): AttendanceDay[] {

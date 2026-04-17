@@ -4,11 +4,28 @@ import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { getStudents, getAllAttendance, saveAttendanceDay, DBStudent, DBAttendanceRecord } from '@/lib/db'
 import { toHijriDisplay, toGregorianDisplay, addDays, todayStr } from '@/lib/hijri'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Check, X, AlertCircle, CheckCheck } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
-type AttendanceStatus = 'present' | 'absent' | 'late'
+// ملاحظة: الحالات الآن ثلاث: حاضر (present) / غائب (absent) / غائب بعذر (excused).
+// البيانات القديمة المحفوظة باسم 'late' تُعرض كـ 'excused' (نفس اللون الأصفر)
+// وتُحوَّل تلقائياً عند إعادة الحفظ. راجع supabase-attendance-excused-migration.sql
+// لتحديث السجلات القديمة إلى 'excused' في قاعدة البيانات.
+type AttendanceStatus = 'present' | 'absent' | 'excused'
 type BatchId = '46' | '48'
+
+const STATUS_META: Record<AttendanceStatus, { label: string; bg: string; bgSoft: string; text: string; textSoft: string; icon: typeof Check }> = {
+  present: { label: 'حاضر',      bg: '#16a34a', bgSoft: '#f0fdf4', text: '#ffffff', textSoft: '#15803d', icon: Check },
+  absent:  { label: 'غائب',      bg: '#ef4444', bgSoft: '#fef2f2', text: '#ffffff', textSoft: '#b91c1c', icon: X },
+  excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', text: '#ffffff', textSoft: '#854d0e', icon: AlertCircle },
+}
+
+// تطبيع الحالات القديمة ('late') إلى الحالة الجديدة ('excused')
+function normalizeStatus(s: string): AttendanceStatus {
+  if (s === 'late') return 'excused'
+  if (s === 'present' || s === 'absent' || s === 'excused') return s
+  return 'absent'
+}
 
 export default function AttendancePage() {
   const { profile } = useAuth()
@@ -32,7 +49,7 @@ export default function AttendancePage() {
         // Load records for current date/batch
         const existing = att.filter(a => a.date === todayStr() && a.batch_id === '46')
         const recMap: Record<string, AttendanceStatus> = {}
-        for (const r of existing) recMap[r.student_id] = r.status as AttendanceStatus
+        for (const r of existing) recMap[r.student_id] = normalizeStatus(r.status)
         setRecords(recMap)
       })
       .catch(() => toast.error('خطأ في تحميل البيانات'))
@@ -42,9 +59,21 @@ export default function AttendancePage() {
   const loadRecordsForDateBatch = useCallback((d: string, b: BatchId) => {
     const existing = allAttendance.filter(a => a.date === d && a.batch_id === b)
     const recMap: Record<string, AttendanceStatus> = {}
-    for (const r of existing) recMap[r.student_id] = r.status as AttendanceStatus
+    for (const r of existing) recMap[r.student_id] = normalizeStatus(r.status)
     setRecords(recMap)
   }, [allAttendance])
+
+  // تحديد حالة واحدة لكل الطلاب في الدفعة الحالية دفعة واحدة
+  const markAll = useCallback((status: AttendanceStatus) => {
+    setRecords(prev => {
+      const next: Record<string, AttendanceStatus> = { ...prev }
+      for (const s of students) {
+        if (s.batch_id === parseInt(batchId)) next[s.id] = status
+      }
+      return next
+    })
+    toast.success(`تم تحديد ${STATUS_META[status].label} للجميع`)
+  }, [students, batchId])
 
   useEffect(() => {
     if (!loading) loadRecordsForDateBatch(date, batchId)
@@ -80,14 +109,16 @@ export default function AttendancePage() {
   const batchStudents = students.filter(s => s.batch_id === parseInt(batchId))
   const presentCount = batchStudents.filter(s => records[s.id] === 'present').length
   const absentCount = batchStudents.filter(s => records[s.id] === 'absent').length
-  const lateCount = batchStudents.filter(s => records[s.id] === 'late').length
-  const unmarkedCount = batchStudents.length - presentCount - absentCount - lateCount
+  const excusedCount = batchStudents.filter(s => records[s.id] === 'excused').length
+  const unmarkedCount = batchStudents.length - presentCount - absentCount - excusedCount
 
   const getAttendancePercentage = (studentId: string, bId: BatchId): number => {
     const relevant = allAttendance.filter(a => a.batch_id === bId && a.student_id === studentId)
-    if (relevant.length === 0) return 0
-    const present = relevant.filter(a => a.status === 'present' || a.status === 'late').length
-    return Math.round((present / relevant.length) * 100)
+    // الغياب بعذر لا يُحسب حضوراً ولا غياباً — يُستبعد من المقام.
+    const counted = relevant.filter(a => normalizeStatus(a.status) !== 'excused')
+    if (counted.length === 0) return 0
+    const present = counted.filter(a => a.status === 'present').length
+    return Math.round((present / counted.length) * 100)
   }
 
   if (loading) {
@@ -160,16 +191,47 @@ export default function AttendancePage() {
 
             <div className="grid grid-cols-4 gap-3 stagger-children">
               {[
-                { label: 'حاضر', count: presentCount, bgColor: '#f0fdf4', textColor: '#15803d', borderColor: '#bbf7d0' },
-                { label: 'غائب', count: absentCount, bgColor: '#fef2f2', textColor: '#dc2626', borderColor: '#fecaca' },
-                { label: 'متأخر', count: lateCount, bgColor: '#fefce8', textColor: '#ca8a04', borderColor: '#fef08a' },
-                { label: 'غير محدد', count: unmarkedCount, bgColor: '#f9fafb', textColor: '#6b7280', borderColor: '#e5e7eb' },
+                { label: 'حاضر',      count: presentCount,  bgColor: '#f0fdf4', textColor: '#15803d', borderColor: '#bbf7d0' },
+                { label: 'غائب',      count: absentCount,   bgColor: '#fef2f2', textColor: '#dc2626', borderColor: '#fecaca' },
+                { label: 'غائب بعذر', count: excusedCount,  bgColor: '#fefce8', textColor: '#854d0e', borderColor: '#fef08a' },
+                { label: 'غير محدد',  count: unmarkedCount, bgColor: '#f9fafb', textColor: '#6b7280', borderColor: '#e5e7eb' },
               ].map(({ label, count, bgColor, textColor, borderColor }) => (
                 <div key={label} className="rounded-2xl p-3 text-center border" style={{ backgroundColor: bgColor, borderColor }}>
                   <p className="text-2xl font-bold font-mono" style={{ color: textColor }}>{count}</p>
                   <p className="text-xs mt-1" style={{ color: textColor }}>{label}</p>
                 </div>
               ))}
+            </div>
+
+            {/* أزرار التحديد الجماعي */}
+            <div className="card-static p-3 flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>تحديد جماعي سريع:</p>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => markAll('present')}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105"
+                  style={{ background: '#16a34a', color: '#fff' }}
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  تحضير الكل
+                </button>
+                <button
+                  onClick={() => markAll('absent')}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105"
+                  style={{ background: '#ef4444', color: '#fff' }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                  تغييب الكل
+                </button>
+                <button
+                  onClick={() => markAll('excused')}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105"
+                  style={{ background: '#eab308', color: '#fff' }}
+                >
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  غياب بعذر للكل
+                </button>
+              </div>
             </div>
 
             <div className="card-static overflow-hidden">
@@ -187,13 +249,23 @@ export default function AttendancePage() {
                         <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => setStatus(student.id, 'present')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${status === 'present' ? 'text-white shadow-sm scale-105' : 'bg-green-50 text-green-700 hover:bg-green-100'}`}
-                          style={status === 'present' ? { backgroundColor: '#16a34a' } : {}}>حاضر</button>
-                        <button onClick={() => setStatus(student.id, 'absent')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${status === 'absent' ? 'bg-red-500 text-white shadow-sm scale-105' : 'bg-red-50 text-red-700 hover:bg-red-100'}`}>غائب</button>
-                        <button onClick={() => setStatus(student.id, 'late')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${status === 'late' ? 'bg-yellow-400 text-white shadow-sm scale-105' : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'}`}>متأخر</button>
+                        {(['present','absent','excused'] as const).map(st => {
+                          const meta = STATUS_META[st]
+                          const active = status === st
+                          return (
+                            <button
+                              key={st}
+                              onClick={() => setStatus(student.id, st)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active ? 'shadow-sm scale-105' : ''}`}
+                              style={active
+                                ? { backgroundColor: meta.bg, color: meta.text }
+                                : { backgroundColor: meta.bgSoft, color: meta.textSoft }
+                              }
+                            >
+                              {meta.label}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   )

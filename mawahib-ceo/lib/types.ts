@@ -54,7 +54,7 @@ export interface AttendanceRecord {
   student_id: string
   student_name?: string
   date: string
-  status: 'present' | 'absent' | 'late'
+  status: 'present' | 'absent' | 'excused' | 'late'
   excuse_reason: string | null
 }
 
