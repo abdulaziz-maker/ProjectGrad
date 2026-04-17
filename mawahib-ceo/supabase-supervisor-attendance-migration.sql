@@ -47,6 +47,6 @@ create policy "sup_att_self_read" on supervisor_attendance
     and exists (
       select 1 from supervisors s
       where s.id = supervisor_attendance.supervisor_id
-        and s.user_id = auth.uid()
+        and s.user_id = auth.uid()::text
     )
   );
