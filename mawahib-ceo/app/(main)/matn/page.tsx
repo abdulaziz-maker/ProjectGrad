@@ -13,6 +13,7 @@ import {
 
 // ── Constants ───────────────────────────────────────────────────────────────────
 const LEVEL_LABELS: Record<number, string> = {
+  0: 'المستوى التمهيدي',
   1: 'المستوى الأول',
   2: 'المستوى الثاني',
   3: 'المستوى الثالث',
@@ -21,7 +22,8 @@ const LEVEL_LABELS: Record<number, string> = {
   6: 'المستوى السادس',
 }
 
-const LEVEL_TOTALS: Record<number, number> = { 1: 515, 2: 589, 3: 1309, 4: 1365, 5: 1378, 6: 1505 }
+// الإجمالي صفر للمستوى التمهيدي — يحدَّد ديناميكياً من المتون المضافة.
+const LEVEL_TOTALS: Record<number, number> = { 0: 0, 1: 515, 2: 589, 3: 1309, 4: 1365, 5: 1378, 6: 1505 }
 
 const SUBJECT_COLORS: Record<string, string> = {
   'علوم القرآن':      '#6366f1',
@@ -365,9 +367,9 @@ export default function MatnPage() {
   // Texts for selected level
   const levelTexts = useMemo(() => texts.filter(t => t.level_id === selectedLevel), [texts, selectedLevel])
 
-  // Level summary stats
+  // Level summary stats (يشمل المستوى التمهيدي 0)
   const levelStats = useMemo(() => {
-    return [1, 2, 3, 4, 5, 6].map(lvl => {
+    return [0, 1, 2, 3, 4, 5, 6].map(lvl => {
       const lvlTexts = texts.filter(t => t.level_id === lvl)
       let totalPossible = 0, totalActual = 0
       for (const t of lvlTexts) {
@@ -418,7 +420,7 @@ export default function MatnPage() {
       </div>
 
       {/* ── Level tabs ── */}
-      <div className="grid grid-cols-6 gap-1.5">
+      <div className="grid grid-cols-7 gap-1.5">
         {levelStats.map(({ lvl, pct, textCount }) => {
           const isActive = selectedLevel === lvl
           const color = scoreColor(pct)

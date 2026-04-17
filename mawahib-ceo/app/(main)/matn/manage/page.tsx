@@ -16,10 +16,14 @@ import { MatnSkeleton } from '@/components/ui/Skeleton'
 import EmptyState from '@/components/ui/EmptyState'
 
 // ── ثوابت ──────────────────────────────────────────────────────────────
+// المستوى التمهيدي (0) قبل المستوى الأول — للطلاب المبتدئين قبل بدء المناهج النظامية.
 const LEVEL_LABELS: Record<number, string> = {
+  0: 'التمهيدي',
   1: 'الأول', 2: 'الثاني', 3: 'الثالث',
   4: 'الرابع', 5: 'الخامس', 6: 'السادس',
 }
+
+const LEVEL_IDS = [0, 1, 2, 3, 4, 5, 6] as const
 
 const SUBJECT_COLORS: Record<string, string> = {
   'علوم القرآن': '#6366f1', 'الفقه': '#06b6d4', 'العقيدة': '#8b5cf6',
@@ -120,7 +124,7 @@ function TextModal({ initial, onSave, onClose, saving, saveError }: {
                 <select className={inputCls + " appearance-none pl-7"} style={inputStyle}
                   value={form.level_id}
                   onChange={e => set('level_id', Number(e.target.value))}>
-                  {[1,2,3,4,5,6].map(l =>
+                  {LEVEL_IDS.map(l =>
                     <option key={l} value={l}>المستوى {LEVEL_LABELS[l]}</option>
                   )}
                 </select>
@@ -567,7 +571,7 @@ export default function ManageTextsPage() {
       {/* ── تبويبات الفلترة ── */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {([['all', 'الكل']] as [string | number, string][])
-          .concat([1,2,3,4,5,6].map(l => [l, `م${LEVEL_LABELS[l]}`]))
+          .concat(LEVEL_IDS.map(l => [l, `م${LEVEL_LABELS[l]}`]))
           .map(([val, label]) => {
             const isActive = selectedLevel === val
             const count = val === 'all'
