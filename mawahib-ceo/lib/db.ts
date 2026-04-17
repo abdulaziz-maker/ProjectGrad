@@ -28,6 +28,9 @@ export interface DBStudent {
   completion_percentage: number; last_followup: string | null
   near_review?: string  // ملخص ما حُفظ في آخر ٣ أشهر (نص حر)
   far_review?: string   // ملخص ما حُفظ قبل ٣ أشهر (نص حر)
+  national_id?: string  // رقم الهوية الوطنية (١٠ أرقام)
+  birth_date?: string | null  // تاريخ الميلاد (YYYY-MM-DD)
+  parent_phone?: string // رقم جوال ولي الأمر
 }
 
 export interface DBSupervisor {
@@ -45,6 +48,10 @@ export interface DBBatch {
 export interface DBMeeting {
   id: string; type: string; date: string; time: string; attendees: string[]
   agenda: string; decisions: string; recommendations: string
+  /** none (غير متكرر) | weekly (أسبوعي) | monthly (شهري) */
+  recurrence?: 'none' | 'weekly' | 'monthly'
+  /** مُعرِّف السلسلة — كل اجتماعات السلسلة الواحدة لها نفس القيمة */
+  series_id?: string | null
 }
 
 export interface DBProgram {
@@ -116,7 +123,7 @@ export async function upsertSupervisor(s: DBSupervisor): Promise<void> {
 // Students
 export async function getStudents(): Promise<DBStudent[]> {
   return cachedFetch(CACHE_KEYS.STUDENTS, async () => {
-    const { data, error } = await supabase.from('students').select('id,name,batch_id,supervisor_id,supervisor_name,enrollment_date,status,notes,juz_completed,completion_percentage,last_followup,near_review,far_review')
+    const { data, error } = await supabase.from('students').select('id,name,batch_id,supervisor_id,supervisor_name,enrollment_date,status,notes,juz_completed,completion_percentage,last_followup,near_review,far_review,national_id,birth_date,parent_phone')
     if (error) throw error
     return data as DBStudent[]
   })
@@ -229,10 +236,46 @@ export async function deleteExam(id: string): Promise<void> {
 // Meetings
 export async function getMeetings(): Promise<DBMeeting[]> {
   return cachedFetch(CACHE_KEYS.MEETINGS, async () => {
-    const { data, error } = await supabase.from('meetings').select('id,type,date,time,attendees,agenda,decisions,recommendations')
+    const { data, error } = await supabase.from('meetings').select('id,type,date,time,attendees,agenda,decisions,recommendations,recurrence,series_id')
     if (error) throw error
     return data as DBMeeting[]
   })
+}
+
+/**
+ * إنشاء سلسلة اجتماعات دورية (أسبوعي/شهري) مع عدد مرات محدَّد.
+ * - `weekly`: يضيف ٧ أيام بين كل اجتماع
+ * - `monthly`: يضيف شهراً ميلادياً بين كل اجتماع
+ * يُرجع قائمة المعرِّفات المُنشأة.
+ */
+export async function createMeetingSeries(
+  base: Omit<DBMeeting, 'id' | 'series_id'>,
+  occurrences: number = 12,
+): Promise<string[]> {
+  const seriesId = `series_${Date.now()}`
+  const rows: DBMeeting[] = []
+  const startDate = new Date(base.date + 'T12:00:00')
+  for (let i = 0; i < occurrences; i++) {
+    const d = new Date(startDate)
+    if (base.recurrence === 'weekly') {
+      d.setDate(startDate.getDate() + i * 7)
+    } else if (base.recurrence === 'monthly') {
+      d.setMonth(startDate.getMonth() + i)
+    } else {
+      // غير دوري — اجتماع واحد فقط
+      rows.push({ ...base, id: `m_${Date.now()}`, series_id: null })
+      break
+    }
+    rows.push({
+      ...base,
+      id: `m_${Date.now()}_${i}`,
+      date: d.toISOString().split('T')[0],
+      series_id: seriesId,
+    })
+  }
+  const { error } = await supabase.from('meetings').insert(rows)
+  if (error) throw error
+  return rows.map(r => r.id)
 }
 
 export async function upsertMeeting(meeting: DBMeeting): Promise<void> {
@@ -317,6 +360,37 @@ export async function saveAttendanceDay(
   const { error } = await supabase.from('attendance').insert(rows)
   if (error) throw error
   invalidateCache(CACHE_KEYS.ATTENDANCE_ALL)
+}
+
+// ─── حضور البرامج التربوية ─────────────────────────────────────
+export interface DBProgramAttendance {
+  program_id: string
+  student_id: string
+  status: 'present' | 'absent' | 'excused'
+}
+
+export async function getProgramAttendance(programId: string): Promise<DBProgramAttendance[]> {
+  const { data, error } = await supabase
+    .from('program_attendance')
+    .select('program_id,student_id,status')
+    .eq('program_id', programId)
+  if (error) throw error
+  return (data ?? []) as DBProgramAttendance[]
+}
+
+export async function saveProgramAttendance(
+  programId: string,
+  records: Record<string, 'present' | 'absent' | 'excused'>,
+): Promise<void> {
+  await supabase.from('program_attendance').delete().eq('program_id', programId)
+  const rows = Object.entries(records).map(([student_id, status]) => ({
+    program_id: programId,
+    student_id,
+    status,
+  }))
+  if (rows.length === 0) return
+  const { error } = await supabase.from('program_attendance').insert(rows)
+  if (error) throw error
 }
 
 // ─── حضور المشرفين ────────────────────────────────────────────
