@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getMeetings, upsertMeeting, deleteMeeting, DBMeeting } from '@/lib/db'
+import { getMeetings, upsertMeeting, deleteMeeting, createMeetingSeries, DBMeeting } from '@/lib/db'
 import { toHijriDisplay, toGregorianDisplay } from '@/lib/hijri'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
@@ -29,6 +29,14 @@ const emptyForm = {
   agenda: '',
   decisions: '',
   recommendations: '',
+  recurrence: 'none' as 'none' | 'weekly' | 'monthly',
+  occurrences: 12,
+}
+
+const RECURRENCE_LABELS: Record<'none' | 'weekly' | 'monthly', string> = {
+  none: 'غير متكرر',
+  weekly: 'أسبوعي',
+  monthly: 'شهري',
 }
 
 // Meeting types visible to supervisors (no executive meetings)
@@ -73,21 +81,46 @@ export default function MeetingsPage() {
     if (!form.date || !form.agenda) return
     setSaving(true)
     try {
-      const newMeeting: DBMeeting = {
-        id: `m_${Date.now()}`,
-        type: form.type,
-        date: form.date,
-        time: form.time,
-        attendees: attendeesFromString(form.attendees),
-        agenda: form.agenda,
-        decisions: form.decisions,
-        recommendations: form.recommendations,
+      if (form.recurrence === 'none') {
+        const newMeeting: DBMeeting = {
+          id: `m_${Date.now()}`,
+          type: form.type,
+          date: form.date,
+          time: form.time,
+          attendees: attendeesFromString(form.attendees),
+          agenda: form.agenda,
+          decisions: form.decisions,
+          recommendations: form.recommendations,
+          recurrence: 'none',
+          series_id: null,
+        }
+        await upsertMeeting(newMeeting)
+        setMeetings(prev => [newMeeting, ...prev].sort((a, b) => b.date > a.date ? 1 : -1))
+        toast.success('تم حفظ الاجتماع بنجاح')
+      } else {
+        // اجتماع دوري — توليد السلسلة تلقائياً
+        const occurrences = Math.max(1, Math.min(52, Number(form.occurrences) || 12))
+        await createMeetingSeries({
+          type: form.type,
+          date: form.date,
+          time: form.time,
+          attendees: attendeesFromString(form.attendees),
+          agenda: form.agenda,
+          decisions: form.decisions,
+          recommendations: form.recommendations,
+          recurrence: form.recurrence,
+        }, occurrences)
+        // إعادة تحميل كاملة بعد التوليد لتظهر السلسلة
+        const all = await getMeetings()
+        const sorted = all.sort((a, b) => b.date > a.date ? 1 : -1)
+        const visible = isSupervisor
+          ? sorted.filter(m => SUPERVISOR_VISIBLE_TYPES.includes(m.type))
+          : sorted
+        setMeetings(visible)
+        toast.success(`تم توليد ${occurrences} اجتماع ${RECURRENCE_LABELS[form.recurrence]}`)
       }
-      await upsertMeeting(newMeeting)
-      setMeetings(prev => [newMeeting, ...prev].sort((a, b) => b.date > a.date ? 1 : -1))
       setForm(emptyForm)
       setShowAddForm(false)
-      toast.success('تم حفظ الاجتماع بنجاح')
     } catch {
       toast.error('خطأ في الحفظ')
     } finally {
@@ -99,6 +132,8 @@ export default function MeetingsPage() {
     setEditingId(meeting.id)
     setEditForm({
       id: meeting.id,
+      recurrence: meeting.recurrence ?? 'none',
+      occurrences: 12,
       type: meeting.type,
       date: meeting.date,
       time: meeting.time ?? '',
@@ -219,6 +254,41 @@ export default function MeetingsPage() {
                   placeholder="التوصيات والملاحظات..."
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none" />
               </div>
+
+              {/* التكرار */}
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                  نوع التكرار
+                </label>
+                <select
+                  value={form.recurrence}
+                  onChange={e => setForm({ ...form, recurrence: e.target.value as 'none' | 'weekly' | 'monthly' })}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                >
+                  <option value="none">غير متكرر (اجتماع مرة واحدة)</option>
+                  <option value="weekly">أسبوعي (كل ٧ أيام)</option>
+                  <option value="monthly">شهري (كل شهر ميلادي)</option>
+                </select>
+              </div>
+
+              {form.recurrence !== 'none' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                    عدد مرات التوليد
+                    <span className="text-[10px] mr-1" style={{ color: 'var(--text-muted)' }}>(١-٥٢)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={1} max={52}
+                    value={form.occurrences}
+                    onChange={e => setForm({ ...form, occurrences: Number(e.target.value) })}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                  />
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                    سيُولَّد {form.occurrences} اجتماعاً {form.recurrence === 'weekly' ? 'أسبوعياً' : 'شهرياً'} ابتداءً من التاريخ أعلاه.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={handleAdd} disabled={!form.date || !form.agenda || saving}
