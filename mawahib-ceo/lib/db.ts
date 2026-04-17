@@ -26,6 +26,8 @@ export interface DBStudent {
   id: string; name: string; batch_id: number; supervisor_id: string; supervisor_name: string
   enrollment_date: string; status: string; notes: string; juz_completed: number
   completion_percentage: number; last_followup: string | null
+  near_review?: string  // ملخص ما حُفظ في آخر ٣ أشهر (نص حر)
+  far_review?: string   // ملخص ما حُفظ قبل ٣ أشهر (نص حر)
 }
 
 export interface DBSupervisor {
@@ -114,7 +116,7 @@ export async function upsertSupervisor(s: DBSupervisor): Promise<void> {
 // Students
 export async function getStudents(): Promise<DBStudent[]> {
   return cachedFetch(CACHE_KEYS.STUDENTS, async () => {
-    const { data, error } = await supabase.from('students').select('id,name,batch_id,supervisor_id,supervisor_name,enrollment_date,status,notes,juz_completed,completion_percentage,last_followup')
+    const { data, error } = await supabase.from('students').select('id,name,batch_id,supervisor_id,supervisor_name,enrollment_date,status,notes,juz_completed,completion_percentage,last_followup,near_review,far_review')
     if (error) throw error
     return data as DBStudent[]
   })
@@ -315,6 +317,45 @@ export async function saveAttendanceDay(
   const { error } = await supabase.from('attendance').insert(rows)
   if (error) throw error
   invalidateCache(CACHE_KEYS.ATTENDANCE_ALL)
+}
+
+// ─── حضور المشرفين ────────────────────────────────────────────
+export interface DBSupervisorAttendance {
+  supervisor_id: string
+  batch_id: number
+  date: string
+  status: string
+}
+
+export async function getSupervisorAttendanceForDate(
+  batchId: number,
+  date: string
+): Promise<DBSupervisorAttendance[]> {
+  const { data, error } = await supabase
+    .from('supervisor_attendance')
+    .select('supervisor_id,batch_id,date,status')
+    .eq('batch_id', batchId)
+    .eq('date', date)
+  if (error) throw error
+  return (data ?? []) as DBSupervisorAttendance[]
+}
+
+export async function saveSupervisorAttendanceDay(
+  date: string,
+  batchId: number,
+  records: Record<string, string>
+): Promise<void> {
+  await supabase.from('supervisor_attendance').delete()
+    .eq('date', date).eq('batch_id', batchId)
+  const rows = Object.entries(records).map(([supervisor_id, status]) => ({
+    date,
+    batch_id: batchId,
+    supervisor_id,
+    status,
+  }))
+  if (rows.length === 0) return
+  const { error } = await supabase.from('supervisor_attendance').insert(rows)
+  if (error) throw error
 }
 
 // CEO Tasks
@@ -644,6 +685,36 @@ export interface DBTextUnit {
   unit_number: number
   start_line: number
   end_line: number
+}
+
+// أبواب المتن — تقسيم المتن الواحد لأبواب/فصول
+export interface DBTextChapter {
+  id: string
+  text_id: string
+  chapter_number: number
+  title: string
+  start_line: number
+  end_line: number
+}
+
+export async function getTextChapters(textId: string): Promise<DBTextChapter[]> {
+  const { data, error } = await supabase
+    .from('text_chapters')
+    .select('id,text_id,chapter_number,title,start_line,end_line')
+    .eq('text_id', textId)
+    .order('chapter_number')
+  if (error) throw error
+  return (data ?? []) as DBTextChapter[]
+}
+
+export async function upsertTextChapter(ch: Omit<DBTextChapter, 'id'> & { id?: string }): Promise<void> {
+  const { error } = await supabase.from('text_chapters').upsert(ch, { onConflict: 'text_id,chapter_number' })
+  if (error) throw error
+}
+
+export async function deleteTextChapter(id: string): Promise<void> {
+  const { error } = await supabase.from('text_chapters').delete().eq('id', id)
+  if (error) throw error
 }
 
 export interface DBStudentTextProgress {
