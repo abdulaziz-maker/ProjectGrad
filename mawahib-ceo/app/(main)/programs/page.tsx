@@ -1,11 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { getPrograms, upsertProgram, deleteProgram, DBProgram } from '@/lib/db'
+import { useState, useEffect, useCallback } from 'react'
+import {
+  getPrograms, upsertProgram, deleteProgram, getStudents,
+  getProgramAttendance, saveProgramAttendance,
+  DBProgram, DBStudent,
+} from '@/lib/db'
 import { toHijriShort } from '@/lib/hijri'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, CheckCheck, X, AlertCircle, Users as UsersIcon } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+
+type ProgAttStatus = 'present' | 'absent' | 'excused'
+const PROG_ATT_META: Record<ProgAttStatus, { label: string; bg: string; bgSoft: string; textSoft: string }> = {
+  present: { label: 'حاضر',      bg: '#16a34a', bgSoft: '#f0fdf4', textSoft: '#15803d' },
+  absent:  { label: 'غائب',      bg: '#ef4444', bgSoft: '#fef2f2', textSoft: '#b91c1c' },
+  excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', textSoft: '#854d0e' },
+}
 
 const TYPE_LABELS: Record<string, string> = {
   safra: 'سفرة', mabit: 'مبيت', nadi: 'نادي / رحلة',
@@ -40,15 +51,17 @@ function computeStatus(start: string, end: string): string {
 
 export default function ProgramsPage() {
   const { profile } = useAuth()
-  const isSupervisor = profile?.role === 'supervisor' || profile?.role === 'teacher'
-  const supervisorBatchId = profile?.batch_id ? String(profile.batch_id) : null
+  const role = profile?.role
+  const isScopedToBatch = role === 'supervisor' || role === 'teacher' || role === 'batch_manager'
+  const myBatchIdStr = profile?.batch_id ? String(profile.batch_id) : null
 
   const [programs, setPrograms] = useState<DBProgram[]>([])
+  const [allStudents, setAllStudents] = useState<DBStudent[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(() => ({
     ...emptyForm(),
-    batch_id: supervisorBatchId ?? '46',
+    batch_id: myBatchIdStr ?? '46',
   }))
   const [editId, setEditId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<DBProgram | null>(null)
@@ -56,18 +69,67 @@ export default function ProgramsPage() {
   const [reportText, setReportText] = useState('')
   const [saving, setSaving] = useState(false)
 
+  // حضور البرنامج
+  const [attendanceFor, setAttendanceFor] = useState<DBProgram | null>(null)
+  const [progAttRecords, setProgAttRecords] = useState<Record<string, ProgAttStatus>>({})
+  const [progAttSaving, setProgAttSaving] = useState(false)
+
   useEffect(() => {
-    getPrograms()
-      .then(data => {
-        // Supervisors only see programs for their batch
-        const visible = (isSupervisor && supervisorBatchId)
-          ? data.filter(p => p.batch_id === supervisorBatchId || p.batch_id === 'all')
-          : data
+    Promise.all([getPrograms(), getStudents()])
+      .then(([progs, studs]) => {
+        // أي مستخدم مقيّد بدفعة (مشرف/معلم/مدير دفعة) يرى برامج دفعته فقط + 'all'
+        const visible = (isScopedToBatch && myBatchIdStr)
+          ? progs.filter(p => p.batch_id === myBatchIdStr || p.batch_id === 'all')
+          : progs
         setPrograms(visible)
+        setAllStudents(studs)
       })
       .catch(() => toast.error('خطأ في تحميل البرامج'))
       .finally(() => setLoading(false))
-  }, [isSupervisor, supervisorBatchId])
+  }, [isScopedToBatch, myBatchIdStr])
+
+  // Backward-compat: بعض أجزاء العرض القديمة تستخدم `isSupervisor`
+  const isSupervisor = role === 'supervisor' || role === 'teacher'
+  const supervisorBatchId = (isSupervisor && myBatchIdStr) ? myBatchIdStr : null
+
+  // فتح مودال الحضور لبرنامج معيَّن
+  const openAttendance = useCallback(async (prog: DBProgram) => {
+    setAttendanceFor(prog)
+    try {
+      const existing = await getProgramAttendance(prog.id)
+      const map: Record<string, ProgAttStatus> = {}
+      for (const r of existing) map[r.student_id] = r.status
+      setProgAttRecords(map)
+    } catch {
+      setProgAttRecords({})
+    }
+  }, [])
+
+  const setProgAttStatus = (studentId: string, st: ProgAttStatus) =>
+    setProgAttRecords(prev => ({ ...prev, [studentId]: st }))
+
+  const markAllProgAtt = (status: ProgAttStatus, studentIds: string[]) => {
+    setProgAttRecords(prev => {
+      const next = { ...prev }
+      for (const id of studentIds) next[id] = status
+      return next
+    })
+  }
+
+  const saveProgAttendance = async () => {
+    if (!attendanceFor) return
+    setProgAttSaving(true)
+    try {
+      await saveProgramAttendance(attendanceFor.id, progAttRecords)
+      toast.success('تم حفظ حضور البرنامج')
+      setAttendanceFor(null)
+      setProgAttRecords({})
+    } catch {
+      toast.error('خطأ في حفظ الحضور')
+    } finally {
+      setProgAttSaving(false)
+    }
+  }
 
   async function handleAdd() {
     if (!form.name || !form.start_date || !form.end_date) return
@@ -392,6 +454,12 @@ export default function ProgramsPage() {
                     )}
                   </div>
                   <div className="flex flex-col gap-2 shrink-0">
+                    <button onClick={() => openAttendance(program)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1 hover:opacity-90"
+                      style={{ background: '#6366f1' }}>
+                      <UsersIcon className="w-3 h-3" />
+                      تحضير الطلاب
+                    </button>
                     <button onClick={() => { setEditId(program.id); setEditForm({ ...program }); setShowForm(false) }}
                       className="px-3 py-1.5 rounded-lg border border-white/10 text-xs" style={{ color: 'var(--text-secondary)' }}>تعديل</button>
                     {program.status === 'completed' && !isReporting && (
@@ -406,6 +474,99 @@ export default function ProgramsPage() {
             )
           })}
         </div>
+
+        {/* مودال تحضير الطلاب داخل البرنامج */}
+        {attendanceFor && (() => {
+          const progStudents = attendanceFor.batch_id === 'all'
+            ? allStudents
+            : allStudents.filter(s => s.batch_id === Number(attendanceFor.batch_id))
+          const studIds = progStudents.map(s => s.id)
+          const presentCount = studIds.filter(id => progAttRecords[id] === 'present').length
+          const absentCount = studIds.filter(id => progAttRecords[id] === 'absent').length
+          const excusedCount = studIds.filter(id => progAttRecords[id] === 'excused').length
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setAttendanceFor(null)}>
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col" dir="rtl" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                  <div>
+                    <h2 className="text-base font-bold" style={{ color: '#6366f1' }}>تحضير الطلاب — {attendanceFor.name}</h2>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      {BATCH_LABEL[attendanceFor.batch_id] ?? attendanceFor.batch_id} — {progStudents.length} طالب
+                    </p>
+                  </div>
+                  <button onClick={() => setAttendanceFor(null)} className="text-xl leading-none" style={{ color: 'var(--text-muted)' }}>×</button>
+                </div>
+
+                <div className="px-6 py-3 border-b flex flex-wrap gap-2 items-center justify-between" style={{ borderColor: 'var(--border-color)' }}>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md" style={{ background: '#f0fdf4', color: '#15803d' }}>حاضر: {presentCount}</span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md" style={{ background: '#fef2f2', color: '#b91c1c' }}>غائب: {absentCount}</span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md" style={{ background: '#fefce8', color: '#854d0e' }}>بعذر: {excusedCount}</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => markAllProgAtt('present', studIds)} className="px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1" style={{ background: '#16a34a', color: '#fff' }}>
+                      <CheckCheck className="w-3 h-3" /> الكل
+                    </button>
+                    <button onClick={() => markAllProgAtt('absent', studIds)} className="px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1" style={{ background: '#ef4444', color: '#fff' }}>
+                      <X className="w-3 h-3" /> غياب
+                    </button>
+                    <button onClick={() => markAllProgAtt('excused', studIds)} className="px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1" style={{ background: '#eab308', color: '#fff' }}>
+                      <AlertCircle className="w-3 h-3" /> بعذر
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-6 py-3 space-y-1.5">
+                  {progStudents.length === 0 ? (
+                    <p className="text-sm text-center py-8" style={{ color: 'var(--text-muted)' }}>لا يوجد طلاب في هذه الدفعة</p>
+                  ) : progStudents.map(student => {
+                    const st = progAttRecords[student.id]
+                    return (
+                      <div key={student.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: 'var(--bg-body)' }}>
+                        <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
+                        <div className="flex gap-1">
+                          {(['present','absent','excused'] as const).map(s => {
+                            const meta = PROG_ATT_META[s]
+                            const active = st === s
+                            return (
+                              <button
+                                key={s}
+                                onClick={() => setProgAttStatus(student.id, s)}
+                                className="px-2 py-0.5 rounded-md text-[11px] font-medium"
+                                style={active ? { background: meta.bg, color: '#fff' } : { background: meta.bgSoft, color: meta.textSoft }}
+                              >
+                                {meta.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="px-6 py-3 border-t flex gap-3" style={{ borderColor: 'var(--border-color)' }}>
+                  <button
+                    onClick={saveProgAttendance}
+                    disabled={progAttSaving || progStudents.length === 0}
+                    className="btn-primary btn-ripple flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-50"
+                  >
+                    {progAttSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                    حفظ الحضور
+                  </button>
+                  <button
+                    onClick={() => setAttendanceFor(null)}
+                    className="flex-1 border py-2 rounded-xl text-sm font-medium"
+                    style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
       </div>
     </div>
   )
