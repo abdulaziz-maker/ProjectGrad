@@ -1,13 +1,13 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
-import { getStudents, getQuranPlans, getDailyFollowups, getBatchSchedule, upsertBatchScheduleDay, deleteBatchScheduleDay, type DBStudent } from '@/lib/db'
+import { getStudents, getQuranPlans, getDailyFollowups, getBatchSchedule, upsertBatchScheduleDay, deleteBatchScheduleDay, upsertStudent, type DBStudent } from '@/lib/db'
 import { formatHijri, toHijriShort, todayStr as getToday, gregorianToHijri } from '@/lib/hijri'
 import {
   calculateExpectedPosition, PROGRAM_END_DATE,
   type QuranPlan, type DailyFollowup, type DayDetail, type BatchScheduleEntry,
 } from '@/lib/quran-followup'
-import { BookOpenCheck, ArrowRight, CalendarDays, TrendingUp, Target, ChevronLeft, ChevronRight } from 'lucide-react'
+import { BookOpenCheck, ArrowRight, CalendarDays, TrendingUp, Target, ChevronLeft, ChevronRight, Save, RotateCw } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -24,6 +24,12 @@ export default function PlanPage() {
   const [loading, setLoading] = useState(true)
   const [selectedCell, setSelectedCell] = useState<string | null>(null)
 
+  // حقول المراجعة (تُحرَّر محلياً ثم تُحفظ)
+  const [nearReview, setNearReview] = useState('')
+  const [farReview, setFarReview] = useState('')
+  const [reviewDirty, setReviewDirty] = useState(false)
+  const [reviewSaving, setReviewSaving] = useState(false)
+
   useEffect(() => {
     async function load() {
       try {
@@ -33,6 +39,11 @@ export default function PlanPage() {
         ])
         const s = students.find(st => st.id === studentId)
         setStudent(s || null)
+        if (s) {
+          setNearReview(s.near_review ?? '')
+          setFarReview(s.far_review ?? '')
+          setReviewDirty(false)
+        }
         const activePlan = plans.find(p => p.is_active)
         setPlan(activePlan || null)
 
@@ -120,6 +131,24 @@ export default function PlanPage() {
   const latestFollowup = followups.filter(f => f.actual_position != null).sort((a, b) => b.followup_date.localeCompare(a.followup_date))[0]
   const currentActual = latestFollowup?.actual_position ?? null
   const currentGap = currentActual !== null ? currentActual - todayExpected : null
+
+  // حفظ حقول المراجعة (قريبة + بعيدة) على سجل الطالب
+  async function saveReview() {
+    if (!student) return
+    setReviewSaving(true)
+    try {
+      const updated: DBStudent = { ...student, near_review: nearReview, far_review: farReview }
+      await upsertStudent(updated)
+      setStudent(updated)
+      setReviewDirty(false)
+      toast.success('تم حفظ حقول المراجعة')
+    } catch (err) {
+      console.error(err)
+      toast.error('خطأ في حفظ حقول المراجعة')
+    } finally {
+      setReviewSaving(false)
+    }
+  }
 
   // Toggle exam day in batch schedule
   async function toggleExamDay(date: string, isCurrentlyExam: boolean) {
@@ -227,6 +256,49 @@ export default function PlanPage() {
           }`}>{currentGap !== null ? (currentGap > 0 ? `+${currentGap}` : currentGap) : '—'}</p>
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>الفجوة</p>
         </div>
+      </div>
+
+      {/* المراجعة القريبة والبعيدة */}
+      <div className="card-static p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <RotateCw className="w-4 h-4 text-indigo-500" />
+          <h3 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>المراجعة</h3>
+          <span className="text-[10px] mr-auto" style={{ color: 'var(--text-muted)' }}>تُدخل يدوياً من المشرف — يمكن تحديثها أسبوعياً</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+              المراجعة القريبة <span className="text-[10px]">(آخر ٣ أشهر)</span>
+            </label>
+            <input
+              value={nearReview}
+              onChange={e => { setNearReview(e.target.value); setReviewDirty(true) }}
+              placeholder="مثال: الأجزاء ٢٨-٣٠"
+              className="w-full px-3 py-2 text-sm rounded-lg border"
+              style={{ background: 'var(--bg-body)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
+            />
+          </div>
+          <div>
+            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+              المراجعة البعيدة <span className="text-[10px]">(قبل ٣ أشهر)</span>
+            </label>
+            <input
+              value={farReview}
+              onChange={e => { setFarReview(e.target.value); setReviewDirty(true) }}
+              placeholder="مثال: الأجزاء ١-١٥"
+              className="w-full px-3 py-2 text-sm rounded-lg border"
+              style={{ background: 'var(--bg-body)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
+            />
+          </div>
+        </div>
+        <button
+          onClick={saveReview}
+          disabled={!reviewDirty || reviewSaving}
+          className="btn-primary btn-ripple px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 flex items-center gap-1.5"
+        >
+          {reviewSaving ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-3 h-3" />}
+          حفظ المراجعة
+        </button>
       </div>
 
       {/* Legend */}
