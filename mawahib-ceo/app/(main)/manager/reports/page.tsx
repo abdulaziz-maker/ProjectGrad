@@ -7,8 +7,9 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import {
-  FileText, Users, BookOpen, CalendarCheck,
-  Loader2, ChevronLeft, TrendingUp, Download,
+  Users, BookOpen, CalendarCheck,
+  Loader2, ChevronLeft, TrendingUp,
+  ClipboardCheck, AlertTriangle,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -26,6 +27,7 @@ export default function ManagerReportsPage() {
   const [supervisors, setSupervisors] = useState<DBSupervisor[]>([])
   const [attendance, setAttendance] = useState<DBAttendanceRecord[]>([])
   const [juzProgress, setJuzProgress] = useState<DBJuzProgress[]>([])
+  const [showUnfollowedOnly, setShowUnfollowedOnly] = useState(false)
 
   useEffect(() => {
     if (profile && profile.role !== 'batch_manager') router.replace('/dashboard')
@@ -78,7 +80,22 @@ export default function ManagerReportsPage() {
     const top5 = sorted.slice(0, 5)
     const bottom5 = sorted.slice(-5).reverse()
 
-    return { totalStudents, memorized, avgCompletion, attendancePct, perSupervisor, top5, bottom5 }
+    // حالة المتابعة هذا الأسبوع
+    const wasFollowedThisWeek = (s: DBStudent) => {
+      if (!s.last_followup) return false
+      return new Date(s.last_followup) >= weekStart
+    }
+    const followedCount   = active.filter(wasFollowedThisWeek).length
+    const unfollowedCount = active.length - followedCount
+    const unfollowedStudents = active.filter(s => !wasFollowedThisWeek(s))
+    const followupPct = active.length > 0 ? Math.round((followedCount / active.length) * 100) : 0
+
+    return {
+      totalStudents, memorized, avgCompletion, attendancePct,
+      perSupervisor, top5, bottom5,
+      followedCount, unfollowedCount, unfollowedStudents, followupPct,
+      wasFollowedThisWeek,
+    }
   }, [students, supervisors, attendance, juzProgress])
 
   if (loading) {
@@ -104,12 +121,13 @@ export default function ManagerReportsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           { label: 'إجمالي الطلاب', value: report.totalStudents, icon: Users, color: '#6366f1' },
           { label: 'أجزاء محفوظة', value: report.memorized, icon: BookOpen, color: '#22c55e' },
           { label: 'متوسط الإنجاز', value: `${report.avgCompletion}%`, icon: TrendingUp, color: scoreColor(report.avgCompletion) },
           { label: 'الحضور الأسبوعي', value: `${report.attendancePct}%`, icon: CalendarCheck, color: scoreColor(report.attendancePct) },
+          { label: 'متابعة الأسبوع', value: `${report.followupPct}%`, icon: ClipboardCheck, color: scoreColor(report.followupPct) },
         ].map((kpi, i) => (
           <div key={i} className="card p-4 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
             <div className="flex items-center gap-2 mb-2">
@@ -154,6 +172,75 @@ export default function ManagerReportsPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* حالة المتابعة الأسبوعية */}
+      <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <ClipboardCheck size={18} style={{ color: '#6366f1' }} />
+            <h2 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>حالة المتابعة هذا الأسبوع</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md" style={{ background: 'rgba(34,197,94,0.15)', color: '#16a34a' }}>
+                <span className="w-2 h-2 rounded-full" style={{ background: '#16a34a' }} />
+                تمت: {report.followedCount}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md" style={{ background: 'rgba(239,68,68,0.15)', color: '#dc2626' }}>
+                <span className="w-2 h-2 rounded-full" style={{ background: '#dc2626' }} />
+                لم تتم: {report.unfollowedCount}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowUnfollowedOnly(v => !v)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
+              style={{
+                background: showUnfollowedOnly ? 'rgba(239,68,68,0.1)' : 'transparent',
+                borderColor: showUnfollowedOnly ? '#ef4444' : 'var(--border-color)',
+                color: showUnfollowedOnly ? '#dc2626' : 'var(--text-muted)',
+              }}
+            >
+              {showUnfollowedOnly ? 'عرض الكل' : 'لم تتم متابعتهم فقط'}
+            </button>
+          </div>
+        </div>
+
+        {showUnfollowedOnly && report.unfollowedStudents.length === 0 && (
+          <p className="text-sm text-center py-6" style={{ color: 'var(--text-muted)' }}>🎉 تمت متابعة جميع الطلاب هذا الأسبوع</p>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {(showUnfollowedOnly ? report.unfollowedStudents : students.filter(s => s.status === 'active' || !s.status))
+            .slice(0, showUnfollowedOnly ? undefined : 12)
+            .map(s => {
+              const done = report.wasFollowedThisWeek(s)
+              return (
+                <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: 'var(--bg-body)' }}>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: done ? '#16a34a' : '#ef4444' }} />
+                    <span className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</span>
+                  </div>
+                  <span
+                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
+                    style={{
+                      background: done ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                      color: done ? '#16a34a' : '#dc2626',
+                    }}
+                  >
+                    {done ? <ClipboardCheck className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                    {done ? 'تمت' : 'لم تتم'}
+                  </span>
+                </div>
+              )
+          })}
+        </div>
+
+        {!showUnfollowedOnly && report.totalStudents > 12 && (
+          <p className="text-xs text-center mt-3" style={{ color: 'var(--text-muted)' }}>
+            عرض ١٢ من {report.totalStudents} — استخدم الفلتر لرؤية مَن لم تتم متابعته
+          </p>
+        )}
       </div>
 
       {/* Top & Bottom Students */}
