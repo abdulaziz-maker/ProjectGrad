@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getStudents, getJuzProgress, upsertJuzProgress, upsertStudent, type DBStudent, type DBJuzProgress } from '@/lib/db'
-import { Edit3, Plus, Award, BookOpen, TrendingUp } from 'lucide-react'
+import { getStudents, getJuzProgress, upsertJuzProgress, upsertJuzProgressBatch, upsertStudent, type DBStudent, type DBJuzProgress } from '@/lib/db'
+import { Edit3, Plus, Award, BookOpen, TrendingUp, CheckCircle2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
@@ -111,6 +111,67 @@ export default function BatchesPage() {
 
   const getStatus = (studentId: string, juz: number): JuzStatus => juzData[studentId]?.[juz] || 'not_started'
   const countOf = (studentId: string, status: JuzStatus) => Object.values(juzData[studentId] || {}).filter(s => s === status).length
+
+  /**
+   * تعيين جميع طلاب الدفعة المعروضة "محفوظ" لجزء محدد.
+   * يطلب تأكيداً ثم يحدّث الحالة المحلية وقاعدة البيانات دفعة واحدة.
+   */
+  const bulkMarkJuz = useCallback(async (juz: number) => {
+    const batchStuds = students.filter(s => s.batchId === selectedBatch)
+    if (batchStuds.length === 0) return
+    const ok = window.confirm(
+      `هل أنت متأكد من تحديد ${batchStuds.length} طالب حافظين للجزء ${juz}؟\n\n` +
+      `سيتم استبدال الحالة الحالية لجميع طلاب دفعة ${selectedBatch} على هذا الجزء.`
+    )
+    if (!ok) return
+
+    // تحديث الحالة المحلية فوراً
+    setJuzData(prev => {
+      const next: StudentJuzData = { ...prev }
+      for (const s of batchStuds) {
+        next[s.id] = { ...(next[s.id] || {}), [juz]: 'memorized' }
+      }
+      return next
+    })
+
+    // حفظ في قاعدة البيانات دفعة واحدة
+    try {
+      const items: DBJuzProgress[] = batchStuds.map(s => ({
+        student_id: s.id,
+        juz_number: juz,
+        status: 'memorized',
+      }))
+      await upsertJuzProgressBatch(items)
+
+      // تحديث الإحصاء المحلي للعرض
+      setJuzProgress(prev => {
+        const filtered = prev.filter(p => !(batchStuds.some(s => s.id === p.student_id) && p.juz_number === juz))
+        return [...filtered, ...items]
+      })
+
+      // تحديث نسبة الإنجاز لكل طالب
+      const updates: DBStudent[] = []
+      for (const s of batchStuds) {
+        const original = dbStudentsRef.current.find(x => x.id === s.id)
+        if (!original) continue
+        const studentJuzMap = { ...(juzData[s.id] || {}), [juz]: 'memorized' as JuzStatus }
+        const juzCompleted = Object.values(studentJuzMap).filter(v => v === 'memorized').length
+        const completionPct = Math.round((juzCompleted / 30) * 100)
+        if (original.juz_completed !== juzCompleted || original.completion_percentage !== completionPct) {
+          updates.push({ ...original, juz_completed: juzCompleted, completion_percentage: completionPct })
+        }
+      }
+      await Promise.all(updates.map(u => upsertStudent(u)))
+      if (updates.length > 0) {
+        dbStudentsRef.current = dbStudentsRef.current.map(s => updates.find(u => u.id === s.id) ?? s)
+        setDbStudents(dbStudentsRef.current)
+      }
+
+      toast.success(`تم تحديد ${batchStuds.length} طالب حافظين للجزء ${juz}`)
+    } catch {
+      toast.error('حدث خطأ أثناء الحفظ الجماعي')
+    }
+  }, [students, selectedBatch, juzData])
 
   const saveStudentEdit = async (id: string) => {
     const original = dbStudents.find(s => s.id === id)
@@ -271,9 +332,23 @@ export default function BatchesPage() {
                 >
                   الطالب
                 </th>
-                {Array.from({ length: 30 }, (_, i) => (
-                  <th key={i} className="px-1 py-3 font-bold text-center w-8 min-w-8 font-mono" style={{ color: 'var(--text-muted)' }}>{i + 1}</th>
-                ))}
+                {Array.from({ length: 30 }, (_, i) => {
+                  const juz = i + 1
+                  return (
+                    <th key={i} className="px-1 py-3 font-bold text-center w-8 min-w-8 font-mono" style={{ color: 'var(--text-muted)' }}>
+                      <div className="flex flex-col items-center gap-1">
+                        <span>{juz}</span>
+                        <button
+                          onClick={() => bulkMarkJuz(juz)}
+                          title={`تحديد كل طلاب دفعة ${selectedBatch} حافظين للجزء ${juz}`}
+                          className="opacity-40 hover:opacity-100 hover:bg-green-500 hover:text-white rounded p-0.5 transition-all"
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </th>
+                  )
+                })}
                 <th className="px-2 py-3 text-green-600 font-semibold text-center min-w-12">محفوظ</th>
                 <th className="px-2 py-3 text-orange-500 font-semibold text-center min-w-10">ضعيف</th>
                 <th className="px-2 py-3 text-red-500 font-semibold text-center min-w-10">متعثر</th>
