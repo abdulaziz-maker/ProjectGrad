@@ -260,8 +260,15 @@ export default function BatchesPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.02)' }} className="border-b border-white/5">
-                <th className="sticky right-0 z-10 text-right px-3 py-3 font-semibold min-w-44 border-l border-white/5" style={{ background: 'rgba(255,255,255,0.02)', color: 'var(--text-secondary)' }}>
+              <tr className="border-b border-white/5" style={{ background: 'var(--bg-elevated)' }}>
+                <th
+                  className="sticky right-0 z-20 text-right px-3 py-3 font-semibold min-w-44 border-l border-white/5"
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    color: 'var(--text-secondary)',
+                    boxShadow: '-8px 0 12px -8px rgba(0,0,0,0.35)',
+                  }}
+                >
                   الطالب
                 </th>
                 {Array.from({ length: 30 }, (_, i) => (
@@ -277,7 +284,13 @@ export default function BatchesPage() {
                 const isEditing = editingStudent === student.id
                 return (
                   <tr key={student.id} className="border-b border-white/5">
-                    <td className="sticky right-0 z-10 px-3 py-2 border-l border-white/5" style={{ background: rowIdx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
+                    <td
+                      className="sticky right-0 z-20 px-3 py-2 border-l border-white/5"
+                      style={{
+                        background: rowIdx % 2 === 1 ? 'var(--bg-elevated)' : 'var(--bg-card)',
+                        boxShadow: '-8px 0 12px -8px rgba(0,0,0,0.35)',
+                      }}
+                    >
                       {isEditing ? (
                         <div className="flex flex-col gap-1">
                           <input value={editName} onChange={e => setEditName(e.target.value)} autoFocus
@@ -335,8 +348,15 @@ export default function BatchesPage() {
               })}
 
               {/* Summary row */}
-              <tr className="border-t-2 border-white/10 font-semibold" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                <td className="sticky right-0 px-3 py-2.5 text-xs border-l border-white/5" style={{ background: 'rgba(255,255,255,0.02)', color: 'var(--text-secondary)' }}>إجمالي المحفوظ</td>
+              <tr className="border-t-2 border-white/10 font-semibold" style={{ background: 'var(--bg-elevated)' }}>
+                <td
+                  className="sticky right-0 z-20 px-3 py-2.5 text-xs border-l border-white/5"
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    color: 'var(--text-secondary)',
+                    boxShadow: '-8px 0 12px -8px rgba(0,0,0,0.35)',
+                  }}
+                >إجمالي المحفوظ</td>
                 {Array.from({ length: 30 }, (_, i) => {
                   const count = batchStudents.filter(s => getStatus(s.id, i + 1) === 'memorized').length
                   const pct = batchStudents.length > 0 ? count / batchStudents.length : 0
