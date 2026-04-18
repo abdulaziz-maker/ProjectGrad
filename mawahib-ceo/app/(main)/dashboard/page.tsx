@@ -125,8 +125,12 @@ export default function DashboardPage() {
   const expectedLinesPerStudent = Math.round(weeks * WEEKLY_RATE)
   const weekNumber = Math.ceil(weeks)
 
-  // Batch stats (real from juz_progress)
-  const batchStats = useMemo(() => BATCH_IDS.map(batchId => {
+  // Batch stats — للمقيَّد بدفعة: دفعته فقط. للمدير التنفيذي: كل الدفعات.
+  const visibleBatchIds = useMemo(() =>
+    (isSupervisor && myBatchId !== null) ? [myBatchId] : BATCH_IDS
+  , [isSupervisor, myBatchId])
+
+  const batchStats = useMemo(() => visibleBatchIds.map(batchId => {
     const bs = students.filter(s => s.batch_id === batchId && s.status === 'active')
     const mem = bs.reduce((sum, s) => sum + (memorizedByStudent[s.id] || 0), 0)
     const possible = bs.length * 30
@@ -137,7 +141,7 @@ export default function DashboardPage() {
     }).length
     const batch = batches.find(b => b.id === batchId)
     return { batchId, name: batch?.name || `دفعة ${batchId}`, students: bs.length, memorized: mem, pct, struggling, manager: batch?.manager_name || '' }
-  }), [students, memorizedByStudent, batches, weeks])
+  }), [visibleBatchIds, students, memorizedByStudent, batches, weeks])
 
   const chartData = batchStats.map(b => ({ name: `دفعة ${b.batchId}`, محفوظ: b.memorized, طلاب: b.students }))
 
@@ -151,9 +155,15 @@ export default function DashboardPage() {
   const topPerformers = ranked.slice(0, 5)
   const bottomStudents = ranked.filter(s => s.mem < 3).slice(0, 5)
 
-  // Supervisor health
+  // Supervisor health — للمقيَّد بدفعة: مشرفو دفعته فقط
+  const scopedSupervisors = useMemo(() =>
+    (isSupervisor && myBatchId !== null)
+      ? supervisors.filter(sup => sup.batch_id === myBatchId)
+      : supervisors
+  , [supervisors, isSupervisor, myBatchId])
+
   const supervisorHealth = useMemo(() =>
-    supervisors.map(sup => {
+    scopedSupervisors.map(sup => {
       const supStudents = activeStudents.filter(s =>
         s.supervisor_id === sup.id || s.supervisor_name === sup.name)
       const avgMem = supStudents.length > 0
@@ -161,7 +171,7 @@ export default function DashboardPage() {
         : 0
       return { ...sup, studentCount: supStudents.length, avgMem: Math.round(avgMem * 10) / 10 }
     }).filter(s => s.studentCount > 0)
-  , [supervisors, activeStudents, memorizedByStudent])
+  , [scopedSupervisors, activeStudents, memorizedByStudent])
 
   // Alerts (CEO only)
   const alerts = useMemo(() => {
@@ -171,11 +181,12 @@ export default function DashboardPage() {
     const suspended = activeStudents.filter(s => s.status === 'suspended')
     if (suspended.length > 0)
       list.push({ id: 'sus', type: 'warning', title: `${suspended.length} طلاب موقوفون`, desc: 'يحتاجون مراجعة الحالة', link: '/students' })
-    const upcomingExams = exams.filter(e => e.date >= todayISO && e.date <= new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0])
+    const upcomingExams = exams.filter(e => e.date >= todayISO && e.date <= new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0] &&
+      (!isSupervisor || myBatchId === null || e.batch_id === myBatchId))
     if (upcomingExams.length > 0)
       list.push({ id: 'exams', type: 'info', title: `${upcomingExams.length} اختبارات خلال ٣ أيام`, desc: upcomingExams.map(e => e.student_name).slice(0, 3).join('، '), link: '/exams' })
     return list
-  }, [needsAttention, activeStudents, exams, todayISO, isSupervisor])
+  }, [needsAttention, activeStudents, exams, todayISO, isSupervisor, myBatchId])
 
   // Week schedule
   const weekEnd = new Date(Date.now() + 6 * 86400000).toISOString().split('T')[0]
@@ -231,7 +242,7 @@ export default function DashboardPage() {
       {/* ── Hero KPIs ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { icon: Users, label: 'الطلاب النشطون', value: totalActiveStudents, sub: `${BATCH_IDS.filter(b => students.some(s => s.batch_id === b)).length} دفعات`, color: '#6366f1' },
+          { icon: Users, label: 'الطلاب النشطون', value: totalActiveStudents, sub: `${visibleBatchIds.filter(b => students.some(s => s.batch_id === b)).length} دفعات`, color: '#6366f1' },
           { icon: BookOpen, label: 'أجزاء محفوظة', value: totalMemorized, sub: `من ${totalActiveStudents * 30} إجمالي ممكن`, color: '#22c55e' },
           { icon: CalendarCheck, label: 'الحضور اليوم', value: attendancePct, suffix: '%', sub: `${presentToday} / ${todayAttRecs.length} طالب`, color: '#06b6d4' },
           { icon: AlertTriangle, label: 'يحتاجون متابعة', value: needsAttention.length, sub: 'لم يحفظوا بعد', color: needsAttention.length > 0 ? '#ef4444' : '#22c55e' },
@@ -309,7 +320,7 @@ export default function DashboardPage() {
                 />
                 <Bar dataKey="محفوظ" radius={[4, 4, 0, 0]}>
                   {chartData.map((_, i) => (
-                    <Cell key={i} fill={BATCH_COLORS[BATCH_IDS[i]] || '#6366f1'} />
+                    <Cell key={i} fill={BATCH_COLORS[visibleBatchIds[i]] || '#6366f1'} />
                   ))}
                 </Bar>
               </BarChart>
