@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   getTexts, getAllTextUnits, createText, updateText, deleteText,
@@ -381,6 +381,7 @@ function TextRow({ text, unitCount, rank, isFirst, isLast, onEdit, onDelete, onM
 export default function ManageTextsPage() {
   const { profile } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [loading, setLoading] = useState(true)
   const [texts, setTexts] = useState<DBText[]>([])
@@ -388,6 +389,14 @@ export default function ManageTextsPage() {
   const [selectedLevel, setSelectedLevel] = useState<number | 'all'>('all')
   const [showModal, setShowModal] = useState(false)
   const [editTarget, setEditTarget] = useState<DBText | null>(null)
+
+  // فتح نموذج الإضافة تلقائياً عند الوصول بـ ?action=add من زر الإضافة السريعة
+  useEffect(() => {
+    if (searchParams.get('action') === 'add') {
+      setEditTarget(null)
+      setShowModal(true)
+    }
+  }, [searchParams])
   // ref لتجنب stale closure في handleSave
   const editTargetRef = useRef<DBText | null>(null)
   const [saving, setSaving] = useState(false)

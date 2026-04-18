@@ -8,7 +8,7 @@ import {
 } from '@/lib/db'
 import {
   BookOpen, Users, CheckCircle2, AlertTriangle,
-  ChevronDown, Calendar, TrendingUp, ChevronLeft, Settings2,
+  ChevronDown, Calendar, TrendingUp, ChevronLeft, Settings2, Plus,
 } from 'lucide-react'
 import { MatnSkeleton } from '@/components/ui/Skeleton'
 import EmptyState from '@/components/ui/EmptyState'
@@ -343,6 +343,8 @@ export default function MatnPage() {
   const { profile } = useAuth()
   const router = useRouter()
   const isCeo = profile?.role === 'ceo'
+  // من يملك صلاحية إدارة المتون؟ المدير التنفيذي ومدير الدفعة.
+  const canManageMatn = isCeo || profile?.role === 'batch_manager'
   const myBatchId = profile?.batch_id ?? null
   const week = currentMatnWeek()
 
@@ -500,8 +502,20 @@ export default function MatnPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* زر بارز: تعديل المتون — للمدير التنفيذي فقط */}
-          {isCeo && (
+          {/* زر بارز: إضافة متن — ينقل إلى شاشة الإدارة ويفتح نموذج الإضافة */}
+          {canManageMatn && (
+            <button onClick={() => router.push('/matn/manage?action=add')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 shadow-md hover:shadow-lg"
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                minHeight: '44px',
+              }}>
+              <Plus size={16} />
+              إضافة متن
+            </button>
+          )}
+          {/* زر بارز: تعديل المتون */}
+          {canManageMatn && (
             <button onClick={() => router.push('/matn/manage')}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 shadow-md hover:shadow-lg"
               style={{
