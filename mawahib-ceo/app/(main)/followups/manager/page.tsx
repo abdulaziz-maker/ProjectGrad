@@ -16,6 +16,7 @@ import HijriDatePicker from '@/components/ui/HijriDatePicker'
 import {
   Users, UserCheck, AlertTriangle, CheckCircle2, Clock, Shield,
   CalendarDays, Plus, X, Save, BookOpenCheck, ChevronDown,
+  ClipboardCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -219,8 +220,10 @@ export default function ManagerFollowupPage() {
             </select>
           )}
           <Link href="/followups"
-            className="text-xs text-emerald-600 px-3 py-2 border border-emerald-200 rounded-xl hover:bg-emerald-50 transition-colors">
-            صفحة المتابعة
+            className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 shadow-md hover:shadow-lg"
+            style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+            <ClipboardCheck className="w-5 h-5" />
+            متابعة الطلاب
           </Link>
         </div>
       </div>
