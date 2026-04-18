@@ -225,10 +225,9 @@ export default function FollowupsPage() {
       } else {
         setFormExpectedOverride('')
       }
-      // If already saved and behind with no reasons yet → show step 2
-      const isBehind = existing.actual_position != null && existing.actual_position < computedExpected
-      const hasReasons = Array.isArray(existing.delay_reasons) && existing.delay_reasons.length > 0
-      setFollowupStep(isBehind && !hasReasons ? 2 : 1)
+      // Always start at step 1 — user can manually navigate to step 2 if needed
+      // (Step 2 auto-opens only after saving step 1 when gap is negative — see saveFollowup)
+      setFollowupStep(1)
     } else {
       setFormActual('')
       setFormExpectedOverride('')
@@ -729,8 +728,9 @@ export default function FollowupsPage() {
                       {saving ? 'جاري الحفظ...' : 'حفظ المتابعة'}
                     </button>
                     <Link href={`/followups/plan/${student.id}`}
-                      className="py-2.5 px-3 text-[10px] rounded-lg border border-gray-200 text-gray-400 flex items-center gap-1 hover:bg-gray-50 transition-colors">
-                      <CalendarDays className="w-3 h-3" /> الخطة
+                      className="py-2.5 px-4 text-xs font-bold rounded-lg flex items-center gap-1.5 text-white transition-all hover:shadow-md hover:opacity-90"
+                      style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
+                      <CalendarDays className="w-4 h-4" /> استعراض الخطة
                     </Link>
                   </div>
                 </>)}
@@ -790,6 +790,11 @@ export default function FollowupsPage() {
                       <Save className="w-3.5 h-3.5" />
                       {saving ? 'جاري الحفظ...' : 'حفظ الأسباب والإجراءات'}
                     </button>
+                    <Link href={`/followups/plan/${student.id}`}
+                      className="py-2.5 px-4 text-xs font-bold rounded-lg flex items-center gap-1.5 text-white transition-all hover:shadow-md hover:opacity-90"
+                      style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
+                      <CalendarDays className="w-4 h-4" /> استعراض الخطة
+                    </Link>
                     <button onClick={() => { setFollowupStep(1) }}
                       className="py-2.5 px-3 text-[10px] rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition-colors">
                       رجوع
