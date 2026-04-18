@@ -7,7 +7,7 @@ import {
 } from '@/lib/db'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
-import { UserCheck, Users, Loader2, ChevronLeft, CalendarCheck, Save, CheckCheck, X, AlertCircle } from 'lucide-react'
+import { UserCheck, Users, Loader2, ChevronLeft, CalendarCheck, Save, CheckCheck, X, AlertCircle, ArrowLeftRight } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { todayStr, toHijriDisplay } from '@/lib/hijri'
@@ -111,14 +111,26 @@ export default function ManagerSupervisorsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/manager/dashboard" className="p-2 rounded-lg hover:opacity-80" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-          <ChevronLeft size={18} style={{ color: 'var(--text-muted)', transform: 'rotate(180deg)' }} />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>مشرفو الدفعة</h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{supervisors.length} مشرف — {students.length} طالب</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Link href="/manager/dashboard" className="p-2 rounded-lg hover:opacity-80" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+            <ChevronLeft size={18} style={{ color: 'var(--text-muted)', transform: 'rotate(180deg)' }} />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>مشرفو الدفعة</h1>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{supervisors.length} مشرف — {students.length} طالب</p>
+          </div>
         </div>
+
+        {/* زر بارز: توزيع المشرفين — يفتح صفحة التوزيع بتفاصيل السحب والإفلات */}
+        <Link
+          href="/manager/assignments"
+          className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 shadow-md hover:shadow-lg"
+          style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}
+        >
+          <ArrowLeftRight className="w-5 h-5" />
+          توزيع المشرفين على الطلاب
+        </Link>
       </div>
 
       {/* حضور المشرفين */}

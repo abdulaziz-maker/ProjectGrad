@@ -364,10 +364,10 @@ export default function AssignmentsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-extrabold" style={{ color: 'var(--text-primary)' }}>
-            توزيع الطلاب على المشرفين
+            توزيع المشرفين
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            اسحب اسم الطالب من عمود لآخر لتعيينه
+            توزيع الطلاب على المشرفين — اسحب اسم الطالب من عمود لآخر لتعيينه
           </p>
         </div>
         <div className="flex items-center gap-3">

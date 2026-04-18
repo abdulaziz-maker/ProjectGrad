@@ -6,7 +6,7 @@ import {
   CalendarCheck, Star, MessageSquare, FileText,
   Wallet, Settings, X, Grid3x3,
   ClipboardCheck, ListChecks, LogOut, ShieldCheck, ChevronLeft, Bell,
-  ClipboardList, Target, ArrowLeftRight, BookHeart,
+  ClipboardList, Target, BookHeart,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -27,9 +27,10 @@ const navItems: NavItem[] = [
   { href: '/tasks',       icon: ListChecks,      label: 'مهامي اليومية',          badge: 3,  roles: ['ceo'] },
 
   // === مدير الدفعة ===
+  // ملاحظة: تم دمج "تكليف المشرفين" (الآن "توزيع المشرفين") داخل صفحة "مشرفو
+  // دفعتي" كزر بارز لتبسيط الشريط الجانبي.
   { href: '/manager/dashboard',    icon: LayoutDashboard, label: 'لوحة الدفعة',        badge: 0, roles: ['batch_manager'] },
   { href: '/manager/supervisors',  icon: UserCheck,       label: 'مشرفو دفعتي',        badge: 0, roles: ['batch_manager'] },
-  { href: '/manager/assignments',  icon: ArrowLeftRight,  label: 'تكليف المشرفين',      badge: 0, roles: ['batch_manager'] },
   { href: '/followups/manager',    icon: ClipboardList,   label: 'متابعات الدفعة',      badge: 0, roles: ['batch_manager'] },
   { href: '/manager/reports',      icon: FileText,        label: 'تقارير الدفعة',       badge: 0, roles: ['batch_manager'] },
 
@@ -48,7 +49,8 @@ const navItems: NavItem[] = [
   { href: '/programs',    icon: Star,            label: 'البرامج التربوية',       badge: 2 },
   { href: '/meetings',    icon: MessageSquare,   label: 'الاجتماعات',             badge: 1 },
   { href: '/admin/bulk-plan', icon: Target,      label: 'إنشاء خطة جماعي',        badge: 0,  roles: ['ceo'] },
-  { href: '/matn/manage',     icon: BookOpen,    label: 'إدارة المتون',            badge: 0,  roles: ['ceo'] },
+  // ملاحظة: "تعديل المتون" (/matn/manage) مُدمَجة الآن داخل صفحة "رصد المتون"
+  // كزر بارز للمدير التنفيذي، فلا حاجة لبند منفصل.
   { href: '/reminders/saved', icon: BookHeart,   label: 'التذكيرات المحفوظة',    badge: 0 },
   { href: '/reports',         icon: FileText,     label: 'التقارير',               badge: 0 },
   { href: '/notifications',   icon: Bell,         label: 'الإشعارات',              badge: 0 },
