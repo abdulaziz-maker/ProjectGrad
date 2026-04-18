@@ -29,7 +29,10 @@ function normalizeStatus(s: string): AttendanceStatus {
 
 export default function AttendancePage() {
   const { profile } = useAuth()
-  const isSupervisor = profile?.role === 'supervisor' || profile?.role === 'teacher'
+  // مدير الدفعة/المشرف/المعلم: مقيَّد بدفعته. المدير التنفيذي فقط يبدّل بين الدفعات.
+  const role = profile?.role
+  const isScopedToBatch = role === 'supervisor' || role === 'teacher' || role === 'batch_manager'
+  const isSupervisor = isScopedToBatch // alias للحفاظ على الشرط القديم في التبويبات
   const supervisorBatchId = profile?.batch_id ? String(profile.batch_id) as BatchId : null
 
   const [date, setDate] = useState<string>(todayStr())

@@ -54,7 +54,8 @@ export default function DashboardPage() {
 
   const { profile } = useAuth()
   const isCeo = profile?.role === 'ceo'
-  const isSupervisor = profile?.role === 'supervisor' || profile?.role === 'teacher'
+  // مقيَّد بالدفعة: يشمل مدير الدفعة كذلك (ليس فقط المشرف/المعلم)
+  const isSupervisor = profile?.role === 'supervisor' || profile?.role === 'teacher' || profile?.role === 'batch_manager'
   const myBatchId = profile?.batch_id ?? null
 
   const [loading, setLoading] = useState(true)

@@ -25,7 +25,9 @@ interface LocalStudent { id: string; name: string; batchId: number; supervisorNa
 
 export default function BatchesPage() {
   const { profile } = useAuth()
-  const isSupervisor = profile?.role === 'supervisor' || profile?.role === 'teacher'
+  // مدير الدفعة/المشرف/المعلم: مقيَّد بدفعته. فقط المدير التنفيذي يبدّل بين الدفعات.
+  const role = profile?.role
+  const isSupervisor = role === 'supervisor' || role === 'teacher' || role === 'batch_manager'
   const myBatchId = (profile?.batch_id ?? 46) as 46 | 48
 
   const [selectedBatch, setSelectedBatch] = useState<46 | 48>(myBatchId)

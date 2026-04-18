@@ -41,8 +41,13 @@ function validatePhone(v: string): string | null {
 
 export default function StudentsPage() {
   const { profile } = useAuth()
-  const isSupervisor = profile?.role === 'supervisor' || profile?.role === 'teacher'
-  const supervisorBatchId = profile?.batch_id ?? null
+  // مدير الدفعة والمشرف والمعلم: كل واحد منهم مقيَّد بدفعة واحدة فقط.
+  // المدير التنفيذي (ceo) فقط يرى كل الدفعات.
+  const role = profile?.role
+  const isScopedToBatch = role === 'supervisor' || role === 'teacher' || role === 'batch_manager'
+  const isSupervisor = role === 'supervisor' || role === 'teacher' // للاستخدامات الأقدم
+  const myBatchId = profile?.batch_id ?? null
+  const supervisorBatchId = myBatchId // alias للتوافق
 
   const [students, setStudents] = useState<DBStudent[]>([])
   const [supervisors, setSupervisors] = useState<DBSupervisor[]>([])
@@ -93,9 +98,10 @@ export default function StudentsPage() {
 
   const filtered = useMemo(() => {
     let list = students
-    // Supervisors are locked to their batch
-    if (isSupervisor && supervisorBatchId !== null) {
-      list = list.filter(s => s.batch_id === supervisorBatchId)
+    // المستخدمون المقيَّدون بدفعة (مشرف/معلم/مدير دفعة): لا يرون إلا دفعتهم.
+    // أي تسريب بيانات يُقصَى هنا client-side بالإضافة إلى حماية RLS على الخادم.
+    if (isScopedToBatch && myBatchId !== null) {
+      list = list.filter(s => s.batch_id === myBatchId)
     } else if (batchFilter !== '') {
       list = list.filter(s => s.batch_id === batchFilter)
     }
@@ -105,7 +111,7 @@ export default function StudentsPage() {
     }
     if (statusFilter !== '') list = list.filter(s => s.status === statusFilter)
     return list
-  }, [students, search, batchFilter, statusFilter, isSupervisor, supervisorBatchId])
+  }, [students, search, batchFilter, statusFilter, isScopedToBatch, myBatchId])
 
   const effectivePageSize = pageSize === 0 ? filtered.length || 1 : pageSize
   const totalPages = Math.max(1, Math.ceil(filtered.length / effectivePageSize))
@@ -141,9 +147,16 @@ export default function StudentsPage() {
     toast.success(`تم تصدير ${rows.length} طالب إلى Excel`)
   }
 
-  const totalCount = students.length
-  const activeCount = students.filter(s => s.status === 'active').length
-  const suspendedCount = students.filter(s => s.status === 'suspended').length
+  // الإحصاءات على القائمة المفلترة حسب النطاق (فلا تُسرَّب أعداد دفعات أخرى)
+  const scopedStudents = useMemo(() =>
+    (isScopedToBatch && myBatchId !== null)
+      ? students.filter(s => s.batch_id === myBatchId)
+      : students
+  , [students, isScopedToBatch, myBatchId])
+
+  const totalCount = scopedStudents.length
+  const activeCount = scopedStudents.filter(s => s.status === 'active').length
+  const suspendedCount = scopedStudents.filter(s => s.status === 'suspended').length
 
   const supervisorName = (id: string) => {
     const sup = supervisors.find(s => s.id === id)
@@ -152,7 +165,11 @@ export default function StudentsPage() {
 
   const openAdd = () => {
     setEditingId(null)
-    setForm(emptyForm)
+    // عند المستخدم المقيَّد بدفعة: ثبّت batch_id على دفعته تلقائياً
+    setForm({
+      ...emptyForm,
+      batch_id: (isScopedToBatch && myBatchId !== null) ? myBatchId : emptyForm.batch_id,
+    })
     setFormErrors({})
     setShowModal(true)
   }
@@ -294,16 +311,26 @@ export default function StudentsPage() {
             onChange={e => { setSearch(e.target.value); setPage(1) }}
             className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
           />
-          <select
-            value={batchFilter}
-            onChange={e => { setBatchFilter(e.target.value === '' ? '' : Number(e.target.value)); setPage(1) }}
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
-          >
-            <option value="">كل الدفعات</option>
-            {BATCH_OPTIONS.map(b => (
-              <option key={b} value={b}>دفعة {b}</option>
-            ))}
-          </select>
+          {isScopedToBatch && myBatchId !== null ? (
+            /* المستخدمون المقيَّدون بدفعة: عرض اسم دفعتهم فقط بلا خيار تبديل */
+            <div
+              className="flex items-center border rounded-xl px-3 py-2 text-sm font-semibold"
+              style={{ borderColor: 'var(--border-color)', color: '#6366f1', background: 'rgba(99,102,241,0.08)' }}
+            >
+              دفعة {myBatchId}
+            </div>
+          ) : (
+            <select
+              value={batchFilter}
+              onChange={e => { setBatchFilter(e.target.value === '' ? '' : Number(e.target.value)); setPage(1) }}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+            >
+              <option value="">كل الدفعات</option>
+              {BATCH_OPTIONS.map(b => (
+                <option key={b} value={b}>دفعة {b}</option>
+              ))}
+            </select>
+          )}
           <select
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value as '' | 'active' | 'suspended'); setPage(1) }}
@@ -478,15 +505,25 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>الدفعة</label>
-                <select
-                  value={form.batch_id}
-                  onChange={e => setForm(f => ({ ...f, batch_id: Number(e.target.value) }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
-                >
-                  {BATCH_OPTIONS.map(b => (
-                    <option key={b} value={b}>دفعة {b}</option>
-                  ))}
-                </select>
+                {isScopedToBatch && myBatchId !== null ? (
+                  /* المستخدمون المقيَّدون بدفعة: تثبيت الدفعة على دفعتهم */
+                  <div
+                    className="w-full border rounded-xl px-3 py-2 text-sm"
+                    style={{ borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'rgba(99,102,241,0.04)' }}
+                  >
+                    دفعة {myBatchId}
+                  </div>
+                ) : (
+                  <select
+                    value={form.batch_id}
+                    onChange={e => setForm(f => ({ ...f, batch_id: Number(e.target.value) }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+                  >
+                    {BATCH_OPTIONS.map(b => (
+                      <option key={b} value={b}>دفعة {b}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div>
