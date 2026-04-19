@@ -648,8 +648,14 @@ export default function FollowupsPage() {
                       <p className="text-[10px] text-gray-400 mb-0.5 flex items-center justify-center gap-1">
                         المفترض
                         {!editingExpected && (
-                          <button type="button" onClick={() => { setEditingExpected(true); setFormExpectedOverride(expected) }}
-                            className="hover:text-gray-600"><Pencil className="w-2.5 h-2.5" /></button>
+                          <button
+                            type="button"
+                            onClick={() => { setEditingExpected(true); setFormExpectedOverride(expected) }}
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 hover:border-amber-400 hover:text-amber-700 active:scale-95 transition-all duration-150 touch-manipulation"
+                            title="تعديل المفترض"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
                         )}
                       </p>
                       {editingExpected ? (
