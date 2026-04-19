@@ -16,7 +16,7 @@ type BatchId = '46' | '48'
 
 const STATUS_META: Record<AttendanceStatus, { label: string; bg: string; bgSoft: string; text: string; textSoft: string; icon: typeof Check }> = {
   present: { label: 'حاضر',      bg: '#16a34a', bgSoft: '#f0fdf4', text: '#ffffff', textSoft: '#15803d', icon: Check },
-  absent:  { label: 'غائب',      bg: '#ef4444', bgSoft: '#fef2f2', text: '#ffffff', textSoft: '#b91c1c', icon: X },
+  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', text: '#ffffff', textSoft: '#b91c1c', icon: X },
   excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', text: '#ffffff', textSoft: '#854d0e', icon: AlertCircle },
 }
 
@@ -128,7 +128,7 @@ export default function AttendancePage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]" dir="rtl">
         <div className="text-center space-y-3">
-          <Loader2 className="w-8 h-8 animate-spin text-[#6366f1] mx-auto" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#C08A48] mx-auto" />
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>جاري تحميل البيانات...</p>
         </div>
       </div>
@@ -169,7 +169,7 @@ export default function AttendancePage() {
                     className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xl leading-none" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}>‹</button>
                 </div>
                 <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20 text-center" style={{ color: 'var(--text-secondary)' }} />
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20 text-center" style={{ color: 'var(--text-secondary)' }} />
               </div>
 
               <div className="card-static p-5 flex flex-col justify-between gap-4">
@@ -207,73 +207,136 @@ export default function AttendancePage() {
             </div>
 
             {/* أزرار التحديد الجماعي */}
-            <div className="card-static p-3 flex items-center justify-between gap-2 flex-wrap">
-              <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>تحديد جماعي سريع:</p>
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => markAll('present')}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105"
-                  style={{ background: '#16a34a', color: '#fff' }}
-                >
-                  <CheckCheck className="w-3.5 h-3.5" />
-                  تحضير الكل
+            <div className="quick-mark-bar">
+              <p className="quick-mark-label">تحديد جماعي سريع</p>
+              <div className="quick-mark-buttons">
+                <button onClick={() => markAll('present')} className="quick-mark-btn" data-kind="present">
+                  <span className="qm-icon"><CheckCheck className="w-3.5 h-3.5" /></span>
+                  <span>تحضير الكل</span>
                 </button>
-                <button
-                  onClick={() => markAll('absent')}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105"
-                  style={{ background: '#ef4444', color: '#fff' }}
-                >
-                  <X className="w-3.5 h-3.5" />
-                  تغييب الكل
+                <button onClick={() => markAll('absent')} className="quick-mark-btn" data-kind="absent">
+                  <span className="qm-icon"><X className="w-3.5 h-3.5" /></span>
+                  <span>تغييب الكل</span>
                 </button>
-                <button
-                  onClick={() => markAll('excused')}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105"
-                  style={{ background: '#eab308', color: '#fff' }}
-                >
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  غياب بعذر للكل
+                <button onClick={() => markAll('excused')} className="quick-mark-btn" data-kind="excused">
+                  <span className="qm-icon"><AlertCircle className="w-3.5 h-3.5" /></span>
+                  <span>غياب بعذر</span>
                 </button>
               </div>
             </div>
 
-            <div className="card-static overflow-hidden">
-              <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-color)' }}>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>قائمة الطلاب — دفعة {batchId}</p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{batchStudents.length} طالب</p>
+            {/* ── Student roster ── modern row cards with status accent bar ── */}
+            <div className="attendance-roster-header flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span
+                  style={{
+                    width: 4, height: 18, borderRadius: 3,
+                    background: 'linear-gradient(180deg, #C08A48, #8B5A1E)',
+                  }}
+                />
+                <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                  قائمة الطلاب — دفعة {batchId}
+                </p>
               </div>
-              <div className="divide-y" style={{ borderColor: 'var(--border-color)' }}>
-                {batchStudents.map((student, idx) => {
-                  const status = records[student.id]
-                  return (
-                    <div key={student.id} className="flex items-center justify-between px-5 py-3.5 hover:opacity-90">
-                      <div className="flex items-center gap-3">
-                        <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium font-mono flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>{idx + 1}</span>
-                        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
+              <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                {batchStudents.length} طالب مسجّل
+              </p>
+            </div>
+            <div className="attendance-roster space-y-2">
+              {batchStudents.map((student, idx) => {
+                const status = records[student.id]
+                const activeMeta = status ? STATUS_META[status] : null
+                const initial = (student.name || '؟').trim().charAt(0)
+                return (
+                  <div
+                    key={student.id}
+                    className="attendance-row card-static"
+                    data-status={status ?? 'unset'}
+                    style={{
+                      // @ts-expect-error — CSS custom prop
+                      '--row-accent': activeMeta?.bg ?? 'transparent',
+                      '--row-tint': activeMeta ? `${activeMeta.bg}0D` : 'transparent', // ~5% alpha
+                    }}
+                  >
+                    <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3 sm:py-3.5">
+                      {/* Right accent bar */}
+                      <span className="attendance-row-accent" aria-hidden="true" />
+
+                      {/* Avatar initial */}
+                      <div
+                        className="attendance-avatar shrink-0"
+                        style={{
+                          background: activeMeta
+                            ? `linear-gradient(145deg, ${activeMeta.bg}, ${activeMeta.bg}CC)`
+                            : 'linear-gradient(145deg, #3A3D44, #1A1B20)',
+                          color: activeMeta ? '#fff' : '#E8C48A',
+                          boxShadow: activeMeta
+                            ? `0 4px 12px ${activeMeta.bg}40, inset 0 0 0 1px rgba(255,255,255,0.08)`
+                            : '0 4px 12px rgba(26,27,32,0.18), inset 0 0 0 1px rgba(192,138,72,0.20)',
+                        }}
+                      >
+                        <span className="attendance-avatar-initial">{initial}</span>
                       </div>
-                      <div className="flex gap-2">
-                        {(['present','absent','excused'] as const).map(st => {
+
+                      {/* Name + sequence */}
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className="text-[15px] font-bold truncate"
+                          style={{ color: 'var(--text-primary)', lineHeight: 1.3 }}
+                        >
+                          {student.name}
+                        </p>
+                        <p
+                          className="text-[11px] mt-0.5 font-mono"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          #{String(idx + 1).padStart(2, '0')}
+                          {activeMeta && (
+                            <>
+                              {' · '}
+                              <span style={{ color: activeMeta.bg, fontWeight: 700 }}>
+                                {activeMeta.label}
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Segmented control — status pills */}
+                      <div
+                        role="radiogroup"
+                        aria-label={`حالة ${student.name}`}
+                        className="attendance-segment shrink-0"
+                      >
+                        {(['present', 'absent', 'excused'] as const).map(st => {
                           const meta = STATUS_META[st]
                           const active = status === st
+                          const Icon = meta.icon
                           return (
                             <button
                               key={st}
+                              role="radio"
+                              aria-checked={active}
                               onClick={() => setStatus(student.id, st)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active ? 'shadow-sm scale-105' : ''}`}
-                              style={active
-                                ? { backgroundColor: meta.bg, color: meta.text }
-                                : { backgroundColor: meta.bgSoft, color: meta.textSoft }
-                              }
+                              className="attendance-segment-btn"
+                              data-active={active}
+                              style={{
+                                // @ts-expect-error CSS var
+                                '--seg-color': meta.bg,
+                                '--seg-soft': meta.bgSoft,
+                              }}
+                              title={meta.label}
                             >
-                              {meta.label}
+                              <Icon className="attendance-segment-icon" size={14} />
+                              <span className="attendance-segment-label">{meta.label}</span>
                             </button>
                           )
                         })}
                       </div>
                     </div>
-                  )
-                })}
-              </div>
+                  </div>
+                )
+              })}
             </div>
 
             <button onClick={handleSave} disabled={saving}
@@ -326,7 +389,7 @@ export default function AttendancePage() {
                         : pct >= 75 ? { bg: '#dbeafe', text: '#1d4ed8' }
                         : pct >= 60 ? { bg: '#fef9c3', text: '#854d0e' }
                         : { bg: '#fee2e2', text: '#dc2626' }
-                      const barColor = relevantDays.length === 0 ? '#d1d5db' : pct >= 90 ? '#6366f1' : pct >= 75 ? '#3b82f6' : pct >= 60 ? '#f59e0b' : '#ef4444'
+                      const barColor = relevantDays.length === 0 ? '#d1d5db' : pct >= 90 ? '#C08A48' : pct >= 75 ? '#3b82f6' : pct >= 60 ? '#C9972C' : '#B94838'
 
                       return (
                         <tr key={student.id} className="hover:opacity-90">

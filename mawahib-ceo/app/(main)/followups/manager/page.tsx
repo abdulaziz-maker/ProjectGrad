@@ -198,12 +198,16 @@ export default function ManagerFollowupPage() {
     <div className="space-y-5 animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Shield className="w-5 h-5 text-emerald-500" />
+        <div className="min-w-0">
+          <div className="eyebrow-pill mb-3">
+            <span className="eyebrow-dot" />
+            إشراف المتابعات
+          </div>
+          <h1 className="display-h1 m-0 flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
+            <Shield className="w-7 h-7" style={{ color: 'var(--accent-teal)' }} />
             لوحة إشراف المتابعات
           </h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
             دفعة {batchId} — أسبوع {formatHijri(weekRange.start)}
           </p>
         </div>

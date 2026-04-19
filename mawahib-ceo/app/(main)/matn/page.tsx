@@ -26,8 +26,8 @@ const LEVEL_LABELS: Record<number, string> = {
 }
 
 const SUBJECT_COLORS: Record<string, string> = {
-  'علوم القرآن': '#6366f1', 'الفقه': '#06b6d4', 'العقيدة': '#8b5cf6',
-  'اللغة': '#22c55e', 'التاريخ': '#f59e0b', 'الحديث': '#ef4444',
+  'علوم القرآن': '#C08A48', 'الفقه': '#356B6E', 'العقيدة': '#8b5cf6',
+  'اللغة': '#5A8F67', 'التاريخ': '#C9972C', 'الحديث': '#B94838',
   'التربية الإيمانية': '#ec4899', 'مهارات': '#64748b',
 }
 
@@ -138,14 +138,14 @@ function UnitTimeline({ units, selectedUnit, onSelect, recitations, studentCount
                   ? 'rgba(39,80,10,0.1)'
                   : 'rgba(255,255,255,0.03)',
               border: `1.5px solid ${
-                isSelected ? '#6366f1'
+                isSelected ? '#C08A48'
                 : allDone ? '#27500A'
                 : isCurrent ? '#854F0B'
                 : 'var(--border-color)'
               }`,
             }}>
             <span className="text-[10px] font-bold" style={{
-              color: isSelected ? '#6366f1'
+              color: isSelected ? '#C08A48'
                 : allDone ? '#27500A'
                 : isCurrent ? '#854F0B'
                 : 'var(--text-muted)'
@@ -177,7 +177,7 @@ function MatnCard({ text, units, students, recitations, onStudentClick }: {
   const maxUnit = units.length
   const defaultUnit = Math.min(week, maxUnit)
   const [selectedUnit, setSelectedUnit] = useState(defaultUnit)
-  const subjectColor = SUBJECT_COLORS[text.subject] ?? '#6366f1'
+  const subjectColor = SUBJECT_COLORS[text.subject] ?? '#C08A48'
 
   // المقرر المحدد
   const activeUnitData = units.find(u => u.unit_number === selectedUnit)
@@ -493,7 +493,7 @@ export default function MatnPage() {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <BookOpen size={20} style={{ color: '#6366f1' }} />
+            <BookOpen size={20} style={{ color: '#C08A48' }} />
             رصد المتون
           </h1>
           <p className="text-xs mt-0.5 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
@@ -519,7 +519,7 @@ export default function MatnPage() {
             <button onClick={() => router.push('/matn/manage')}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 shadow-md hover:shadow-lg"
               style={{
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                background: 'linear-gradient(135deg, #C08A48 0%, #4f46e5 100%)',
                 minHeight: '44px',
               }}>
               <Settings2 size={16} />
@@ -553,15 +553,15 @@ export default function MatnPage() {
               style={{
                 minHeight: '44px',
                 background: isActive ? 'rgba(99,102,241,0.12)' : 'var(--bg-card)',
-                border: `1.5px solid ${isActive ? '#6366f1' : 'var(--border-color)'}`,
+                border: `1.5px solid ${isActive ? '#C08A48' : 'var(--border-color)'}`,
               }}>
               <p className="text-xs font-bold" style={{
-                color: isActive ? '#6366f1' : 'var(--text-muted)'
+                color: isActive ? '#C08A48' : 'var(--text-muted)'
               }}>
                 م{lvl}
               </p>
               <p className="text-sm font-bold mt-0.5" style={{
-                color: isActive ? '#6366f1' : 'var(--text-primary)'
+                color: isActive ? '#C08A48' : 'var(--text-primary)'
               }}>
                 {pct}%
               </p>
@@ -584,7 +584,7 @@ export default function MatnPage() {
           icon={Users}
           label="طلاب نشطين"
           value={kpiStats.totalStudents}
-          color="#6366f1"
+          color="#C08A48"
         />
         <KpiCard
           icon={CheckCircle2}

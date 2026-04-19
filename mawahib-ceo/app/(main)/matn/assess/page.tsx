@@ -61,7 +61,7 @@ function GradeGroup({ label, desc, icon: Icon, value, onChange }: {
         style={{ borderBottom: '1px solid var(--border-color)' }}>
         <div className="w-9 h-9 rounded-xl flex items-center justify-center"
           style={{ background: 'rgba(99,102,241,0.1)' }}>
-          <Icon size={16} style={{ color: '#6366f1' }} />
+          <Icon size={16} style={{ color: '#C08A48' }} />
         </div>
         <div>
           <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{label}</p>
@@ -266,7 +266,7 @@ function AssessContent() {
       <p className="text-sm" style={{ color: 'var(--text-muted)' }}>لم يتم العثور على البيانات</p>
       <button onClick={() => router.push('/matn')}
         className="mt-4 text-sm px-4 py-2 rounded-xl"
-        style={{ background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>
+        style={{ background: 'rgba(99,102,241,0.1)', color: '#C08A48' }}>
         العودة للمتون
       </button>
     </div>
@@ -291,7 +291,7 @@ function AssessContent() {
           </p>
         </div>
         <div className="text-left flex-shrink-0">
-          <p className="text-xs font-bold" style={{ color: '#6366f1' }}>{assessedCount}/{students.length}</p>
+          <p className="text-xs font-bold" style={{ color: '#C08A48' }}>{assessedCount}/{students.length}</p>
           <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>تم الرصد</p>
         </div>
       </div>
@@ -300,7 +300,7 @@ function AssessContent() {
       <div className="rounded-2xl p-4 flex items-center gap-3"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
         <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold"
-          style={{ background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>
+          style={{ background: 'rgba(99,102,241,0.12)', color: '#C08A48' }}>
           {currentStudent.name.charAt(0)}
         </div>
         <div className="flex-1 min-w-0">
@@ -404,7 +404,7 @@ function AssessContent() {
           background: saved
             ? '#27500A'
             : filledCount > 0
-              ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)'
+              ? 'linear-gradient(135deg, #C08A48 0%, #4f46e5 100%)'
               : 'var(--bg-elevated)',
           color: '#fff',
           border: 'none',
@@ -480,7 +480,7 @@ function AssessContent() {
                 style={{
                   minWidth: '44px',
                   background: isActive ? 'rgba(99,102,241,0.12)' : 'transparent',
-                  border: `1.5px solid ${isActive ? '#6366f1' : 'transparent'}`,
+                  border: `1.5px solid ${isActive ? '#C08A48' : 'transparent'}`,
                 }}>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
                   style={{
@@ -490,7 +490,7 @@ function AssessContent() {
                   {st.name.charAt(0)}
                 </div>
                 <span className="text-[8px] truncate max-w-[40px]"
-                  style={{ color: isActive ? '#6366f1' : 'var(--text-muted)' }}>
+                  style={{ color: isActive ? '#C08A48' : 'var(--text-muted)' }}>
                   {st.name.split(' ')[0]}
                 </span>
               </button>
@@ -507,7 +507,7 @@ export default function AssessPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#6366f1' }} />
+        <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#C08A48' }} />
         <span className="text-sm" style={{ color: 'var(--text-muted)' }}>جاري التحميل...</span>
       </div>
     }>

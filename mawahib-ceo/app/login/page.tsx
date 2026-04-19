@@ -1,7 +1,8 @@
 'use client'
 import { useState } from 'react'
-import { Eye, EyeOff, Loader2, BookOpen } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { BrandMark } from '@/components/ui/BrandMark'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -30,205 +31,304 @@ export default function LoginPage() {
   }
 
   return (
-    <>
-      <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(24px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fadeIn 0.6s ease-in-out both;
-        }
-        .animate-fade-in-up {
-          animation: fadeInUp 0.6s ease-in-out both;
-          animation-delay: 0.15s;
-        }
-        .grid-pattern {
-          background-image:
-            linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px);
-          background-size: 48px 48px;
-        }
-        .input-field {
-          background-color: var(--bg-subtle);
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 6px;
-          color: var(--text-primary);
-          transition: all 200ms ease-in-out;
-        }
-        .input-field::placeholder {
-          color: var(--text-muted);
-        }
-        .input-field:focus {
-          outline: none;
-          border-color: rgba(99,102,241,0.5);
-          box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
-        }
-      `}</style>
-
-      <div
-        className="min-h-screen flex items-center justify-center relative overflow-hidden"
-        dir="rtl"
-        style={{ backgroundColor: 'var(--bg-body)' }}
+    <div
+      className="min-h-screen w-full flex items-stretch overflow-hidden"
+      dir="rtl"
+      style={{ backgroundColor: 'var(--bg-body)' }}
+    >
+      {/* ============ LEFT BRAND PANEL (visible on lg+) ============ */}
+      <aside
+        className="hidden lg:flex relative flex-col justify-between p-12 overflow-hidden"
+        style={{
+          flex: '0 0 44%',
+          background: 'linear-gradient(160deg, var(--brand-from) 0%, var(--brand-to) 55%, var(--brand-deep) 100%)',
+          color: 'var(--brand-on)',
+        }}
       >
-        {/* Geometric grid pattern overlay */}
-        <div className="grid-pattern absolute inset-0 z-0" />
+        {/* topographic lines backdrop */}
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          viewBox="0 0 800 1000"
+          preserveAspectRatio="xMidYMid slice"
+          aria-hidden="true"
+        >
+          <g stroke="rgba(246,244,240,0.07)" strokeWidth="1" fill="none">
+            <path d="M-50 180 Q 150 150 300 200 T 600 180 Q 750 160 900 210" />
+            <path d="M-50 240 Q 180 210 330 260 T 630 240 Q 780 220 900 270" />
+            <path d="M-50 300 Q 210 270 360 320 T 660 300 Q 810 280 900 330" />
+            <path d="M-50 360 Q 240 330 390 380 T 690 360 Q 840 340 900 390" />
+          </g>
+          <g stroke="rgba(212,162,76,0.14)" strokeWidth="1" fill="none">
+            <ellipse cx="640" cy="820" rx="120" ry="80" />
+            <ellipse cx="640" cy="820" rx="190" ry="125" />
+            <ellipse cx="640" cy="820" rx="260" ry="170" />
+            <ellipse cx="640" cy="820" rx="330" ry="215" />
+          </g>
+          <g stroke="rgba(246,244,240,0.05)" strokeWidth="1" fill="none">
+            <path d="M-50 700 Q 200 670 380 720 T 700 690 Q 850 670 900 720" />
+            <path d="M-50 760 Q 220 730 400 780 T 720 750 Q 870 730 900 780" />
+          </g>
+        </svg>
 
-        {/* Main content */}
-        <div className="relative z-10 w-full flex flex-col items-center px-4">
+        {/* top: logo */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{
+              background: 'rgba(246,244,240,0.08)',
+              border: '1px solid rgba(246,244,240,0.15)',
+            }}
+          >
+            <BrandMark size={30} color="var(--brand-on)" />
+          </div>
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-bold" style={{ color: 'var(--brand-on)' }}>
+              المواهب الناشئة
+            </span>
+            <span className="text-[11px]" style={{ color: 'rgba(246,244,240,0.65)' }}>
+              نظام القيادة التنفيذية
+            </span>
+          </div>
+        </div>
 
-          {/* Logo section */}
-          <div className="animate-fade-in text-center mb-8">
+        {/* center: hero */}
+        <div className="relative z-10 max-w-md">
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold mb-6"
+            style={{
+              background: 'rgba(212,162,76,0.15)',
+              color: '#E5B35C',
+              border: '1px solid rgba(212,162,76,0.32)',
+              letterSpacing: '0.04em',
+            }}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: '#E5B35C', boxShadow: '0 0 8px #E5B35C' }}
+            />
+            الإصدار ٢٫٠ • النظام الداخلي
+          </div>
+          <h1
+            className="text-4xl xl:text-5xl font-bold mb-5"
+            style={{
+              fontFamily: 'var(--font-noto-kufi, Noto Kufi Arabic)',
+              letterSpacing: '-0.015em',
+              lineHeight: 1.18,
+              color: 'var(--brand-on)',
+            }}
+          >
+            حيث يلتقي
+            <br />
+            <span style={{ color: '#E5B35C' }}>العلم</span> بالنمو والأثر
+          </h1>
+          <p
+            className="text-base leading-relaxed"
+            style={{ color: 'rgba(246,244,240,0.75)' }}
+          >
+            منصة موحّدة لإدارة الدفعات، متابعة الطلاب، تسميع المتون،
+            والاختبارات — بتصميم يعكس هوية البرنامج.
+          </p>
+        </div>
+
+        {/* bottom: brand mark watermark + footer */}
+        <div className="relative z-10 flex items-end justify-between">
+          <div className="flex items-center gap-2 text-[11px]" style={{ color: 'rgba(246,244,240,0.55)' }}>
+            <ShieldCheck className="w-3.5 h-3.5" />
+            اتصال مُشفَّر وآمن
+          </div>
+          <span className="text-[11px] font-mono" style={{ color: 'rgba(246,244,240,0.35)' }}>
+            v2.0
+          </span>
+        </div>
+
+        {/* huge faint BrandMark watermark */}
+        <div className="absolute -bottom-20 -left-20 opacity-[0.06] pointer-events-none">
+          <BrandMark size={360} color="var(--brand-on)" />
+        </div>
+      </aside>
+
+      {/* ============ RIGHT FORM PANEL ============ */}
+      <main className="flex-1 flex items-center justify-center p-6 sm:p-12 relative">
+        {/* subtle contour backdrop for right side */}
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none opacity-60"
+          viewBox="0 0 800 1000"
+          preserveAspectRatio="xMidYMid slice"
+          aria-hidden="true"
+        >
+          <g stroke="var(--contour-line)" strokeWidth="1" fill="none">
+            <ellipse cx="720" cy="120" rx="80" ry="52" />
+            <ellipse cx="720" cy="120" rx="140" ry="88" />
+            <ellipse cx="720" cy="120" rx="200" ry="124" />
+          </g>
+          <g stroke="var(--contour-line-dim)" strokeWidth="1" fill="none">
+            <path d="M-50 880 Q 200 850 380 900 T 700 870 Q 850 850 900 900" />
+            <path d="M-50 940 Q 220 910 400 960 T 720 930 Q 870 910 900 960" />
+          </g>
+        </svg>
+
+        <div className="relative z-10 w-full max-w-[420px] animate-fade-in-up">
+          {/* mobile logo (visible when left panel hidden) */}
+          <div className="lg:hidden flex flex-col items-center mb-8">
             <div
-              className="inline-flex w-20 h-20 rounded-2xl items-center justify-center mb-5"
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3"
               style={{
-                border: '1px solid rgba(99,102,241,0.3)',
-                boxShadow: '0 0 28px rgba(99,102,241,0.12)',
-                backgroundColor: 'rgba(17,21,39,0.7)',
+                background: 'linear-gradient(135deg, var(--brand-from) 0%, var(--brand-to) 100%)',
+                boxShadow: '0 8px 24px rgba(26,27,32,0.20)',
               }}
             >
-              <BookOpen className="w-8 h-8 text-white" />
+              <BrandMark size={38} color="var(--brand-on)" />
             </div>
-            <h1
-              className="text-2xl font-bold mb-1"
-              style={{ color: '#ffffff' }}
+            <h2
+              className="text-xl font-bold"
+              style={{
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-noto-kufi, Noto Kufi Arabic)',
+              }}
             >
               المواهب الناشئة
-            </h1>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            </h2>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
               نظام القيادة التنفيذية
             </p>
           </div>
 
-          {/* Gradient divider */}
-          <div
-            className="mb-8 w-full max-w-[400px]"
-            style={{
-              height: 1,
-              background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.3), transparent)',
-            }}
-          />
-
-          {/* Form card */}
-          <div
-            className="card-glass animate-fade-in-up p-8 w-full max-w-[400px]"
-            style={{
-              backgroundColor: 'rgba(17,21,39,0.75)',
-              border: '1px solid rgba(255,255,255,0.06)',
-              borderRadius: 12,
-              backdropFilter: 'blur(16px)',
-            }}
-          >
-            {/* Form heading */}
-            <div className="flex items-center gap-2 mb-6">
-              <div
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 2,
-                  backgroundColor: '#6366f1',
-                }}
+          {/* form header */}
+          <div className="mb-8">
+            <div
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold mb-4"
+              style={{
+                background: 'rgba(192,138,72,0.12)',
+                color: '#8B5A1E',
+                border: '1px solid rgba(192,138,72,0.30)',
+                letterSpacing: '0.04em',
+              }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: 'var(--accent-warm)' }}
               />
-              <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-                تسجيل الدخول
-              </h3>
+              تسجيل الدخول
             </div>
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  البريد الإلكتروني
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  dir="ltr"
-                  className="input-field w-full px-4 py-3 text-sm"
-                  placeholder="example@email.com"
-                />
-              </div>
-
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  كلمة المرور
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPass ? 'text' : 'password'}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                    dir="ltr"
-                    className="input-field w-full px-4 py-3 text-sm"
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass(!showPass)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2"
-                    style={{
-                      color: 'var(--text-muted)',
-                      transition: 'color 200ms ease-in-out',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
-                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-                  >
-                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {error && (
-                <div
-                  className="text-sm text-center py-2.5 px-4"
-                  style={{
-                    backgroundColor: 'rgba(220,38,38,0.08)',
-                    border: '1px solid rgba(220,38,38,0.25)',
-                    borderRadius: 6,
-                    color: '#f87171',
-                  }}
-                >
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary btn-ripple w-full py-3.5 text-white font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
-                style={{ transition: 'all 200ms ease-in-out' }}
-              >
-                {loading && (
-                  <Loader2
-                    className="w-4 h-4 animate-spin"
-                    style={{ color: '#c7d2fe' }}
-                  />
-                )}
-                {loading ? 'جاري الدخول...' : 'الدخول'}
-              </button>
-            </form>
+            <h3
+              className="text-[28px] font-bold mb-2"
+              style={{
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-noto-kufi, Noto Kufi Arabic)',
+                letterSpacing: '-0.01em',
+                lineHeight: 1.2,
+              }}
+            >
+              أهلاً بك من جديد
+            </h3>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              سجّل دخولك للوصول إلى لوحة القيادة
+            </p>
           </div>
 
-          {/* Version text */}
-          <p className="text-xs mt-6" style={{ color: 'var(--text-muted)' }}>
-            v2.0
+          {/* form card */}
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-5 p-7"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 24,
+              boxShadow: 'var(--shadow-card)',
+            }}
+          >
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-[13px] font-semibold mb-2"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                البريد الإلكتروني
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                dir="ltr"
+                placeholder="example@email.com"
+                className="w-full px-4 py-3 text-sm"
+                style={{ borderRadius: 12 }}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-[13px] font-semibold mb-2"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                كلمة المرور
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPass ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  dir="ltr"
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 text-sm"
+                  style={{ borderRadius: 12, paddingLeft: 44 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  aria-label={showPass ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors"
+                  style={{ color: 'var(--text-muted)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                >
+                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div
+                className="text-[13px] text-center py-2.5 px-4"
+                style={{
+                  backgroundColor: 'rgba(185,72,56,0.08)',
+                  border: '1px solid rgba(185,72,56,0.25)',
+                  borderRadius: 12,
+                  color: 'var(--semantic-danger)',
+                }}
+                role="alert"
+              >
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary btn-ripple w-full py-3.5 font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
+              style={{ fontSize: 15 }}
+            >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading ? 'جاري الدخول...' : 'الدخول'}
+            </button>
+          </form>
+
+          {/* footer note */}
+          <p
+            className="text-[12px] text-center mt-6"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            بدخولك تقرّ بالالتزام بسياسة الاستخدام والخصوصية
           </p>
         </div>
-      </div>
-    </>
+      </main>
+    </div>
   )
 }

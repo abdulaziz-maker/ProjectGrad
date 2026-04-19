@@ -313,7 +313,7 @@ export default function TasksPage() {
                 onChange={e => setNewSection({ ...newSection, label: e.target.value })}
                 onKeyDown={e => e.key === 'Enter' && addSection()}
                 placeholder="مثال: متابعة البرامج التربوية"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]"
                 autoFocus
               />
             </div>
@@ -355,7 +355,7 @@ export default function TasksPage() {
                 onChange={e => setNewTask({ ...newTask, title: e.target.value })}
                 onKeyDown={e => e.key === 'Enter' && addTask()}
                 placeholder="ما هي المهمة؟"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]"
                 autoFocus
               />
             </div>
@@ -365,7 +365,7 @@ export default function TasksPage() {
                 value={newTask.description}
                 onChange={e => setNewTask({ ...newTask, description: e.target.value })}
                 placeholder="تفاصيل إضافية (اختياري)"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]"
               />
             </div>
             <div>
@@ -373,7 +373,7 @@ export default function TasksPage() {
               <select
                 value={newTask.category}
                 onChange={e => setNewTask({ ...newTask, category: e.target.value })}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]"
               >
                 {allCategories.map(c => (
                   <option key={c.id} value={c.id}>{c.label}</option>
@@ -382,7 +382,7 @@ export default function TasksPage() {
             </div>
             <div>
               <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>التكرار</label>
-              <select value={newTask.recurrence} onChange={e => setNewTask({ ...newTask, recurrence: e.target.value as LocalTask['recurrence'] })} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]">
+              <select value={newTask.recurrence} onChange={e => setNewTask({ ...newTask, recurrence: e.target.value as LocalTask['recurrence'] })} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]">
                 <option value="daily">يومية</option>
                 <option value="weekly">أسبوعية</option>
                 <option value="monthly">شهرية</option>
@@ -391,7 +391,7 @@ export default function TasksPage() {
             </div>
             <div>
               <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>الأولوية</label>
-              <select value={newTask.priority} onChange={e => setNewTask({ ...newTask, priority: e.target.value as LocalTask['priority'] })} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]">
+              <select value={newTask.priority} onChange={e => setNewTask({ ...newTask, priority: e.target.value as LocalTask['priority'] })} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]">
                 <option value="high">عاجل</option>
                 <option value="medium">متوسط</option>
                 <option value="low">عادي</option>
@@ -399,7 +399,7 @@ export default function TasksPage() {
             </div>
             <div>
               <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>تاريخ الاستحقاق</label>
-              <input type="date" value={newTask.dueDate} onChange={e => setNewTask({ ...newTask, dueDate: e.target.value })} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]" />
+              <input type="date" value={newTask.dueDate} onChange={e => setNewTask({ ...newTask, dueDate: e.target.value })} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]" />
             </div>
           </div>
           <div className="flex gap-3">
@@ -447,7 +447,7 @@ export default function TasksPage() {
                 {/* Quick add task to this category */}
                 <button
                   onClick={() => { setNewTask(n => ({ ...n, category: cat.id })); setShowAdd(true); setShowAddSection(false) }}
-                  className="text-gray-300 p-1 transition-colors" style={{ ['--hover-color' as string]: '#6366f1' }}
+                  className="text-gray-300 p-1 transition-colors" style={{ ['--hover-color' as string]: '#C08A48' }}
                   title="إضافة مهمة لهذا القسم"
                 >
                   <Plus className="w-4 h-4" />
@@ -475,7 +475,7 @@ export default function TasksPage() {
                 <p className="text-sm text-gray-400">لا توجد مهام بعد</p>
                 <button
                   onClick={() => { setNewTask(n => ({ ...n, category: cat.id })); setShowAdd(true); setShowAddSection(false) }}
-                  className="mt-1.5 text-xs hover:underline" style={{ color: '#6366f1' }}
+                  className="mt-1.5 text-xs hover:underline" style={{ color: '#C08A48' }}
                 >
                   + إضافة أول مهمة
                 </button>

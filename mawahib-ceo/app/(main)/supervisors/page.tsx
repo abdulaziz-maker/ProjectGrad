@@ -69,17 +69,17 @@ function SupervisorCard({
 
         <div className="grid grid-cols-3 gap-3 mt-4">
           <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <Users className="w-4 h-4 mx-auto mb-1" style={{ color: '#6366f1' }} />
+            <Users className="w-4 h-4 mx-auto mb-1" style={{ color: '#C08A48' }} />
             <p className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{supervisor.student_count}</p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>طالب</p>
           </div>
           <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <p className="font-bold text-xs mb-1" style={{ color: '#6366f1' }}>%</p>
+            <p className="font-bold text-xs mb-1" style={{ color: '#C08A48' }}>%</p>
             <p className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{supervisor.avg_student_progress}</p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>متوسط التقدم</p>
           </div>
           <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <p className="font-bold text-xs mb-1" style={{ color: '#6366f1' }}>تقرير</p>
+            <p className="font-bold text-xs mb-1" style={{ color: '#C08A48' }}>تقرير</p>
             <p className="text-xs font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>
               {supervisor.last_report_date
                 ? new Date(supervisor.last_report_date).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' })
@@ -91,11 +91,11 @@ function SupervisorCard({
 
         <button
           onClick={() => setExpanded(v => !v)}
-          className="mt-4 w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-colors font-medium text-sm" style={{ background: 'rgba(99,102,241,0.06)', color: '#6366f1' }}
+          className="mt-4 w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-colors font-medium text-sm" style={{ background: 'rgba(99,102,241,0.06)', color: '#C08A48' }}
         >
           <span>متابعة الطلاب هذا الأسبوع</span>
           <div className="flex items-center gap-2">
-            <span className="text-xs rounded-full px-2 py-0.5" style={{ background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>
+            <span className="text-xs rounded-full px-2 py-0.5" style={{ background: 'rgba(99,102,241,0.1)', color: '#C08A48' }}>
               تابع {followedCount} من {assignedStudents.length}
             </span>
             {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -124,7 +124,7 @@ function SupervisorCard({
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0 ${
                         followed ? 'text-white shadow-sm' : 'bg-gray-100 hover:bg-gray-200'
                       }`}
-                      style={followed ? { backgroundColor: '#6366f1' } : { color: 'var(--text-muted)' }}
+                      style={followed ? { backgroundColor: '#C08A48' } : { color: 'var(--text-muted)' }}
                     >
                       {followed ? <><Check className="w-3.5 h-3.5" />تابعه</> : <><X className="w-3.5 h-3.5" />لم يتابعه</>}
                     </button>
@@ -136,7 +136,7 @@ function SupervisorCard({
           <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs" style={{ color: 'var(--text-muted)' }}>
             <span>أسبوع {weekOf}</span>
             <span className={followedCount === assignedStudents.length && assignedStudents.length > 0 ? 'font-semibold' : ''}
-              style={followedCount === assignedStudents.length && assignedStudents.length > 0 ? { color: '#6366f1' } : undefined}>
+              style={followedCount === assignedStudents.length && assignedStudents.length > 0 ? { color: '#C08A48' } : undefined}>
               {followedCount === assignedStudents.length && assignedStudents.length > 0
                 ? 'تابع جميع الطلاب'
                 : `تابع ${followedCount} من ${assignedStudents.length} طالب`}
@@ -217,7 +217,7 @@ export default function SupervisorsPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]" dir="rtl">
         <div className="text-center space-y-3">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto" style={{ color: '#6366f1' }} />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto" style={{ color: '#C08A48' }} />
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>جاري تحميل البيانات...</p>
         </div>
       </div>
@@ -248,18 +248,18 @@ export default function SupervisorsPage() {
               <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>الاسم *</label>
               <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="اسم المشرف"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1]" />
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C08A48]" />
             </div>
             <div>
               <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>التخصص *</label>
               <input type="text" value={form.specialty} onChange={e => setForm(f => ({ ...f, specialty: e.target.value }))}
                 placeholder="مثل: حفظ القرآن الكريم"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1]" />
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C08A48]" />
             </div>
             <div>
               <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>الدفعة</label>
               <select value={form.batch_id} onChange={e => setForm(f => ({ ...f, batch_id: e.target.value as '46' | '48' }))}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1]">
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C08A48]">
                 <option value="46">دفعة 46</option>
                 <option value="48">دفعة 48</option>
               </select>
@@ -269,12 +269,12 @@ export default function SupervisorsPage() {
               <input type="number" min="0" value={form.experience_years}
                 onChange={e => setForm(f => ({ ...f, experience_years: e.target.value }))}
                 placeholder="عدد السنوات"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1]" />
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C08A48]" />
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>ملاحظات</label>
               <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1] resize-none" />
+                rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C08A48] resize-none" />
             </div>
           </div>
           <div className="flex gap-3 mt-4 justify-end">
@@ -290,7 +290,7 @@ export default function SupervisorsPage() {
         {(['supervisors', 'teachers'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab ? 'bg-white shadow-sm' : ''}`}
-            style={activeTab === tab ? { color: '#6366f1' } : { color: 'var(--text-muted)' }}>
+            style={activeTab === tab ? { color: '#C08A48' } : { color: 'var(--text-muted)' }}>
             {tab === 'supervisors' ? 'المشرفون' : 'المعلمون'}
           </button>
         ))}
@@ -301,7 +301,7 @@ export default function SupervisorsPage() {
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="h-px flex-1 bg-gray-200" />
-              <h2 className="text-sm font-bold px-4 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#6366f1', background: 'rgba(99,102,241,0.1)' }}>مشرفو دفعة 46</h2>
+              <h2 className="text-sm font-bold px-4 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#C08A48', background: 'rgba(99,102,241,0.1)' }}>مشرفو دفعة 46</h2>
               <div className="h-px flex-1 bg-gray-200" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children">
@@ -313,7 +313,7 @@ export default function SupervisorsPage() {
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="h-px flex-1 bg-gray-200" />
-              <h2 className="text-sm font-bold px-4 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#6366f1', background: 'rgba(99,102,241,0.1)' }}>مشرفو دفعة 48</h2>
+              <h2 className="text-sm font-bold px-4 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#C08A48', background: 'rgba(99,102,241,0.1)' }}>مشرفو دفعة 48</h2>
               <div className="h-px flex-1 bg-gray-200" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children">

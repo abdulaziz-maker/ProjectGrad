@@ -16,12 +16,13 @@ import {
 import Link from 'next/link'
 import CountUp from '@/components/ui/CountUp'
 import ProgressRing from '@/components/ui/ProgressRing'
+import WisdomCard from '@/components/ui/WisdomCard'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PROGRAM_START = new Date('2026-02-27') // ٢٩ رجب ١٤٤٧
 const WEEKLY_RATE = 16 // سطراً في الأسبوع
 const BATCH_IDS = [48, 46, 44, 42]
-const BATCH_COLORS: Record<number, string> = { 48: '#6366f1', 46: '#06b6d4', 44: '#22c55e', 42: '#f59e0b' }
+const BATCH_COLORS: Record<number, string> = { 48: '#C08A48', 46: '#356B6E', 44: '#5A8F67', 42: '#C9972C' }
 
 const DAYS_AR = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
 const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
@@ -42,9 +43,9 @@ function weeksElapsed(): number {
 }
 
 function AlertIcon({ type }: { type: string }) {
-  if (type === 'danger') return <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#ef4444' }} />
-  if (type === 'warning') return <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: '#f59e0b' }} />
-  return <Info className="w-4 h-4 flex-shrink-0" style={{ color: '#6366f1' }} />
+  if (type === 'danger') return <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--semantic-danger)' }} />
+  if (type === 'warning') return <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--semantic-warning)' }} />
+  return <Info className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--accent-teal)' }} />
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -195,17 +196,17 @@ export default function DashboardPage() {
     for (const m of meetings) {
       if (m.date < todayISO || m.date > weekEnd) continue
       if (isSupervisor && !SUPERVISOR_MEETING_TYPES.includes(m.type)) continue
-      events.push({ date: m.date, label: formatDateAr(m.date), event: m.agenda || MEETING_LABELS[m.type] || 'اجتماع', typeLabel: 'اجتماع', color: '#6366f1', link: '/meetings' })
+      events.push({ date: m.date, label: formatDateAr(m.date), event: m.agenda || MEETING_LABELS[m.type] || 'اجتماع', typeLabel: 'اجتماع', color: '#C08A48', link: '/meetings' })
     }
     for (const e of exams) {
       if (e.date < todayISO || e.date > weekEnd) continue
       if (isSupervisor && myBatchId !== null && e.batch_id !== myBatchId) continue
-      events.push({ date: e.date, label: formatDateAr(e.date), event: `${e.student_name} — ج${e.juz_number}`, typeLabel: 'اختبار', color: '#f59e0b', link: '/exams' })
+      events.push({ date: e.date, label: formatDateAr(e.date), event: `${e.student_name} — ج${e.juz_number}`, typeLabel: 'اختبار', color: '#C9972C', link: '/exams' })
     }
     for (const p of programs) {
       if (p.start_date < todayISO || p.start_date > weekEnd) continue
       if (isSupervisor && myBatchId !== null && p.batch_id !== String(myBatchId) && p.batch_id !== 'all') continue
-      events.push({ date: p.start_date, label: formatDateAr(p.start_date), event: p.name, typeLabel: 'برنامج', color: '#22c55e', link: '/programs' })
+      events.push({ date: p.start_date, label: formatDateAr(p.start_date), event: p.name, typeLabel: 'برنامج', color: '#5A8F67', link: '/programs' })
     }
     return events.sort((a, b) => a.date.localeCompare(b.date))
   }, [meetings, exams, programs, todayISO, weekEnd, isSupervisor, myBatchId])
@@ -222,30 +223,48 @@ export default function DashboardPage() {
     <div className="space-y-5">
 
       {/* ── Header ── */}
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold mb-2"
+            style={{
+              background: 'rgba(192,138,72,0.12)',
+              color: '#8B5A1E',
+              border: '1px solid rgba(192,138,72,0.30)',
+              letterSpacing: '0.04em',
+            }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--accent-warm)' }} />
+            {isCeo ? 'القيادة التنفيذية' : 'نظرة عامة'}{isCeo && ` • الأسبوع ${weekNumber}`}
+          </div>
+          <h1
+            className="display-h1 m-0"
+            style={{ color: 'var(--text-primary)' }}
+          >
             {isCeo ? 'لوحة المدير التنفيذي' : 'لوحة التحكم'}
           </h1>
-          <p className="text-xs font-mono mt-1" style={{ color: 'var(--text-muted)' }}>{today}</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{today}</p>
         </div>
         {isCeo && (
-          <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+          <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
             <Clock className="w-3.5 h-3.5" />
             <span>الأسبوع <span className="font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{weekNumber}</span> من البرنامج</span>
             <span className="mx-1">·</span>
-            <span>المستهدف: <span className="font-bold font-mono" style={{ color: '#6366f1' }}>{expectedLinesPerStudent} سطراً</span> / طالب</span>
+            <span>المستهدف: <span className="font-bold font-mono" style={{ color: 'var(--accent-warm)' }}>{expectedLinesPerStudent} سطراً</span> / طالب</span>
           </div>
         )}
       </div>
 
+      {/* ── Wisdom reminder ── */}
+      <WisdomCard />
+
       {/* ── Hero KPIs ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { icon: Users, label: 'الطلاب النشطون', value: totalActiveStudents, sub: `${visibleBatchIds.filter(b => students.some(s => s.batch_id === b)).length} دفعات`, color: '#6366f1' },
-          { icon: BookOpen, label: 'أجزاء محفوظة', value: totalMemorized, sub: `من ${totalActiveStudents * 30} إجمالي ممكن`, color: '#22c55e' },
-          { icon: CalendarCheck, label: 'الحضور اليوم', value: attendancePct, suffix: '%', sub: `${presentToday} / ${todayAttRecs.length} طالب`, color: '#06b6d4' },
-          { icon: AlertTriangle, label: 'يحتاجون متابعة', value: needsAttention.length, sub: 'لم يحفظوا بعد', color: needsAttention.length > 0 ? '#ef4444' : '#22c55e' },
+          { icon: Users, label: 'الطلاب النشطون', value: totalActiveStudents, sub: `${visibleBatchIds.filter(b => students.some(s => s.batch_id === b)).length} دفعات`, color: '#C08A48' },
+          { icon: BookOpen, label: 'أجزاء محفوظة', value: totalMemorized, sub: `من ${totalActiveStudents * 30} إجمالي ممكن`, color: '#5A8F67' },
+          { icon: CalendarCheck, label: 'الحضور اليوم', value: attendancePct, suffix: '%', sub: `${presentToday} / ${todayAttRecs.length} طالب`, color: '#356B6E' },
+          { icon: AlertTriangle, label: 'يحتاجون متابعة', value: needsAttention.length, sub: 'لم يحفظوا بعد', color: needsAttention.length > 0 ? '#B94838' : '#5A8F67' },
         ].map((stat, i) => {
           const Icon = stat.icon
           return (
@@ -271,7 +290,7 @@ export default function DashboardPage() {
       {/* ── Batch Progress Row ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {batchStats.map(b => {
-          const color = BATCH_COLORS[b.batchId] || '#6366f1'
+          const color = BATCH_COLORS[b.batchId] || '#C08A48'
           const ringGlow = `${color}60`
           return (
             <div key={b.batchId} className="card-static p-4">
@@ -281,9 +300,9 @@ export default function DashboardPage() {
                   <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{b.name}</p>
                   <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{b.manager}</p>
                   <div className="flex gap-3 mt-1.5 text-[11px] font-mono">
-                    <span style={{ color: '#22c55e' }}>{b.memorized} ج</span>
+                    <span style={{ color: 'var(--semantic-success)' }}>{b.memorized} ج</span>
                     <span style={{ color: 'var(--text-muted)' }}>{b.students} طالب</span>
-                    {b.struggling > 0 && <span style={{ color: '#ef4444' }}>{b.struggling} متعثر</span>}
+                    {b.struggling > 0 && <span style={{ color: 'var(--semantic-danger)' }}>{b.struggling} متعثر</span>}
                   </div>
                 </div>
               </div>
@@ -302,7 +321,7 @@ export default function DashboardPage() {
           <div className="card-static p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                <TrendingUp className="w-4 h-4" style={{ color: '#6366f1' }} />
+                <TrendingUp className="w-4 h-4" style={{ color: '#C08A48' }} />
                 الأجزاء المحفوظة لكل دفعة
               </h2>
               <span className="text-xs px-2 py-1 rounded-md font-mono" style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8' }}>
@@ -320,7 +339,7 @@ export default function DashboardPage() {
                 />
                 <Bar dataKey="محفوظ" radius={[4, 4, 0, 0]}>
                   {chartData.map((_, i) => (
-                    <Cell key={i} fill={BATCH_COLORS[visibleBatchIds[i]] || '#6366f1'} />
+                    <Cell key={i} fill={BATCH_COLORS[visibleBatchIds[i]] || '#C08A48'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -341,14 +360,14 @@ export default function DashboardPage() {
                   ? <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>لا توجد بيانات بعد</p>
                   : topPerformers.map((s, i) => (
                     <div key={s.id} className="flex items-center gap-3">
-                      <span className="w-5 text-center text-[10px] font-bold font-mono" style={{ color: i === 0 ? '#f59e0b' : 'var(--text-muted)' }}>
+                      <span className="w-5 text-center text-[10px] font-bold font-mono" style={{ color: i === 0 ? '#C9972C' : 'var(--text-muted)' }}>
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                         <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>دفعة {s.batch_id}</p>
                       </div>
-                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md" style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>
+                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md" style={{ background: 'rgba(34,197,94,0.1)', color: '#5A8F67' }}>
                         {s.mem} ج
                       </span>
                     </div>
@@ -365,14 +384,14 @@ export default function DashboardPage() {
               </h3>
               <div className="space-y-2">
                 {bottomStudents.length === 0
-                  ? <p className="text-xs text-center py-4" style={{ color: '#22c55e' }}>جميع الطلاب في المسار ✓</p>
+                  ? <p className="text-xs text-center py-4" style={{ color: '#5A8F67' }}>جميع الطلاب في المسار ✓</p>
                   : bottomStudents.map(s => (
                     <div key={s.id} className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                         <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{s.supervisor_name || 'دفعة ' + s.batch_id}</p>
                       </div>
-                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md" style={{ background: 'rgba(239,68,68,0.1)', color: '#B94838' }}>
                         {s.mem} ج
                       </span>
                     </div>
@@ -387,7 +406,7 @@ export default function DashboardPage() {
             <div className="card-static p-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                  <UserCheck className="w-4 h-4" style={{ color: '#06b6d4' }} />
+                  <UserCheck className="w-4 h-4" style={{ color: '#356B6E' }} />
                   المشرفون
                 </h2>
                 <Link href="/supervisors" className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
@@ -397,7 +416,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {supervisorHealth.slice(0, 8).map(sup => {
                   const pct = sup.studentCount > 0 ? Math.round((sup.avgMem / 30) * 100) : 0
-                  const color = pct >= 60 ? '#22c55e' : pct >= 30 ? '#f59e0b' : '#ef4444'
+                  const color = pct >= 60 ? '#5A8F67' : pct >= 30 ? '#C9972C' : '#B94838'
                   return (
                     <div key={sup.id} className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mx-auto mb-1.5 text-white"
@@ -422,7 +441,7 @@ export default function DashboardPage() {
           {isCeo && (
             <div className="card-static p-4">
               <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                <Target className="w-4 h-4" style={{ color: '#f59e0b' }} />
+                <Target className="w-4 h-4" style={{ color: '#C9972C' }} />
                 مؤشر التقدم
               </h2>
               <div className="space-y-3">
@@ -432,15 +451,15 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                   <span>المستهدف التراكمي / طالب</span>
-                  <span className="font-mono font-bold" style={{ color: '#6366f1' }}>{expectedLinesPerStudent} سطراً</span>
+                  <span className="font-mono font-bold" style={{ color: '#C08A48' }}>{expectedLinesPerStudent} سطراً</span>
                 </div>
                 <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                   <span>إجمالي الأجزاء المحفوظة</span>
-                  <span className="font-mono font-bold" style={{ color: '#22c55e' }}>{totalMemorized}</span>
+                  <span className="font-mono font-bold" style={{ color: '#5A8F67' }}>{totalMemorized}</span>
                 </div>
                 <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                   <span>نشاط هذا الأسبوع</span>
-                  <span className="font-mono font-bold" style={{ color: '#06b6d4' }}>{juzThisWeek} جزء</span>
+                  <span className="font-mono font-bold" style={{ color: '#356B6E' }}>{juzThisWeek} جزء</span>
                 </div>
                 {/* overall progress bar */}
                 <div className="mt-2">
@@ -449,7 +468,7 @@ export default function DashboardPage() {
                     <span className="font-mono">{totalActiveStudents > 0 ? Math.round((totalMemorized / (totalActiveStudents * 30)) * 100) : 0}%</span>
                   </div>
                   <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${totalActiveStudents > 0 ? Math.round((totalMemorized / (totalActiveStudents * 30)) * 100) : 0}%`, background: 'linear-gradient(90deg, #6366f1, #06b6d4)' }} />
+                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${totalActiveStudents > 0 ? Math.round((totalMemorized / (totalActiveStudents * 30)) * 100) : 0}%`, background: 'linear-gradient(90deg, #C08A48, #356B6E)' }} />
                   </div>
                 </div>
               </div>
@@ -459,7 +478,7 @@ export default function DashboardPage() {
           {/* Alerts */}
           <div className="card-static p-4">
             <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-              <Activity className="w-4 h-4" style={{ color: '#ef4444' }} />
+              <Activity className="w-4 h-4" style={{ color: '#B94838' }} />
               التنبيهات
             </h2>
             <div className="space-y-2">
@@ -485,7 +504,7 @@ export default function DashboardPage() {
           {/* Week schedule */}
           <div className="card-static p-4">
             <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-              <Calendar className="w-4 h-4" style={{ color: '#06b6d4' }} />
+              <Calendar className="w-4 h-4" style={{ color: '#356B6E' }} />
               جدول الأسبوع
             </h2>
             <div className="space-y-1.5">

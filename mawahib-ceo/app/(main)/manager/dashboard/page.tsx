@@ -16,11 +16,12 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { todayStr } from '@/lib/hijri'
+import WisdomCard from '@/components/ui/WisdomCard'
 
 const PROGRAM_START = new Date('2026-02-27')
 
 function scoreColor(pct: number) {
-  return pct >= 80 ? '#22c55e' : pct >= 60 ? '#6366f1' : pct >= 40 ? '#f59e0b' : '#ef4444'
+  return pct >= 80 ? '#5A8F67' : pct >= 60 ? '#C08A48' : pct >= 40 ? '#C9972C' : '#B94838'
 }
 
 export default function ManagerDashboardPage() {
@@ -125,7 +126,7 @@ export default function ManagerDashboardPage() {
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#6366f1' }} />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent-warm)' }} />
       </div>
     )
   }
@@ -134,23 +135,30 @@ export default function ManagerDashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-          لوحة الدفعة {batch?.name ?? `#${batchId}`}
+        <div className="eyebrow-pill mb-3">
+          <span className="eyebrow-dot" />
+          لوحة إدارة الدفعة
+        </div>
+        <h1 className="display-h1 m-0" style={{ color: 'var(--text-primary)' }}>
+          {batch?.name ?? `الدفعة #${batchId}`}
         </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
           مرحباً {profile?.name} — إدارة المشرفين والطلاب في دفعتك
         </p>
       </div>
 
+      {/* Wisdom reminder */}
+      <WisdomCard />
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
-          { label: 'الطلاب', value: stats.totalStudents, icon: Users, color: '#6366f1' },
-          { label: 'المشرفون', value: stats.totalSupervisors, icon: UserCheck, color: '#06b6d4' },
-          { label: 'أجزاء محفوظة', value: stats.totalJuz, icon: BookOpen, color: '#22c55e' },
+          { label: 'الطلاب', value: stats.totalStudents, icon: Users, color: '#C08A48' },
+          { label: 'المشرفون', value: stats.totalSupervisors, icon: UserCheck, color: '#356B6E' },
+          { label: 'أجزاء محفوظة', value: stats.totalJuz, icon: BookOpen, color: '#5A8F67' },
           { label: 'نسبة الإنجاز', value: `${stats.avgCompletion}%`, icon: TrendingUp, color: scoreColor(stats.avgCompletion) },
           { label: 'الحضور', value: `${stats.attendancePct}%`, icon: CalendarCheck, color: scoreColor(stats.attendancePct) },
-          { label: 'متعثرون', value: stats.struggling, icon: AlertTriangle, color: stats.struggling > 0 ? '#ef4444' : '#22c55e' },
+          { label: 'متعثرون', value: stats.struggling, icon: AlertTriangle, color: stats.struggling > 0 ? '#B94838' : '#5A8F67' },
         ].map((kpi, i) => (
           <div key={i} className="card p-4 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
             <div className="flex items-center gap-2 mb-2">
@@ -170,49 +178,49 @@ export default function ManagerDashboardPage() {
           <Link href="/students" className="card rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4" style={{ color: '#6366f1' }} />
+                <Users className="w-4 h-4" style={{ color: '#C08A48' }} />
                 <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>الطلاب</h3>
               </div>
               <ArrowLeft className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
             </div>
-            <p className="text-2xl font-bold mb-1" style={{ color: '#6366f1' }}>{stats.totalStudents}</p>
+            <p className="text-2xl font-bold mb-1" style={{ color: '#C08A48' }}>{stats.totalStudents}</p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
               حضور اليوم: <span className="font-semibold" style={{ color: scoreColor(stats.todayAttPct) }}>{stats.todayPresent}</span> / {stats.todayAtt}
               {stats.todayAtt > 0 && ` (${stats.todayAttPct}%)`}
             </p>
-            <p className="text-[11px] mt-1" style={{ color: '#6366f1' }}>عرض التفاصيل ←</p>
+            <p className="text-[11px] mt-1" style={{ color: '#C08A48' }}>عرض التفاصيل ←</p>
           </Link>
 
           {/* المشرفون */}
           <Link href="/manager/supervisors" className="card rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <UserCheck className="w-4 h-4" style={{ color: '#06b6d4' }} />
+                <UserCheck className="w-4 h-4" style={{ color: '#356B6E' }} />
                 <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>المشرفون</h3>
               </div>
               <ArrowLeft className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
             </div>
-            <p className="text-2xl font-bold mb-1" style={{ color: '#06b6d4' }}>{stats.totalSupervisors}</p>
+            <p className="text-2xl font-bold mb-1" style={{ color: '#356B6E' }}>{stats.totalSupervisors}</p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
               {supAttToday.total > 0
                 ? <>حضور اليوم: <span className="font-semibold" style={{ color: scoreColor(Math.round((supAttToday.present / supAttToday.total) * 100)) }}>{supAttToday.present}</span> / {supAttToday.total}</>
                 : 'لم يُسجَّل حضور اليوم بعد'}
             </p>
-            <p className="text-[11px] mt-1" style={{ color: '#06b6d4' }}>عرض التفاصيل ←</p>
+            <p className="text-[11px] mt-1" style={{ color: '#356B6E' }}>عرض التفاصيل ←</p>
           </Link>
 
           {/* التقارير */}
           <Link href="/manager/reports" className="card rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4" style={{ color: '#f59e0b' }} />
+                <FileText className="w-4 h-4" style={{ color: '#C9972C' }} />
                 <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>التقارير</h3>
               </div>
               <ArrowLeft className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
             </div>
             <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>إنجاز أسبوعي: <span className="font-semibold" style={{ color: scoreColor(stats.avgCompletion) }}>{stats.avgCompletion}%</span></p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>متابعة: <span className="font-semibold" style={{ color: scoreColor(stats.followupPct) }}>{stats.followupPct}%</span></p>
-            <p className="text-[11px] mt-1" style={{ color: '#f59e0b' }}>عرض التفاصيل ←</p>
+            <p className="text-[11px] mt-1" style={{ color: '#C9972C' }}>عرض التفاصيل ←</p>
           </Link>
 
           {/* أقرب اختبار */}
@@ -241,7 +249,7 @@ export default function ManagerDashboardPage() {
           <Link href="/programs" className="card rounded-xl p-4 hover:opacity-90 transition-opacity" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Star className="w-4 h-4" style={{ color: '#22c55e' }} />
+                <Star className="w-4 h-4" style={{ color: '#5A8F67' }} />
                 <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>البرنامج القادم</h3>
               </div>
               <ArrowLeft className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
@@ -254,7 +262,7 @@ export default function ManagerDashboardPage() {
             ) : (
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>لا توجد برامج مجدولة</p>
             )}
-            <p className="text-[11px] mt-1" style={{ color: '#22c55e' }}>عرض التفاصيل ←</p>
+            <p className="text-[11px] mt-1" style={{ color: '#5A8F67' }}>عرض التفاصيل ←</p>
           </Link>
 
           {/* أقرب اجتماع */}
@@ -283,7 +291,7 @@ export default function ManagerDashboardPage() {
       <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>مشرفو الدفعة</h2>
-          <Link href="/manager/supervisors" className="text-sm font-medium" style={{ color: '#6366f1' }}>
+          <Link href="/manager/supervisors" className="text-sm font-medium" style={{ color: '#C08A48' }}>
             عرض الكل ←
           </Link>
         </div>
@@ -299,7 +307,7 @@ export default function ManagerDashboardPage() {
               <div key={sup.id} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg-body)' }}>
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.1)' }}>
-                    <span className="text-sm font-bold" style={{ color: '#6366f1' }}>{sup.name.charAt(0)}</span>
+                    <span className="text-sm font-bold" style={{ color: '#C08A48' }}>{sup.name.charAt(0)}</span>
                   </div>
                   <div>
                     <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{sup.name}</p>
@@ -324,7 +332,7 @@ export default function ManagerDashboardPage() {
       {/* Students at Risk */}
       {stats.struggling > 0 && (
         <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid rgba(239,68,68,0.3)' }}>
-          <h2 className="font-bold text-lg mb-4 flex items-center gap-2" style={{ color: '#ef4444' }}>
+          <h2 className="font-bold text-lg mb-4 flex items-center gap-2" style={{ color: '#B94838' }}>
             <AlertTriangle size={18} /> طلاب يحتاجون تدخل
           </h2>
           <div className="space-y-2">
@@ -334,7 +342,7 @@ export default function ManagerDashboardPage() {
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>مشرف: {s.supervisor_name}</p>
                 </div>
-                <span className="text-sm font-bold" style={{ color: '#ef4444' }}>{s.completion_percentage || 0}%</span>
+                <span className="text-sm font-bold" style={{ color: '#B94838' }}>{s.completion_percentage || 0}%</span>
               </Link>
             ))}
           </div>
@@ -344,10 +352,10 @@ export default function ManagerDashboardPage() {
       {/* Quick Links */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { href: '/batches', label: 'خريطة الحفظ', icon: Target, color: '#6366f1' },
-          { href: '/matn', label: 'رصد المتون', icon: BookOpen, color: '#06b6d4' },
-          { href: '/attendance', label: 'الحضور', icon: CalendarCheck, color: '#22c55e' },
-          { href: '/manager/reports', label: 'التقارير', icon: Trophy, color: '#f59e0b' },
+          { href: '/batches', label: 'خريطة الحفظ', icon: Target, color: '#C08A48' },
+          { href: '/matn', label: 'رصد المتون', icon: BookOpen, color: '#356B6E' },
+          { href: '/attendance', label: 'الحضور', icon: CalendarCheck, color: '#5A8F67' },
+          { href: '/manager/reports', label: 'التقارير', icon: Trophy, color: '#C9972C' },
         ].map((link, i) => (
           <Link key={i} href={link.href} className="card p-4 rounded-xl flex items-center gap-3 hover:opacity-80" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
             <link.icon size={20} style={{ color: link.color }} />

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { getExams, upsertExam, deleteExam as deleteExamDB, getStudents, getSupervisors, type DBExam, type DBStudent, type DBSupervisor } from '@/lib/db'
-import { CalendarCheck, Plus, Clock, User, BookOpen, Check, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { getExams, upsertExam, deleteExam as deleteExamDB, getStudents, getSupervisors, upsertJuzProgress, type DBExam, type DBStudent, type DBSupervisor } from '@/lib/db'
+import { CalendarCheck, Plus, BookOpen, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Bell, PauseCircle, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { getBatchName } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -59,6 +59,9 @@ export default function ExamsPage() {
   const [selectedDay, setSelectedDay] = useState(today)
   const [markingExam, setMarkingExam] = useState<string | null>(null)
   const [score, setScore] = useState('')
+  const [errors, setErrors] = useState('')
+  const [warnings, setWarnings] = useState('')
+  const [hesitations, setHesitations] = useState('')
   const [form, setForm] = useState({
     studentId: '',
     juzNumber: '1',
@@ -140,16 +143,57 @@ export default function ExamsPage() {
     }
   }
 
+  const resetMarkingForm = () => {
+    setMarkingExam(null)
+    setScore('')
+    setErrors('')
+    setWarnings('')
+    setHesitations('')
+  }
+
+  const openMarkingFor = (exam: DBExam) => {
+    // نبدأ من قيم الاختبار الحالية لو كانت مسجَّلة (تعديل نتيجة سابقة)
+    setMarkingExam(exam.id)
+    setScore(exam.score !== null && exam.score !== undefined ? String(exam.score) : '')
+    setErrors(exam.errors !== null && exam.errors !== undefined ? String(exam.errors) : '')
+    setWarnings(exam.warnings !== null && exam.warnings !== undefined ? String(exam.warnings) : '')
+    setHesitations(exam.hesitations !== null && exam.hesitations !== undefined ? String(exam.hesitations) : '')
+  }
+
   const markResult = async (examId: string, result: 'passed' | 'failed') => {
     const exam = exams.find(e => e.id === examId)
     if (!exam) return
-    const updatedExam: DBExam = { ...exam, status: result, score: score ? Number(score) : null }
+    const updatedExam: DBExam = {
+      ...exam,
+      status: result,
+      score: score ? Number(score) : null,
+      errors: errors ? Number(errors) : null,
+      warnings: warnings ? Number(warnings) : null,
+      hesitations: hesitations ? Number(hesitations) : null,
+    }
     try {
       await upsertExam(updatedExam)
+      // ربط نتيجة الاختبار بخريطة الحفظ:
+      // - اجتاز  → الجزء «محفوظ»
+      // - لم يجتز → يُعاد إلى «قيد الحفظ» (لا نمسح البيانات الأخرى)
+      try {
+        await upsertJuzProgress(
+          exam.student_id,
+          exam.juz_number,
+          result === 'passed' ? 'memorized' : 'in_progress',
+        )
+      } catch (jErr) {
+        console.warn('juz_progress sync failed', jErr)
+        // لا نُفشل الاختبار كاملاً لو فشل تحديث الخريطة — لكن ننبّه.
+        toast.error('تم حفظ الاختبار لكن لم يتم تحديث خريطة الحفظ')
+      }
       setExams(prev => prev.map(e => e.id === examId ? updatedExam : e))
-      setMarkingExam(null)
-      setScore('')
-      toast.success(result === 'passed' ? '✅ تم تسجيل الاجتياز' : '❌ تم تسجيل عدم الاجتياز')
+      resetMarkingForm()
+      toast.success(
+        result === 'passed'
+          ? '✅ اجتاز — تم تسجيله في خريطة الحفظ'
+          : '❌ لم يجتز — تم إرجاع الجزء إلى «قيد الحفظ»',
+      )
     } catch (err) {
       console.error(err)
       toast.error('حدث خطأ أثناء تسجيل النتيجة')
@@ -207,7 +251,7 @@ export default function ExamsPage() {
               <div key={e.id} className="border border-white/10 rounded-xl px-3 py-2 text-sm" style={{ background: 'rgba(255,255,255,0.02)' }}>
                 <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{e.student_name}</span>
                 <span style={{ color: 'var(--text-muted)' }} className="mx-1">•</span>
-                <span style={{ color: '#6366f1' }}>الجزء <span className="font-mono">{e.juz_number}</span></span>
+                <span style={{ color: '#C08A48' }}>الجزء <span className="font-mono">{e.juz_number}</span></span>
                 <span style={{ color: 'var(--text-muted)' }} className="mx-1">•</span>
                 <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{e.time}</span>
               </div>
@@ -331,7 +375,7 @@ export default function ExamsPage() {
               <button
                 onClick={() => { setWeekOffset(0); setSelectedDay(today) }}
                 className="mt-1 text-[11px] px-2 py-0.5 rounded font-medium"
-                style={{ color: '#6366f1', background: 'rgba(99,102,241,0.1)' }}
+                style={{ color: '#C08A48', background: 'rgba(99,102,241,0.1)' }}
               >
                 ← العودة للأسبوع الحالي
               </button>
@@ -363,10 +407,10 @@ export default function ExamsPage() {
                 className={`flex-1 min-w-20 px-3 py-3 text-center transition-colors border-b-2 ${isSelected ? 'border-indigo-500' : 'border-transparent'}`}
                 style={isSelected ? { background: 'rgba(99,102,241,0.06)' } : {}}
               >
-                <p className="text-xs font-semibold" style={{ color: isSelected ? '#6366f1' : isToday ? '#818cf8' : 'var(--text-secondary)' }}>{dayName}</p>
+                <p className="text-xs font-semibold" style={{ color: isSelected ? '#C08A48' : isToday ? '#818cf8' : 'var(--text-secondary)' }}>{dayName}</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{d.getDate()} أبريل</p>
                 {dayExamCount > 0 && (
-                  <span className="inline-block mt-1 w-5 h-5 rounded-full text-[10px] font-bold font-mono text-white" style={{ backgroundColor: isSelected ? '#6366f1' : 'var(--text-muted)' }}>
+                  <span className="inline-block mt-1 w-5 h-5 rounded-full text-[10px] font-bold font-mono text-white" style={{ backgroundColor: isSelected ? '#C08A48' : 'var(--text-muted)' }}>
                     {dayExamCount}
                   </span>
                 )}
@@ -382,7 +426,7 @@ export default function ExamsPage() {
             <div className="text-center py-8" style={{ color: 'var(--text-muted)' }}>
               <CalendarCheck className="w-10 h-10 mx-auto mb-2 opacity-30" />
               <p className="text-sm">لا توجد اختبارات مجدولة ليوم {formatDateAr(selectedDay)}</p>
-              <button onClick={() => { setShowAdd(true); setForm(f => ({ ...f, date: selectedDay })) }} className="mt-3 text-xs hover:underline" style={{ color: '#6366f1' }}>
+              <button onClick={() => { setShowAdd(true); setForm(f => ({ ...f, date: selectedDay })) }} className="mt-3 text-xs hover:underline" style={{ color: '#C08A48' }}>
                 + إضافة اختبار لهذا اليوم
               </button>
             </div>
@@ -401,77 +445,190 @@ export default function ExamsPage() {
                   : exam.status === 'scheduled' ? 'border-indigo-500/20'
                   : exam.status === 'passed' ? 'border-green-500/20'
                   : exam.status === 'failed' ? 'border-red-500/20' : 'border-white/10'
+                const isMarking = markingExam === exam.id
+                const hasResult = exam.status === 'passed' || exam.status === 'failed'
                 return (
-                <div key={exam.id} className={`flex items-center gap-4 p-4 rounded-xl border ${borderCls}`} style={{ background: bgColor, opacity: readOnly ? 0.75 : 1 }}>
-                  {/* Time */}
-                  <div className="text-center min-w-12">
-                    <p className="font-bold text-sm font-mono" style={{ color: 'var(--text-primary)' }}>{exam.time}</p>
-                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>الوقت</p>
-                  </div>
-
-                  {/* Juz badge */}
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm font-mono flex-shrink-0" style={{ backgroundColor: '#6366f1' }}>
-                    {exam.juz_number}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{exam.student_name}</p>
-                    <div className="flex items-center gap-3 text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                      <span>{getBatchName(exam.batch_id)}</span>
-                      <span>•</span>
-                      <span>المقيّم: {exam.examiner}</span>
-                      {exam.score !== null && <span style={{ color: '#6366f1' }} className="font-medium font-mono">الدرجة: {exam.score}/100</span>}
+                <div key={exam.id} className={`rounded-xl border ${borderCls}`} style={{ background: bgColor, opacity: readOnly ? 0.75 : 1 }}>
+                  <div className="flex items-center gap-4 p-4">
+                    {/* Time */}
+                    <div className="text-center min-w-12">
+                      <p className="font-bold text-sm font-mono" style={{ color: 'var(--text-primary)' }}>{exam.time}</p>
+                      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>الوقت</p>
                     </div>
-                    {exam.notes && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{exam.notes}</p>}
+
+                    {/* Juz badge */}
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm font-mono flex-shrink-0" style={{ backgroundColor: '#C08A48' }}>
+                      {exam.juz_number}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{exam.student_name}</p>
+                      <div className="flex items-center gap-3 text-xs mt-0.5 flex-wrap" style={{ color: 'var(--text-muted)' }}>
+                        <span>{getBatchName(exam.batch_id)}</span>
+                        <span>•</span>
+                        <span>المقيّم: {exam.examiner}</span>
+                        {exam.score !== null && exam.score !== undefined && (
+                          <span style={{ color: '#C08A48' }} className="font-medium font-mono">الدرجة: {exam.score}/100</span>
+                        )}
+                      </div>
+                      {/* Counter pills — Errors / Warnings / Hesitations */}
+                      {(exam.errors || exam.warnings || exam.hesitations) && (
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          {exam.errors ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold font-mono" style={{ background: '#fef2f2', color: '#B94838', border: '1px solid rgba(185,72,56,0.2)' }}>
+                              <X className="w-3 h-3" /> أخطاء: {exam.errors}
+                            </span>
+                          ) : null}
+                          {exam.warnings ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold font-mono" style={{ background: '#fefce8', color: '#854d0e', border: '1px solid rgba(234,179,8,0.25)' }}>
+                              <Bell className="w-3 h-3" /> تنبيهات: {exam.warnings}
+                            </span>
+                          ) : null}
+                          {exam.hesitations ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold font-mono" style={{ background: '#f5f3ff', color: '#5B21B6', border: '1px solid rgba(91,33,182,0.18)' }}>
+                              <PauseCircle className="w-3 h-3" /> ترددات: {exam.hesitations}
+                            </span>
+                          ) : null}
+                        </div>
+                      )}
+                      {exam.notes && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{exam.notes}</p>}
+                    </div>
+
+                    {/* Status + top-level actions */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {readOnly && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(148,163,184,0.2)', color: '#64748b' }}>
+                          قراءة فقط
+                        </span>
+                      )}
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${(STATUS_CONFIG[exam.status] || STATUS_CONFIG.scheduled).color}`}>
+                        {(STATUS_CONFIG[exam.status] || STATUS_CONFIG.scheduled).label}
+                      </span>
+                      {!readOnly && !isMarking && exam.status === 'scheduled' && (
+                        <button
+                          onClick={() => openMarkingFor(exam)}
+                          className="text-xs border border-white/10 px-2.5 py-1.5 rounded-lg hover:bg-white/5 transition"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          تسجيل النتيجة
+                        </button>
+                      )}
+                      {!readOnly && !isMarking && hasResult && (
+                        <button
+                          onClick={() => openMarkingFor(exam)}
+                          className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg hover:opacity-90 transition"
+                          style={{ background: 'rgba(192,138,72,0.12)', color: '#8B5A1E', border: '1px solid rgba(192,138,72,0.3)' }}
+                          title="تعديل النتيجة — قد يُعيد حالة الجزء في خريطة الحفظ"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          تعديل النتيجة
+                        </button>
+                      )}
+                      {canEditExam(exam) && !isMarking && (
+                        <button
+                          onClick={() => handleDeleteExam(exam.id)}
+                          className="p-1 rounded hover:bg-red-50 transition"
+                          style={{ color: 'var(--text-muted)' }}
+                          title="حذف الاختبار"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Status + actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {readOnly && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(148,163,184,0.2)', color: '#64748b' }}>
-                        قراءة فقط
-                      </span>
-                    )}
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${(STATUS_CONFIG[exam.status] || STATUS_CONFIG.scheduled).color}`}>
-                      {(STATUS_CONFIG[exam.status] || STATUS_CONFIG.scheduled).label}
-                    </span>
-                    {!readOnly && exam.status === 'scheduled' && (
-                      <>
-                        {markingExam === exam.id ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              value={score}
-                              onChange={e => setScore(e.target.value)}
-                              placeholder="الدرجة"
-                              className="w-16 px-2 py-1 text-xs border border-gray-200 rounded-lg"
-                              min={0} max={100}
-                            />
-                            <button onClick={() => markResult(exam.id, 'passed')} className="p-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200">
-                              <Check className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => markResult(exam.id, 'failed')} className="p-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => setMarkingExam(null)} className="text-xs" style={{ color: 'var(--text-muted)' }}>إلغاء</button>
-                          </div>
-                        ) : (
+                  {/* Marking form — expanded row with 4 inputs */}
+                  {!readOnly && isMarking && (
+                    <div
+                      className="px-4 pb-4 pt-0 border-t mt-2"
+                      style={{ borderColor: 'rgba(192,138,72,0.20)' }}
+                    >
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+                            الدرجة <span className="text-[10px] opacity-60">/ 100</span>
+                          </label>
+                          <input
+                            type="number" min={0} max={100}
+                            value={score}
+                            onChange={e => setScore(e.target.value)}
+                            placeholder="—"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 flex items-center gap-1" style={{ color: '#B94838' }}>
+                            <X className="w-3 h-3" /> الأخطاء
+                          </label>
+                          <input
+                            type="number" min={0}
+                            value={errors}
+                            onChange={e => setErrors(e.target.value)}
+                            placeholder="0"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: '#fef2f2', border: '1px solid rgba(185,72,56,0.25)', color: '#791F1F' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 flex items-center gap-1" style={{ color: '#854d0e' }}>
+                            <Bell className="w-3 h-3" /> التنبيهات
+                          </label>
+                          <input
+                            type="number" min={0}
+                            value={warnings}
+                            onChange={e => setWarnings(e.target.value)}
+                            placeholder="0"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: '#fefce8', border: '1px solid rgba(234,179,8,0.3)', color: '#713F12' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 flex items-center gap-1" style={{ color: '#5B21B6' }}>
+                            <PauseCircle className="w-3 h-3" /> الترددات
+                          </label>
+                          <input
+                            type="number" min={0}
+                            value={hesitations}
+                            onChange={e => setHesitations(e.target.value)}
+                            placeholder="0"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: '#f5f3ff', border: '1px solid rgba(91,33,182,0.2)', color: '#3B0764' }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+                        <p className="text-[11px] flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                          <AlertTriangle className="w-3.5 h-3.5" style={{ color: '#C08A48' }} />
+                          عند اعتماد «اجتاز» — سيُسجَّل الجزء {exam.juz_number} كـ <span className="font-bold" style={{ color: '#5A8F67' }}>محفوظ</span> في خريطة الطالب.
+                        </p>
+                        <div className="flex items-center gap-2">
                           <button
-                            onClick={() => setMarkingExam(exam.id)}
-                            className="text-xs border border-white/10 px-2.5 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}
+                            onClick={() => markResult(exam.id, 'passed')}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition active:scale-95"
+                            style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', boxShadow: '0 2px 8px rgba(22,163,74,0.3)' }}
                           >
-                            تسجيل النتيجة
+                            <Check className="w-3.5 h-3.5" /> اجتاز
                           </button>
-                        )}
-                      </>
-                    )}
-                    {canEditExam(exam) && (
-                      <button onClick={() => handleDeleteExam(exam.id)} className="text-gray-300 hover:text-red-400 p-1">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
+                          <button
+                            onClick={() => markResult(exam.id, 'failed')}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition active:scale-95"
+                            style={{ background: 'linear-gradient(135deg, #B94838, #8B2F23)', boxShadow: '0 2px 8px rgba(185,72,56,0.3)' }}
+                          >
+                            <X className="w-3.5 h-3.5" /> لم يجتز
+                          </button>
+                          <button
+                            onClick={resetMarkingForm}
+                            className="text-xs px-3 py-1.5 rounded-lg border transition hover:bg-white/5"
+                            style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                          >
+                            إلغاء
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )})}
             </div>
@@ -503,7 +660,7 @@ export default function ExamsPage() {
                 <tr key={exam.id} className="border-b border-white/5">
                   <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--text-primary)' }}>{exam.student_name}</td>
                   <td className="px-4 py-2.5">
-                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-white text-xs font-bold font-mono" style={{ backgroundColor: '#6366f1' }}>
+                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-white text-xs font-bold font-mono" style={{ backgroundColor: '#C08A48' }}>
                       {exam.juz_number}
                     </span>
                   </td>

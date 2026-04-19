@@ -12,10 +12,10 @@ import {
 interface HeaderProps { onMenuClick: () => void }
 
 const SEVERITY_COLORS: Record<string, string> = {
-  error:   '#ef4444',
-  warning: '#f59e0b',
-  success: '#22c55e',
-  info:    '#6366f1',
+  error:   '#B94838',
+  warning: '#C9972C',
+  success: '#5A8F67',
+  info:    '#4A6F9A',
 }
 
 const TYPE_ICONS: Record<string, string> = {
@@ -104,17 +104,23 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   // ── Labels ───────────────────────────────────────────────────────────
   const roleLabel = profile?.role === 'ceo' ? 'المدير التنفيذي'
+    : profile?.role === 'batch_manager' ? 'مدير الدفعة'
     : profile?.role === 'supervisor' ? 'مشرف'
     : profile?.role === 'teacher'    ? 'معلم' : ''
   const displayName = profile?.name ?? roleLabel
   const initial     = displayName?.charAt(0) ?? 'م'
+
+  // Today in Arabic for header hint
+  const todayLabel = new Date().toLocaleDateString('ar-SA', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  })
 
   return (
     <header
       className="animate-fade-in sticky top-0 z-30 px-4 sm:px-6 py-3 flex items-center justify-between"
       style={{
         background: 'var(--bg-header)',
-        backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+        backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
         borderBottom: '1px solid var(--border-color)',
       }}
     >
@@ -123,18 +129,31 @@ export default function Header({ onMenuClick }: HeaderProps) {
         <button
           onClick={onMenuClick}
           className="w-10 h-10 flex items-center justify-center lg:hidden"
-          style={{ borderRadius: '6px', border: '1px solid var(--border-soft)', color: 'var(--text-muted)', transition: 'color 200ms,background-color 200ms' }}
+          style={{
+            borderRadius: 12,
+            border: '1px solid var(--border-soft)',
+            color: 'var(--text-secondary)',
+            transition: 'color 200ms,background-color 200ms',
+          }}
           onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.backgroundColor = 'var(--hover-bg)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)';   e.currentTarget.style.backgroundColor = 'transparent' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.backgroundColor = 'transparent' }}
+          aria-label="فتح القائمة"
         >
           <Menu className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="font-semibold text-sm sm:text-base" style={{ color: 'var(--text-primary)' }}>
+          <h1
+            className="font-bold text-sm sm:text-base"
+            style={{
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-noto-kufi, Noto Kufi Arabic)',
+              letterSpacing: '-0.005em',
+            }}
+          >
             المواهب الناشئة
           </h1>
-          <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            {new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {todayLabel}
           </p>
         </div>
       </div>
@@ -145,10 +164,15 @@ export default function Header({ onMenuClick }: HeaderProps) {
         <button
           onClick={toggleTheme}
           className="w-9 h-9 flex items-center justify-center"
-          style={{ borderRadius: '6px', color: 'var(--text-muted)', transition: 'color 200ms,background-color 200ms' }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#6366f1'; e.currentTarget.style.backgroundColor = 'rgba(99,102,241,0.08)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.backgroundColor = 'transparent' }}
+          style={{
+            borderRadius: 12,
+            color: 'var(--text-secondary)',
+            transition: 'color 200ms,background-color 200ms',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent-warm)'; e.currentTarget.style.backgroundColor = 'rgba(192,138,72,0.08)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.backgroundColor = 'transparent' }}
           title={theme === 'dark' ? 'النمط النهاري' : 'النمط الليلي'}
+          aria-label={theme === 'dark' ? 'تبديل إلى النهاري' : 'تبديل إلى الليلي'}
         >
           {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
         </button>
@@ -158,16 +182,28 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <button
             onClick={openDropdown}
             className="relative w-9 h-9 flex items-center justify-center"
-            style={{ borderRadius: '6px', color: open ? '#6366f1' : 'var(--text-muted)', transition: 'color 200ms,background-color 200ms', backgroundColor: open ? 'rgba(99,102,241,0.08)' : 'transparent' }}
+            style={{
+              borderRadius: 12,
+              color: open ? 'var(--accent-warm)' : 'var(--text-secondary)',
+              backgroundColor: open ? 'rgba(192,138,72,0.10)' : 'transparent',
+              transition: 'color 200ms,background-color 200ms',
+            }}
             onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)' }}
-            onMouseLeave={e => { if (!open) e.currentTarget.style.color = 'var(--text-muted)' }}
+            onMouseLeave={e => { if (!open) e.currentTarget.style.color = 'var(--text-secondary)' }}
             title="الإشعارات"
+            aria-label="الإشعارات"
           >
             <Bell size={18} />
             {unreadCount > 0 && (
               <span
                 className="absolute top-1 left-1 min-w-[16px] h-4 rounded-full flex items-center justify-center text-white animate-pulse"
-                style={{ fontSize: '10px', fontWeight: 700, backgroundColor: '#ef4444', boxShadow: '0 0 8px rgba(239,68,68,0.5)', padding: '0 3px' }}
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  backgroundColor: 'var(--semantic-danger)',
+                  boxShadow: '0 0 8px rgba(185,72,56,0.5)',
+                  padding: '0 3px',
+                }}
               >
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
@@ -177,21 +213,53 @@ export default function Header({ onMenuClick }: HeaderProps) {
           {/* Dropdown */}
           {open && (
             <div
-              className="absolute left-0 mt-2 w-80 sm:w-96 rounded-xl overflow-hidden shadow-2xl"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', zIndex: 50, top: '100%' }}
+              className="absolute left-0 mt-2 w-80 sm:w-96 overflow-hidden"
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 18,
+                boxShadow: 'var(--shadow-card-hover)',
+                zIndex: 50,
+                top: '100%',
+              }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border-soft)' }}>
-                <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  الإشعارات {unreadCount > 0 && <span className="text-xs font-normal" style={{ color: '#ef4444' }}>({unreadCount} جديد)</span>}
+              <div
+                className="flex items-center justify-between px-4 py-3"
+                style={{ borderBottom: '1px solid var(--border-soft)' }}
+              >
+                <span
+                  className="text-sm font-bold"
+                  style={{
+                    color: 'var(--text-primary)',
+                    fontFamily: 'var(--font-noto-kufi, Noto Kufi Arabic)',
+                  }}
+                >
+                  الإشعارات {unreadCount > 0 && (
+                    <span className="text-xs font-normal" style={{ color: 'var(--semantic-danger)' }}>
+                      ({unreadCount} جديد)
+                    </span>
+                  )}
                 </span>
                 <div className="flex items-center gap-2">
                   {unreadCount > 0 && (
-                    <button onClick={handleMarkAll} title="تعيين الكل كمقروء" style={{ color: 'var(--text-muted)', transition: 'color 200ms' }} onMouseEnter={e => e.currentTarget.style.color = '#6366f1'} onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>
+                    <button
+                      onClick={handleMarkAll}
+                      title="تعيين الكل كمقروء"
+                      style={{ color: 'var(--text-muted)', transition: 'color 200ms' }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-warm)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                    >
                       <CheckCheck size={15} />
                     </button>
                   )}
-                  <button onClick={() => { setOpen(false); router.push('/notifications') }} title="عرض الكل" style={{ color: 'var(--text-muted)', transition: 'color 200ms' }} onMouseEnter={e => e.currentTarget.style.color = '#6366f1'} onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>
+                  <button
+                    onClick={() => { setOpen(false); router.push('/notifications') }}
+                    title="عرض الكل"
+                    style={{ color: 'var(--text-muted)', transition: 'color 200ms' }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-warm)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                  >
                     <ExternalLink size={14} />
                   </button>
                 </div>
@@ -201,41 +269,63 @@ export default function Header({ onMenuClick }: HeaderProps) {
               <div className="overflow-y-auto" style={{ maxHeight: '360px' }}>
                 {loading ? (
                   <div className="py-10 flex justify-center" style={{ color: 'var(--text-muted)' }}>
-                    <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+                    <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
                   </div>
                 ) : notifications.length === 0 ? (
-                  <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>لا توجد إشعارات</div>
+                  <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+                    لا توجد إشعارات
+                  </div>
                 ) : (
                   notifications.map(n => (
                     <div
                       key={n.id}
                       onClick={() => handleMarkRead(n)}
                       className="flex gap-3 px-4 py-3 cursor-pointer"
-                      style={{ borderBottom: '1px solid var(--border-soft)', backgroundColor: n.read ? 'transparent' : 'rgba(99,102,241,0.04)', transition: 'background-color 150ms' }}
+                      style={{
+                        borderBottom: '1px solid var(--border-faint)',
+                        backgroundColor: n.read ? 'transparent' : 'rgba(192,138,72,0.05)',
+                        transition: 'background-color 150ms',
+                      }}
                       onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--hover-bg)')}
-                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = n.read ? 'transparent' : 'rgba(99,102,241,0.04)')}
+                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = n.read ? 'transparent' : 'rgba(192,138,72,0.05)')}
                     >
                       {/* Severity indicator */}
-                      <div className="shrink-0 mt-0.5 w-1.5 rounded-full self-stretch" style={{ backgroundColor: SEVERITY_COLORS[n.severity] ?? '#6366f1', opacity: n.read ? 0.3 : 1 }} />
+                      <div
+                        className="shrink-0 mt-0.5 w-1.5 rounded-full self-stretch"
+                        style={{
+                          backgroundColor: SEVERITY_COLORS[n.severity] ?? 'var(--accent-warm)',
+                          opacity: n.read ? 0.3 : 1,
+                        }}
+                      />
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-medium leading-snug truncate" style={{ color: n.read ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+                          <p
+                            className="text-sm font-semibold leading-snug truncate"
+                            style={{ color: n.read ? 'var(--text-muted)' : 'var(--text-primary)' }}
+                          >
                             {TYPE_ICONS[n.type] ?? '🔔'} {n.title}
                           </p>
                           <button
                             onClick={e => handleDelete(n.id, e)}
-                            className="shrink-0 opacity-0 group-hover:opacity-100"
-                            style={{ color: 'var(--text-muted)', transition: 'color 150ms, opacity 150ms' }}
-                            onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                            className="shrink-0"
+                            style={{ color: 'var(--text-muted)', transition: 'color 150ms' }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'var(--semantic-danger)'}
                             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                             title="حذف"
                           >
                             <Trash2 size={13} />
                           </button>
                         </div>
-                        <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--text-muted)' }}>{n.body}</p>
-                        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>{timeAgo(n.created_at)}</p>
+                        <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
+                          {n.body}
+                        </p>
+                        <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                          {timeAgo(n.created_at)}
+                        </p>
                       </div>
                     </div>
                   ))
@@ -245,9 +335,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
               {/* Footer */}
               <button
                 onClick={() => { setOpen(false); router.push('/notifications') }}
-                className="w-full py-2.5 text-sm font-medium"
-                style={{ color: '#6366f1', borderTop: '1px solid var(--border-soft)', transition: 'background-color 150ms' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(99,102,241,0.06)')}
+                className="w-full py-2.5 text-sm font-semibold"
+                style={{
+                  color: 'var(--accent-warm)',
+                  borderTop: '1px solid var(--border-soft)',
+                  transition: 'background-color 150ms',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(192,138,72,0.08)')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
                 عرض جميع الإشعارات
@@ -256,16 +350,32 @@ export default function Header({ onMenuClick }: HeaderProps) {
           )}
         </div>
 
-        <div className="hidden sm:block mx-1" style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)' }} />
+        <div
+          className="hidden sm:block mx-1"
+          style={{ width: 1, height: 24, backgroundColor: 'var(--border-color)' }}
+        />
 
-        {/* Avatar */}
+        {/* Avatar + name pill */}
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 flex items-center justify-center text-sm font-semibold shrink-0" style={{ borderRadius: '6px', backgroundColor: 'var(--bg-elevated)', border: '1px solid rgba(99,102,241,0.3)', color: '#6366f1' }}>
+          <div
+            className="w-9 h-9 flex items-center justify-center text-sm font-bold shrink-0"
+            style={{
+              borderRadius: 12,
+              background: 'linear-gradient(135deg, var(--brand-from), var(--brand-to))',
+              color: 'var(--brand-on)',
+              boxShadow: '0 4px 10px rgba(26,27,32,0.18), inset 0 0 0 1px rgba(212,162,76,0.35)',
+              fontFamily: 'var(--font-noto-kufi, Noto Kufi Arabic)',
+            }}
+          >
             {initial}
           </div>
           <div className="hidden sm:block leading-tight">
-            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{displayName}</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{roleLabel}</p>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {displayName}
+            </p>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              {roleLabel}
+            </p>
           </div>
         </div>
       </div>

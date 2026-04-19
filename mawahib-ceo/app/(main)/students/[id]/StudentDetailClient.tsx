@@ -95,10 +95,10 @@ export default function StudentDetailClient({ id }: { id: string }) {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
                   activeTab === tab.id
-                    ? 'border-[#6366f1]'
+                    ? 'border-[#C08A48]'
                     : 'border-transparent'
                 }`}
-                style={activeTab === tab.id ? { color: '#6366f1' } : { color: 'var(--text-muted)' }}
+                style={activeTab === tab.id ? { color: '#C08A48' } : { color: 'var(--text-muted)' }}
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}

@@ -405,13 +405,17 @@ export default function FollowupsPage() {
   return (
     <div className="space-y-5 animate-fade-in-up">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <BookOpenCheck className="w-6 h-6 text-emerald-500" />
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-2">
+        <div className="min-w-0">
+          <div className="eyebrow-pill mb-3">
+            <span className="eyebrow-dot" />
+            متابعات يومية
+          </div>
+          <h1 className="display-h1 m-0 flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
+            <BookOpenCheck className="w-7 h-7" style={{ color: 'var(--accent-teal)' }} />
             متابعات الطلاب
           </h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
             {formatHijriWithDay(selectedDate)}
           </p>
         </div>
@@ -420,7 +424,12 @@ export default function FollowupsPage() {
           {canViewSupervisors && (
             <Link
               href="/followups/manager"
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-xl transition-colors"
+              style={{
+                background: 'rgba(53,107,110,0.08)',
+                border: '1px solid rgba(53,107,110,0.25)',
+                color: 'var(--accent-teal)',
+              }}
             >
               <Users className="w-3.5 h-3.5" />
               لوحة المدير
@@ -435,14 +444,14 @@ export default function FollowupsPage() {
           <button
             onClick={() => setStudentFilter('mine')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${studentFilter === 'mine' ? 'bg-white shadow-sm' : ''}`}
-            style={studentFilter === 'mine' ? { color: '#6366f1' } : { color: 'var(--text-muted)' }}
+            style={studentFilter === 'mine' ? { color: 'var(--accent-warm)' } : { color: 'var(--text-muted)' }}
           >
             طلابي ({myAssignedIds.size})
           </button>
           <button
             onClick={() => setStudentFilter('all')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${studentFilter === 'all' ? 'bg-white shadow-sm' : ''}`}
-            style={studentFilter === 'all' ? { color: '#6366f1' } : { color: 'var(--text-muted)' }}
+            style={studentFilter === 'all' ? { color: 'var(--accent-warm)' } : { color: 'var(--text-muted)' }}
           >
             جميع طلاب الدفعة ({allBatchStudents.length})
           </button>
@@ -452,12 +461,12 @@ export default function FollowupsPage() {
       {/* ── Stats bar ── */}
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
         {[
-          { label: 'لديهم خطة', value: stats.withPlan, icon: Users, color: '#6366f1' },
-          { label: 'تمت المتابعة', value: stats.followed, icon: CheckCircle2, color: '#06b6d4' },
-          { label: 'منتظمون', value: stats.onTrack, icon: CheckCircle2, color: '#22c55e' },
-          { label: 'تأخر بسيط', value: stats.slightDelay, icon: Clock, color: '#f59e0b' },
-          { label: 'تأخر كبير', value: stats.severeDelay, icon: AlertTriangle, color: '#ef4444' },
-          { label: 'لم يتابع', value: stats.noFollowup, icon: FileText, color: '#94a3b8' },
+          { label: 'لديهم خطة', value: stats.withPlan, icon: Users, color: '#C08A48' },
+          { label: 'تمت المتابعة', value: stats.followed, icon: CheckCircle2, color: '#356B6E' },
+          { label: 'منتظمون', value: stats.onTrack, icon: CheckCircle2, color: '#5A8F67' },
+          { label: 'تأخر بسيط', value: stats.slightDelay, icon: Clock, color: '#C9972C' },
+          { label: 'تأخر كبير', value: stats.severeDelay, icon: AlertTriangle, color: '#B94838' },
+          { label: 'لم يتابع', value: stats.noFollowup, icon: FileText, color: '#8B8F96' },
         ].map(s => (
           <div key={s.label} className="card-static p-3 flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: s.color + '15' }}>
@@ -493,7 +502,7 @@ export default function FollowupsPage() {
             <div className="px-4 pb-4 space-y-2 border-t border-white/10 pt-3">
               {supervisorCompliance.map(sup => {
                 const pct = sup.total > 0 ? Math.round((sup.followed / sup.total) * 100) : 0
-                const color = pct === 100 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444'
+                const color = pct === 100 ? '#5A8F67' : pct >= 50 ? '#C9972C' : '#B94838'
                 return (
                   <div key={sup.name} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: color }}>
@@ -729,7 +738,7 @@ export default function FollowupsPage() {
                     </button>
                     <Link href={`/followups/plan/${student.id}`}
                       className="py-2.5 px-4 text-xs font-bold rounded-lg flex items-center gap-1.5 text-white transition-all hover:shadow-md hover:opacity-90"
-                      style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
+                      style={{ background: 'linear-gradient(135deg, #C08A48 0%, #4f46e5 100%)' }}>
                       <CalendarDays className="w-4 h-4" /> استعراض الخطة
                     </Link>
                   </div>
@@ -792,7 +801,7 @@ export default function FollowupsPage() {
                     </button>
                     <Link href={`/followups/plan/${student.id}`}
                       className="py-2.5 px-4 text-xs font-bold rounded-lg flex items-center gap-1.5 text-white transition-all hover:shadow-md hover:opacity-90"
-                      style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
+                      style={{ background: 'linear-gradient(135deg, #C08A48 0%, #4f46e5 100%)' }}>
                       <CalendarDays className="w-4 h-4" /> استعراض الخطة
                     </Link>
                     <button onClick={() => { setFollowupStep(1) }}

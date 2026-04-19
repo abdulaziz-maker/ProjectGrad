@@ -250,7 +250,7 @@ export default function StudentsPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]" dir="rtl">
         <div className="text-center space-y-3">
-          <Loader2 className="w-8 h-8 animate-spin text-[#6366f1] mx-auto" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#C08A48] mx-auto" />
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>جاري تحميل الطلاب...</p>
         </div>
       </div>
@@ -289,7 +289,7 @@ export default function StudentsPage() {
       <div className="grid grid-cols-3 gap-4 mb-6 stagger-children">
         <div className="card-static p-4">
           <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>إجمالي الطلاب</p>
-          <p className="text-3xl font-bold font-mono" style={{ color: '#6366f1' }}>{totalCount}</p>
+          <p className="text-3xl font-bold font-mono" style={{ color: '#C08A48' }}>{totalCount}</p>
         </div>
         <div className="card-static p-4">
           <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>نشط</p>
@@ -309,13 +309,13 @@ export default function StudentsPage() {
             placeholder="بحث باسم الطالب..."
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1) }}
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20"
           />
           {isScopedToBatch && myBatchId !== null ? (
             /* المستخدمون المقيَّدون بدفعة: عرض اسم دفعتهم فقط بلا خيار تبديل */
             <div
               className="flex items-center border rounded-xl px-3 py-2 text-sm font-semibold"
-              style={{ borderColor: 'var(--border-color)', color: '#6366f1', background: 'rgba(99,102,241,0.08)' }}
+              style={{ borderColor: 'var(--border-color)', color: '#C08A48', background: 'rgba(99,102,241,0.08)' }}
             >
               دفعة {myBatchId}
             </div>
@@ -323,7 +323,7 @@ export default function StudentsPage() {
             <select
               value={batchFilter}
               onChange={e => { setBatchFilter(e.target.value === '' ? '' : Number(e.target.value)); setPage(1) }}
-              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20"
             >
               <option value="">كل الدفعات</option>
               {BATCH_OPTIONS.map(b => (
@@ -334,7 +334,7 @@ export default function StudentsPage() {
           <select
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value as '' | 'active' | 'suspended'); setPage(1) }}
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20"
           >
             <option value="">كل الحالات</option>
             <option value="active">نشط</option>
@@ -343,7 +343,7 @@ export default function StudentsPage() {
           <select
             value={pageSize}
             onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20"
             title="عدد الصفوف في الصفحة"
           >
             {PAGE_SIZE_OPTIONS.map(size => (
@@ -382,7 +382,7 @@ export default function StudentsPage() {
                     <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{s.name}</td>
                     <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>دفعة {s.batch_id}</td>
                     <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{s.supervisor_name}</td>
-                    <td className="px-4 py-3 font-semibold font-mono" style={{ color: '#6366f1' }}>{s.juz_completed}/30</td>
+                    <td className="px-4 py-3 font-semibold font-mono" style={{ color: '#C08A48' }}>{s.juz_completed}/30</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="progress-bar flex-1">
@@ -456,7 +456,7 @@ export default function StudentsPage() {
                   onClick={() => setPage(p)}
                   className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${
                     p === page
-                      ? 'bg-[#6366f1] text-white border-[#6366f1]'
+                      ? 'bg-[#C08A48] text-white border-[#C08A48]'
                       : 'border-gray-200 hover:opacity-80'
                   }`}
                 >
@@ -480,7 +480,7 @@ export default function StudentsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" dir="rtl">
             <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
-              <h2 className="text-base font-bold" style={{ color: '#6366f1' }}>
+              <h2 className="text-base font-bold" style={{ color: '#C08A48' }}>
                 {editingId ? 'تعديل بيانات الطالب' : 'إضافة طالب جديد'}
               </h2>
               <button
@@ -498,7 +498,7 @@ export default function StudentsPage() {
                   type="text"
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20"
                   placeholder="اسم الطالب"
                 />
               </div>
@@ -517,7 +517,7 @@ export default function StudentsPage() {
                   <select
                     value={form.batch_id}
                     onChange={e => setForm(f => ({ ...f, batch_id: Number(e.target.value) }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20"
                   >
                     {BATCH_OPTIONS.map(b => (
                       <option key={b} value={b}>دفعة {b}</option>
@@ -531,7 +531,7 @@ export default function StudentsPage() {
                 <select
                   value={form.supervisor_id}
                   onChange={e => setForm(f => ({ ...f, supervisor_id: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20"
                 >
                   <option value="">اختر مشرفاً</option>
                   {supervisors.map(s => (
@@ -546,7 +546,7 @@ export default function StudentsPage() {
                   type="date"
                   value={form.enrollment_date}
                   onChange={e => setForm(f => ({ ...f, enrollment_date: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20"
                 />
                 {hijriDate && (
                   <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{hijriDate}</p>
@@ -565,7 +565,7 @@ export default function StudentsPage() {
                   maxLength={10}
                   value={form.national_id}
                   onChange={e => setForm(f => ({ ...f, national_id: e.target.value.replace(/\D/g, '') }))}
-                  className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20 ${formErrors.national_id ? 'border-red-400' : 'border-gray-200'}`}
+                  className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20 ${formErrors.national_id ? 'border-red-400' : 'border-gray-200'}`}
                   placeholder="1012345678"
                 />
                 {formErrors.national_id && (
@@ -579,7 +579,7 @@ export default function StudentsPage() {
                   type="date"
                   value={form.birth_date}
                   onChange={e => setForm(f => ({ ...f, birth_date: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20"
                 />
                 {form.birth_date && (
                   <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{toHijriDisplay(form.birth_date)}</p>
@@ -596,7 +596,7 @@ export default function StudentsPage() {
                   inputMode="tel"
                   value={form.parent_phone}
                   onChange={e => setForm(f => ({ ...f, parent_phone: e.target.value }))}
-                  className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20 ${formErrors.parent_phone ? 'border-red-400' : 'border-gray-200'}`}
+                  className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20 ${formErrors.parent_phone ? 'border-red-400' : 'border-gray-200'}`}
                   placeholder="05XXXXXXXX"
                 />
                 {formErrors.parent_phone && (
@@ -609,7 +609,7 @@ export default function StudentsPage() {
                 <select
                   value={form.status}
                   onChange={e => setForm(f => ({ ...f, status: e.target.value as 'active' | 'suspended' }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20"
                 >
                   <option value="active">نشط</option>
                   <option value="suspended">متعثر</option>
@@ -622,7 +622,7 @@ export default function StudentsPage() {
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                   rows={3}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20 resize-none"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20 resize-none"
                   placeholder="ملاحظات إضافية..."
                 />
               </div>

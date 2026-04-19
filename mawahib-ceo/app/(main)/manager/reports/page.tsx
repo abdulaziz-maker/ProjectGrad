@@ -16,7 +16,7 @@ import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 
 function scoreColor(pct: number) {
-  return pct >= 80 ? '#22c55e' : pct >= 60 ? '#6366f1' : pct >= 40 ? '#f59e0b' : '#ef4444'
+  return pct >= 80 ? '#5A8F67' : pct >= 60 ? '#C08A48' : pct >= 40 ? '#C9972C' : '#B94838'
 }
 
 export default function ManagerReportsPage() {
@@ -151,7 +151,7 @@ export default function ManagerReportsPage() {
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#6366f1' }} />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#C08A48' }} />
       </div>
     )
   }
@@ -181,8 +181,8 @@ export default function ManagerReportsPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          { label: 'إجمالي الطلاب', value: report.totalStudents, icon: Users, color: '#6366f1' },
-          { label: 'أجزاء محفوظة', value: report.memorized, icon: BookOpen, color: '#22c55e' },
+          { label: 'إجمالي الطلاب', value: report.totalStudents, icon: Users, color: '#C08A48' },
+          { label: 'أجزاء محفوظة', value: report.memorized, icon: BookOpen, color: '#5A8F67' },
           { label: 'متوسط الإنجاز', value: `${report.avgCompletion}%`, icon: TrendingUp, color: scoreColor(report.avgCompletion) },
           { label: 'الحضور الأسبوعي', value: `${report.attendancePct}%`, icon: CalendarCheck, color: scoreColor(report.attendancePct) },
           { label: 'متابعة الأسبوع', value: `${report.followupPct}%`, icon: ClipboardCheck, color: scoreColor(report.followupPct) },
@@ -236,7 +236,7 @@ export default function ManagerReportsPage() {
       <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div className="flex items-center gap-2">
-            <ClipboardCheck size={18} style={{ color: '#6366f1' }} />
+            <ClipboardCheck size={18} style={{ color: '#C08A48' }} />
             <h2 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>حالة المتابعة هذا الأسبوع</h2>
           </div>
           <div className="flex items-center gap-3">
@@ -255,7 +255,7 @@ export default function ManagerReportsPage() {
               className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
               style={{
                 background: showUnfollowedOnly ? 'rgba(239,68,68,0.1)' : 'transparent',
-                borderColor: showUnfollowedOnly ? '#ef4444' : 'var(--border-color)',
+                borderColor: showUnfollowedOnly ? '#B94838' : 'var(--border-color)',
                 color: showUnfollowedOnly ? '#dc2626' : 'var(--text-muted)',
               }}
             >
@@ -276,7 +276,7 @@ export default function ManagerReportsPage() {
               return (
                 <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: 'var(--bg-body)' }}>
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: done ? '#16a34a' : '#ef4444' }} />
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: done ? '#16a34a' : '#B94838' }} />
                     <span className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</span>
                   </div>
                   <span
@@ -305,17 +305,17 @@ export default function ManagerReportsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Top 5 */}
         <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid rgba(34,197,94,0.3)' }}>
-          <h2 className="font-bold mb-4 flex items-center gap-2" style={{ color: '#22c55e' }}>
+          <h2 className="font-bold mb-4 flex items-center gap-2" style={{ color: '#5A8F67' }}>
             🏆 أفضل ٥ طلاب
           </h2>
           <div className="space-y-2">
             {report.top5.map((s, i) => (
               <div key={s.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: 'var(--bg-body)' }}>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold w-5 text-center" style={{ color: '#22c55e' }}>{i + 1}</span>
+                  <span className="text-xs font-bold w-5 text-center" style={{ color: '#5A8F67' }}>{i + 1}</span>
                   <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{s.name}</span>
                 </div>
-                <span className="text-sm font-bold" style={{ color: '#22c55e' }}>{s.completion_percentage || 0}%</span>
+                <span className="text-sm font-bold" style={{ color: '#5A8F67' }}>{s.completion_percentage || 0}%</span>
               </div>
             ))}
           </div>
@@ -323,17 +323,17 @@ export default function ManagerReportsPage() {
 
         {/* Bottom 5 */}
         <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid rgba(239,68,68,0.3)' }}>
-          <h2 className="font-bold mb-4 flex items-center gap-2" style={{ color: '#ef4444' }}>
+          <h2 className="font-bold mb-4 flex items-center gap-2" style={{ color: '#B94838' }}>
             ⚠️ أضعف ٥ طلاب
           </h2>
           <div className="space-y-2">
             {report.bottom5.map((s, i) => (
               <div key={s.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: 'var(--bg-body)' }}>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold w-5 text-center" style={{ color: '#ef4444' }}>{i + 1}</span>
+                  <span className="text-xs font-bold w-5 text-center" style={{ color: '#B94838' }}>{i + 1}</span>
                   <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{s.name}</span>
                 </div>
-                <span className="text-sm font-bold" style={{ color: '#ef4444' }}>{s.completion_percentage || 0}%</span>
+                <span className="text-sm font-bold" style={{ color: '#B94838' }}>{s.completion_percentage || 0}%</span>
               </div>
             ))}
           </div>

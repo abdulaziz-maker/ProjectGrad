@@ -18,11 +18,13 @@ import {
   Loader2, ChevronLeft, Target, Star,
 } from 'lucide-react'
 import Link from 'next/link'
+import CountUp from '@/components/ui/CountUp'
+import WisdomCard from '@/components/ui/WisdomCard'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const PROGRAM_START = new Date('2026-02-27')
 const BATCH_IDS = [48, 46, 44, 42]
-const BATCH_COLORS: Record<number, string> = { 48: '#6366f1', 46: '#06b6d4', 44: '#22c55e', 42: '#f59e0b' }
+const BATCH_COLORS: Record<number, string> = { 48: '#C08A48', 46: '#356B6E', 44: '#5A8F67', 42: '#C9972C' }
 const TOTAL_WEEKS = 12
 
 // ── Color helpers ──────────────────────────────────────────────────────────────
@@ -236,15 +238,15 @@ export default function AdminDashboardPage() {
   const timeline = useMemo(() => {
     const events: { date: string; title: string; type: string; color: string }[] = []
     for (const m of meetings) {
-      events.push({ date: m.date, title: m.agenda || 'اجتماع', type: 'اجتماع', color: '#6366f1' })
+      events.push({ date: m.date, title: m.agenda || 'اجتماع', type: 'اجتماع', color: '#C08A48' })
     }
     for (const e of exams) {
       if (e.status === 'completed') {
-        events.push({ date: e.date, title: `اختبار ${e.student_name} — ج${e.juz_number}`, type: 'اختبار', color: '#f59e0b' })
+        events.push({ date: e.date, title: `اختبار ${e.student_name} — ج${e.juz_number}`, type: 'اختبار', color: '#C9972C' })
       }
     }
     for (const p of programs) {
-      events.push({ date: p.start_date, title: p.name, type: 'برنامج', color: '#22c55e' })
+      events.push({ date: p.start_date, title: p.name, type: 'برنامج', color: '#5A8F67' })
     }
     return events
       .filter(ev => ev.date <= todayISO)
@@ -272,10 +274,14 @@ export default function AdminDashboardPage() {
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+          <div className="eyebrow-pill mb-3">
+            <span className="eyebrow-dot" />
+            القيادة التنفيذية · الأسبوع {currentWeek}
+          </div>
+          <h1 className="display-h1 m-0" style={{ color: 'var(--text-primary)' }}>
             لوحة المدير التنفيذي
           </h1>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
             {hijri && <span>{hijri} · </span>}
             {new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
@@ -306,24 +312,27 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* ── Alert Banner ── */}
-      {alertLevel && (
-        <div
-          className="rounded-xl px-4 py-3 flex items-center gap-3"
-          style={{
-            background: alertLevel === 'danger' ? 'rgba(226,75,74,0.08)' : 'rgba(239,159,39,0.08)',
-            border: `1px solid ${alertLevel === 'danger' ? 'rgba(226,75,74,0.2)' : 'rgba(239,159,39,0.2)'}`,
-          }}
-        >
-          <AlertTriangle size={15} style={{ color: alertLevel === 'danger' ? '#E24B4A' : '#EF9F27', flexShrink: 0 }} />
-          <p className="text-sm" style={{ color: alertLevel === 'danger' ? '#E24B4A' : '#EF9F27' }}>
-            {alertLevel === 'danger'
-              ? `تحذير: ${struggling} طالباً متعثراً — النسبة الكلية ${overallPct}% — يتطلب تدخلاً فورياً`
-              : `تنبيه: ${struggling} طالباً متعثراً — يوصى بمراجعة خطة المتابعة`
-            }
-          </p>
-        </div>
-      )}
+      {/* ── Wisdom + Alert row ── */}
+      <div className={`grid gap-3 ${alertLevel ? 'lg:grid-cols-[1.6fr_1fr]' : 'grid-cols-1'}`}>
+        <WisdomCard />
+        {alertLevel && (
+          <div
+            className="rounded-2xl px-4 py-3 flex items-start gap-3"
+            style={{
+              background: alertLevel === 'danger' ? 'rgba(185,72,56,0.08)' : 'rgba(201,151,44,0.10)',
+              border: `1px solid ${alertLevel === 'danger' ? 'rgba(185,72,56,0.28)' : 'rgba(201,151,44,0.32)'}`,
+            }}
+          >
+            <AlertTriangle size={16} style={{ color: alertLevel === 'danger' ? '#B94838' : '#C9972C', flexShrink: 0, marginTop: 2 }} />
+            <p className="text-sm leading-relaxed" style={{ color: alertLevel === 'danger' ? '#B94838' : '#8B5A1E' }}>
+              {alertLevel === 'danger'
+                ? `تحذير: ${struggling} طالباً متعثراً — النسبة الكلية ${overallPct}% — يتطلب تدخلاً فورياً`
+                : `تنبيه: ${struggling} طالباً متعثراً — يوصى بمراجعة خطة المتابعة`
+              }
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* ── KPI Row 1 ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -331,7 +340,7 @@ export default function AdminDashboardPage() {
           {
             icon: Users, label: 'إجمالي الطلاب', value: totalActive, suffix: '',
             sub: `${BATCH_IDS.filter(b => activeStudents.some(s => s.batch_id === b)).length} دفعات نشطة`,
-            color: '#6366f1', link: '/students',
+            color: '#C08A48', link: '/students',
           },
           {
             icon: BookOpen, label: 'نسبة الحفظ الكلية', value: overallPct, suffix: '%',
@@ -358,7 +367,7 @@ export default function AdminDashboardPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs mb-1.5 truncate" style={{ color: 'var(--text-muted)' }}>{k.label}</p>
                   <p className="text-2xl font-bold font-mono" style={{ color: 'var(--text-primary)' }}>
-                    {k.value}{k.suffix}
+                    <CountUp end={typeof k.value === 'number' ? k.value : 0} suffix={k.suffix ?? ''} />
                   </p>
                   <p className="text-[10px] mt-1 font-mono" style={{ color: 'var(--text-muted)' }}>{k.sub}</p>
                 </div>
@@ -391,12 +400,12 @@ export default function AdminDashboardPage() {
           {
             icon: UserCheck, label: 'المشرفون النشطون', value: activeSupervisors, suffix: '',
             sub: `من ${supervisors.length} مشرف`,
-            color: '#06b6d4', link: '/supervisors',
+            color: '#356B6E', link: '/supervisors',
           },
           {
             icon: Zap, label: 'نشاط هذا الأسبوع', value: juzThisWeek, suffix: '',
             sub: 'جزء تم تسجيله',
-            color: '#f59e0b', link: '/batches',
+            color: '#C9972C', link: '/batches',
           },
         ] as const).map((k, i) => {
           const Icon = k.icon
@@ -406,7 +415,7 @@ export default function AdminDashboardPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs mb-1.5 truncate" style={{ color: 'var(--text-muted)' }}>{k.label}</p>
                   <p className="text-2xl font-bold font-mono" style={{ color: 'var(--text-primary)' }}>
-                    {k.value}{k.suffix}
+                    <CountUp end={typeof k.value === 'number' ? k.value : 0} suffix={k.suffix ?? ''} />
                   </p>
                   <p className="text-[10px] mt-1 font-mono" style={{ color: 'var(--text-muted)' }}>{k.sub}</p>
                 </div>
@@ -426,7 +435,7 @@ export default function AdminDashboardPage() {
       <div className="card-static p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Target size={14} style={{ color: '#6366f1' }} />
+            <Target size={14} style={{ color: '#C08A48' }} />
             خريطة تقدم الحفظ الأسبوعية
           </h2>
           <span className="text-xs px-2 py-1 rounded-md font-mono" style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8' }}>
@@ -504,7 +513,7 @@ export default function AdminDashboardPage() {
       <div className="card-static p-5">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <TrendingUp size={14} style={{ color: '#06b6d4' }} />
+            <TrendingUp size={14} style={{ color: '#356B6E' }} />
             التقدم التراكمي لكل دفعة
           </h2>
           <div className="flex items-center gap-4 flex-wrap">
@@ -549,7 +558,7 @@ export default function AdminDashboardPage() {
         <div className="card-static p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-              <UserCheck size={14} style={{ color: '#06b6d4' }} />
+              <UserCheck size={14} style={{ color: '#356B6E' }} />
               ترتيب المشرفين
             </h2>
             <Link href="/supervisors" className="text-[11px] flex items-center gap-0.5" style={{ color: 'var(--text-muted)' }}>
@@ -563,7 +572,7 @@ export default function AdminDashboardPage() {
                 <div key={sup.id} className="flex items-center gap-2.5">
                   <span
                     className="w-5 text-center text-[10px] font-bold font-mono flex-shrink-0"
-                    style={{ color: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#cd7c3e' : 'var(--text-muted)' }}
+                    style={{ color: i === 0 ? '#C9972C' : i === 1 ? '#94a3b8' : i === 2 ? '#cd7c3e' : 'var(--text-muted)' }}
                   >
                     {i + 1}
                   </span>
@@ -635,7 +644,7 @@ export default function AdminDashboardPage() {
         {/* Wins */}
         <div className="card-static p-4">
           <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Star size={14} style={{ color: '#f59e0b' }} />
+            <Star size={14} style={{ color: '#C9972C' }} />
             إنجازات متميزة
           </h2>
           <div className="space-y-2">
@@ -656,7 +665,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <span
                     className="text-[11px] font-bold font-mono px-1.5 py-0.5 rounded flex-shrink-0"
-                    style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}
+                    style={{ background: 'rgba(245,158,11,0.1)', color: '#C9972C' }}
                   >
                     {s.mem} ج
                   </span>

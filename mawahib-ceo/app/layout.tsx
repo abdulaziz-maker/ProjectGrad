@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans_Arabic } from "next/font/google";
+import { IBM_Plex_Sans_Arabic, Noto_Kufi_Arabic } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -9,6 +9,12 @@ const ibmPlex = IBM_Plex_Sans_Arabic({
   subsets: ["arabic", "latin"],
   weight: ["300", "400", "500", "600", "700"],
   variable: "--font-ibm-plex",
+});
+
+const notoKufi = Noto_Kufi_Arabic({
+  subsets: ["arabic"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-noto-kufi",
 });
 
 export const metadata: Metadata = {
@@ -25,14 +31,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#000000',
+  themeColor: '#F6F4F0',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={ibmPlex.variable} suppressHydrationWarning>
+    <html lang="ar" dir="rtl" className={`${ibmPlex.variable} ${notoKufi.variable}`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('mawahib-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('mawahib-theme')||'light';document.documentElement.setAttribute('data-theme',t);})();` }} />
       </head>
       <body className="font-sans">
         <ThemeProvider>

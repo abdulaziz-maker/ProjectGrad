@@ -12,10 +12,10 @@ import {
 
 // ── Constants ──────────────────────────────────────────────────────────
 const SEVERITY_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  error:   { bg: 'rgba(239,68,68,0.08)',   text: '#ef4444', dot: '#ef4444' },
-  warning: { bg: 'rgba(245,158,11,0.08)',  text: '#f59e0b', dot: '#f59e0b' },
-  success: { bg: 'rgba(34,197,94,0.08)',   text: '#22c55e', dot: '#22c55e' },
-  info:    { bg: 'rgba(99,102,241,0.08)',  text: '#6366f1', dot: '#6366f1' },
+  error:   { bg: 'rgba(239,68,68,0.08)',   text: '#B94838', dot: '#B94838' },
+  warning: { bg: 'rgba(245,158,11,0.08)',  text: '#C9972C', dot: '#C9972C' },
+  success: { bg: 'rgba(34,197,94,0.08)',   text: '#5A8F67', dot: '#5A8F67' },
+  info:    { bg: 'rgba(99,102,241,0.08)',  text: '#C08A48', dot: '#C08A48' },
 }
 
 const TYPE_META: Record<string, { icon: React.ReactNode; label: string }> = {
@@ -109,7 +109,7 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Bell size={22} style={{ color: '#6366f1' }} />
+            <Bell size={22} style={{ color: '#C08A48' }} />
             الإشعارات
           </h1>
           {unreadCount > 0 && (
@@ -125,7 +125,7 @@ export default function NotificationsPage() {
             disabled={refreshing}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm"
             style={{ border: '1px solid var(--border-soft)', color: 'var(--text-muted)', transition: 'all 150ms' }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = '#6366f1'}
+            onMouseEnter={e => e.currentTarget.style.borderColor = '#C08A48'}
             onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-soft)'}
           >
             <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
@@ -136,7 +136,7 @@ export default function NotificationsPage() {
               onClick={handleMarkAll}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm"
               style={{ border: '1px solid var(--border-soft)', color: 'var(--text-muted)', transition: 'all 150ms' }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = '#22c55e'}
+              onMouseEnter={e => e.currentTarget.style.borderColor = '#5A8F67'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-soft)'}
             >
               <CheckCheck size={14} />
@@ -148,7 +148,7 @@ export default function NotificationsPage() {
               onClick={handleClearRead}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm"
               style={{ border: '1px solid var(--border-soft)', color: 'var(--text-muted)', transition: 'all 150ms' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#B94838'; e.currentTarget.style.color = '#B94838' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-soft)'; e.currentTarget.style.color = 'var(--text-muted)' }}
             >
               <Trash2 size={14} />
@@ -176,7 +176,7 @@ export default function NotificationsPage() {
               style={{
                 fontWeight: active ? 600 : 400,
                 backgroundColor: active ? 'var(--bg-card)' : 'transparent',
-                color: active ? '#6366f1' : 'var(--text-muted)',
+                color: active ? '#C08A48' : 'var(--text-muted)',
                 boxShadow: active ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
               }}
             >
@@ -185,7 +185,7 @@ export default function NotificationsPage() {
               {count > 0 && (
                 <span
                   className="text-xs rounded-full px-1.5 py-0.5"
-                  style={{ backgroundColor: active ? 'rgba(99,102,241,0.12)' : 'var(--bg-card)', color: active ? '#6366f1' : 'var(--text-muted)', minWidth: '20px', textAlign: 'center' }}
+                  style={{ backgroundColor: active ? 'rgba(99,102,241,0.12)' : 'var(--bg-card)', color: active ? '#C08A48' : 'var(--text-muted)', minWidth: '20px', textAlign: 'center' }}
                 >
                   {count}
                 </span>
@@ -198,7 +198,7 @@ export default function NotificationsPage() {
       {/* Notification list */}
       {loading ? (
         <div className="py-20 flex justify-center">
-          <svg className="animate-spin w-7 h-7" viewBox="0 0 24 24" fill="none" style={{ color: '#6366f1' }}>
+          <svg className="animate-spin w-7 h-7" viewBox="0 0 24 24" fill="none" style={{ color: '#C08A48' }}>
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25"/>
             <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
           </svg>
@@ -266,7 +266,7 @@ export default function NotificationsPage() {
                         onClick={e => { e.stopPropagation(); handleDelete(n.id) }}
                         className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100"
                         style={{ color: 'var(--text-muted)', transition: 'color 150ms, background-color 150ms' }}
-                        onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)' }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#B94838'; e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)' }}
                         onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.backgroundColor = 'transparent' }}
                       >
                         <Trash2 size={14} />

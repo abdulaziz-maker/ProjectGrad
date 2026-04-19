@@ -260,7 +260,7 @@ export default function AdminUsersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#6366f1' }} />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#C08A48' }} />
       </div>
     )
   }
@@ -270,7 +270,7 @@ export default function AdminUsersPage() {
       <div className="max-w-4xl mx-auto space-y-6 animate-fade-in-up">
         <div>
           <h1 className="text-2xl font-extrabold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <ShieldCheck className="w-6 h-6" style={{ color: '#6366f1' }} />
+            <ShieldCheck className="w-6 h-6" style={{ color: '#C08A48' }} />
             إدارة الحسابات
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>إدارة حسابات المستخدمين والصلاحيات</p>
@@ -279,7 +279,7 @@ export default function AdminUsersPage() {
         {/* ── My Account ── */}
         <div className="card-static overflow-hidden">
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100" style={{ background: 'rgba(99,102,241,0.06)' }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#6366f1' }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#C08A48' }}>
               <User className="w-4.5 h-4.5 text-white" />
             </div>
             <div>
@@ -294,14 +294,14 @@ export default function AdminUsersPage() {
                   <User className="w-3.5 h-3.5 text-gray-400" /> الاسم
                 </label>
                 <input type="text" value={myName} onChange={e => setMyName(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1] transition-colors" />
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48] transition-colors" />
               </div>
               <div>
                 <label className="flex items-center gap-1.5 text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
                   <Mail className="w-3.5 h-3.5 text-gray-400" /> البريد الإلكتروني
                 </label>
                 <input type="email" value={myEmail} onChange={e => setMyEmail(e.target.value)} dir="ltr"
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1] transition-colors" />
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48] transition-colors" />
               </div>
               <div className="md:col-span-2">
                 <label className="flex items-center gap-1.5 text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
@@ -309,7 +309,7 @@ export default function AdminUsersPage() {
                 </label>
                 <input type="password" value={myNewPassword} onChange={e => setMyNewPassword(e.target.value)} dir="ltr"
                   placeholder="••••••••"
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1] transition-colors" />
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48] transition-colors" />
               </div>
             </div>
             <div className="flex justify-end">
@@ -350,24 +350,24 @@ export default function AdminUsersPage() {
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>الاسم *</label>
                   <input type="text" value={addForm.name} onChange={e => setAddForm({ ...addForm, name: e.target.value })}
                     placeholder="اسم المستخدم"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]" />
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]" />
                 </div>
                 <div>
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>البريد الإلكتروني *</label>
                   <input type="email" value={addForm.email} onChange={e => setAddForm({ ...addForm, email: e.target.value })}
                     placeholder="email@example.com" dir="ltr"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]" />
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]" />
                 </div>
                 <div>
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>كلمة المرور *</label>
                   <input type="text" value={addForm.password} onChange={e => setAddForm({ ...addForm, password: e.target.value })}
                     placeholder="6 أحرف على الأقل" dir="ltr"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]" />
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]" />
                 </div>
                 <div>
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>الدور</label>
                   <select value={addForm.role} onChange={e => setAddForm({ ...addForm, role: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]">
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]">
                     <option value="supervisor">مشرف</option>
                     <option value="teacher">معلم</option>
                   </select>
@@ -376,7 +376,7 @@ export default function AdminUsersPage() {
                   <div>
                     <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>الدفعة</label>
                     <select value={addForm.batch_id} onChange={e => setAddForm({ ...addForm, batch_id: Number(e.target.value) })}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]">
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]">
                       <option value={46}>دفعة 46</option>
                       <option value={48}>دفعة 48</option>
                     </select>
@@ -409,13 +409,13 @@ export default function AdminUsersPage() {
                         <div>
                           <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>الاسم</label>
                           <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]" />
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]" />
                         </div>
                         <div>
                           <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>الدور</label>
                           <select value={editForm.role} onChange={e => setEditForm({ ...editForm, role: e.target.value })}
                             disabled={isMe}
-                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1] disabled:opacity-50">
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48] disabled:opacity-50">
                             <option value="ceo">مدير تنفيذي</option>
                             <option value="supervisor">مشرف</option>
                             <option value="teacher">معلم</option>
@@ -425,7 +425,7 @@ export default function AdminUsersPage() {
                           <div>
                             <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>الدفعة</label>
                             <select value={editForm.batch_id ?? 46} onChange={e => setEditForm({ ...editForm, batch_id: Number(e.target.value) })}
-                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]">
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]">
                               <option value={46}>دفعة 46</option>
                               <option value={48}>دفعة 48</option>
                             </select>
@@ -439,7 +439,7 @@ export default function AdminUsersPage() {
                               </label>
                               <input type="email" value={editForm.newEmail} onChange={e => setEditForm({ ...editForm, newEmail: e.target.value })}
                                 placeholder="اتركه فارغ إذا ما تبي تغيّر" dir="ltr"
-                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]" />
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]" />
                             </div>
                             <div>
                               <label className="flex items-center gap-1 text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>
@@ -447,7 +447,7 @@ export default function AdminUsersPage() {
                               </label>
                               <input type="text" value={editForm.newPassword} onChange={e => setEditForm({ ...editForm, newPassword: e.target.value })}
                                 placeholder="اتركه فارغ إذا ما تبي تغيّر" dir="ltr"
-                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#6366f1]" />
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]" />
                             </div>
                           </>
                         )}
@@ -474,7 +474,7 @@ export default function AdminUsersPage() {
                   <div key={user.id} className="px-5 py-4 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
-                        style={{ backgroundColor: user.role === 'ceo' ? '#b45309' : '#6366f1' }}>
+                        style={{ backgroundColor: user.role === 'ceo' ? '#b45309' : '#C08A48' }}>
                         {user.name.charAt(0)}
                       </div>
                       <div>

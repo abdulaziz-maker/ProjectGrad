@@ -11,7 +11,7 @@ const REPORT_TYPES = [
   { id: 'teachers', label: 'تقرير أداء المعلمين', icon: PieChart, color: 'bg-orange-500/10 text-orange-400', desc: 'في نهاية كل فصل' },
 ]
 
-const BATCH_COLORS = ['#6366f1', '#06b6d4', '#a78bfa', '#38bdf8']
+const BATCH_COLORS = ['#C08A48', '#356B6E', '#a78bfa', '#38bdf8']
 
 const PERFORMANCE_DATA = [
   { month: 'سبتمبر', d42: 88, d44: 72, d46: 61, d48: 45 },
@@ -126,20 +126,20 @@ export default function ReportsPage() {
                   <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="c46" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#C08A48" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#C08A48" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="c48" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#356B6E" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#356B6E" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                     <XAxis dataKey="month" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
                     <Tooltip />
-                    <Area type="monotone" dataKey="دفعة 46" stroke="#6366f1" fill="url(#c46)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="دفعة 48" stroke="#06b6d4" fill="url(#c48)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="دفعة 46" stroke="#C08A48" fill="url(#c46)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="دفعة 48" stroke="#356B6E" fill="url(#c48)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

@@ -230,14 +230,14 @@ export default function FollowupChecklistPage() {
           <button
             onClick={() => setStudentFilter('mine')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${studentFilter === 'mine' ? 'bg-white shadow-sm' : ''}`}
-            style={studentFilter === 'mine' ? { color: '#6366f1' } : { color: 'var(--text-muted)' }}
+            style={studentFilter === 'mine' ? { color: '#C08A48' } : { color: 'var(--text-muted)' }}
           >
             ⭐ طلابي ({myAssignedIds.size})
           </button>
           <button
             onClick={() => setStudentFilter('all')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${studentFilter === 'all' ? 'bg-white shadow-sm' : ''}`}
-            style={studentFilter === 'all' ? { color: '#6366f1' } : { color: 'var(--text-muted)' }}
+            style={studentFilter === 'all' ? { color: '#C08A48' } : { color: 'var(--text-muted)' }}
           >
             جميع طلاب الدفعة ({allBatchStudents.length})
           </button>

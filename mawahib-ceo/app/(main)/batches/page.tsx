@@ -11,7 +11,7 @@ type StudentJuzData = { [studentId: string]: { [juz: number]: JuzStatus } }
 
 const STATUS_CYCLE: JuzStatus[] = ['not_started', 'in_progress', 'memorized', 'weak', 'struggling']
 const STATUS_COLOR: Record<JuzStatus, string> = {
-  memorized: '#22c55e', weak: '#f97316', struggling: '#ef4444',
+  memorized: '#5A8F67', weak: '#f97316', struggling: '#B94838',
   in_progress: '#eab308', not_started: '#e2e8f0',
 }
 const STATUS_LABEL: Record<JuzStatus, string> = {
@@ -264,7 +264,7 @@ export default function BatchesPage() {
       <div className="grid grid-cols-3 gap-3">
         <div className="card-static p-4 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(34,197,94,0.12)' }}>
-            <Award className="w-4 h-4" style={{ color: '#22c55e' }} />
+            <Award className="w-4 h-4" style={{ color: '#5A8F67' }} />
           </div>
           <div>
             <p className="text-xl font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{totalMemorized}</p>
@@ -300,7 +300,7 @@ export default function BatchesPage() {
             <XAxis dataKey="juz" tick={{ fontSize: 9 }} interval={1} />
             <YAxis tick={{ fontSize: 10 }} />
             <Tooltip />
-            <Bar dataKey="محفوظ" fill="#6366f1" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="محفوظ" fill="#C08A48" radius={[2, 2, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -480,7 +480,7 @@ export default function BatchesPage() {
               <button onClick={() => setShowAddForm(false)} className="px-4 py-2 text-sm" style={{ color: 'var(--text-muted)' }}>إلغاء</button>
             </div>
           ) : (
-            <button onClick={() => setShowAddForm(true)} className="flex items-center gap-2 text-sm font-medium" style={{ color: '#6366f1' }}>
+            <button onClick={() => setShowAddForm(true)} className="flex items-center gap-2 text-sm font-medium" style={{ color: '#C08A48' }}>
               <Plus className="w-4 h-4" />
               إضافة طالب جديد لدفعة {selectedBatch}
             </button>

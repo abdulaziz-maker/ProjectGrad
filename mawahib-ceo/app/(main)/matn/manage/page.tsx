@@ -26,8 +26,8 @@ const LEVEL_LABELS: Record<number, string> = {
 const LEVEL_IDS = [0, 1, 2, 3, 4, 5, 6] as const
 
 const SUBJECT_COLORS: Record<string, string> = {
-  'علوم القرآن': '#6366f1', 'الفقه': '#06b6d4', 'العقيدة': '#8b5cf6',
-  'اللغة': '#22c55e', 'التاريخ': '#f59e0b', 'الحديث': '#ef4444',
+  'علوم القرآن': '#C08A48', 'الفقه': '#356B6E', 'العقيدة': '#8b5cf6',
+  'اللغة': '#5A8F67', 'التاريخ': '#C9972C', 'الحديث': '#B94838',
   'التربية الإيمانية': '#ec4899', 'مهارات': '#64748b',
 }
 
@@ -96,7 +96,7 @@ function TextModal({ initial, onSave, onClose, saving, saveError }: {
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div className="modal-icon info">
-              <BookOpen size={17} style={{ color: '#6366f1' }} />
+              <BookOpen size={17} style={{ color: '#C08A48' }} />
             </div>
             <span className="modal-title">
               {initial.name_ar ? 'تعديل المتن' : 'إضافة متن جديد'}
@@ -176,8 +176,8 @@ function TextModal({ initial, onSave, onClose, saving, saveError }: {
                   style={{
                     minHeight: '44px',
                     background: form.type === t ? 'rgba(99,102,241,0.15)' : 'var(--bg-subtle)',
-                    border: `1.5px solid ${form.type === t ? '#6366f1' : 'var(--border-color)'}`,
-                    color: form.type === t ? '#6366f1' : 'var(--text-muted)',
+                    border: `1.5px solid ${form.type === t ? '#C08A48' : 'var(--border-color)'}`,
+                    color: form.type === t ? '#C08A48' : 'var(--text-muted)',
                   }}>
                   {t}
                 </button>
@@ -206,7 +206,7 @@ function TextModal({ initial, onSave, onClose, saving, saveError }: {
           {units > 0 && (
             <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
               style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
-              <Hash size={14} style={{ color: '#6366f1' }} />
+              <Hash size={14} style={{ color: '#C08A48' }} />
               <span className="text-xs" style={{ color: '#818cf8' }}>
                 سيتم توليد <strong>{units}</strong> مقرر أسبوعي تلقائياً
               </span>
@@ -254,7 +254,7 @@ function TextModal({ initial, onSave, onClose, saving, saveError }: {
           </button>
           <button onClick={() => onSave(form)} disabled={!valid || saving}
             className="flex items-center gap-2 disabled:opacity-50"
-            style={{ padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', cursor: 'pointer', border: 'none' }}>
+            style={{ padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#C08A48,#4f46e5)', color: '#fff', cursor: 'pointer', border: 'none' }}>
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
             {saving ? 'جاري الحفظ...' : 'حفظ'}
           </button>
@@ -282,7 +282,7 @@ function TextRow({ text, unitCount, rank, isFirst, isLast, onEdit, onDelete, onM
   reordering: boolean
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const subjectColor = SUBJECT_COLORS[text.subject] ?? '#6366f1'
+  const subjectColor = SUBJECT_COLORS[text.subject] ?? '#C08A48'
 
   return (
     <div className="flex items-center gap-2 p-3 rounded-xl transition-all"
@@ -362,7 +362,7 @@ function TextRow({ text, unitCount, rank, isFirst, isLast, onEdit, onDelete, onM
               data-tooltip="تعديل المتن" data-tooltip-position="top"
               className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
               style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
-              <Pencil size={14} style={{ color: '#6366f1' }} />
+              <Pencil size={14} style={{ color: '#C08A48' }} />
             </button>
             <button onClick={() => setConfirmDelete(true)}
               data-tooltip="حذف المتن" data-tooltip-position="top"
@@ -530,7 +530,29 @@ export default function ManageTextsPage() {
     }
   }, [texts, showToast])
 
-  if (loading) return <MatnSkeleton />
+  // ── المودال يُعرض فوراً حتى أثناء تحميل المتون (Portal إلى document.body) ──
+  // حتى لا يرى المستخدم هيكل التحميل ثم يقفز المودال بعد لحظة.
+  if (loading) return (
+    <>
+      <MatnSkeleton />
+      {showModal && (
+        <TextModal
+          key={editTarget?.id ?? 'new'}
+          initial={editTarget
+            ? { name_ar: editTarget.name_ar, category: editTarget.category,
+                subject: editTarget.subject, type: editTarget.type,
+                level_id: editTarget.level_id, total_lines: editTarget.total_lines,
+                weekly_rate: editTarget.weekly_rate, order_in_level: editTarget.order_in_level,
+                description: editTarget.description, is_active: editTarget.is_active }
+            : { ...EMPTY_FORM }}
+          onSave={handleSave}
+          onClose={() => { setShowModal(false); setEditTarget(null); setSaveError(null) }}
+          saving={saving}
+          saveError={saveError}
+        />
+      )}
+    </>
+  )
 
   // مستويات ظاهرة
   const visibleLevels = selectedLevel === 'all'
@@ -550,19 +572,19 @@ export default function ManageTextsPage() {
           </button>
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-              <BookOpen size={20} style={{ color: '#6366f1' }} />
+              <BookOpen size={20} style={{ color: '#C08A48' }} />
               إدارة المتون
             </h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
               {stats.total} متن · {stats.active} نشط ·
-              <span className="mr-1" style={{ color: '#6366f1' }}>↕ الترتيب يحدد الأولوية</span>
+              <span className="mr-1" style={{ color: '#C08A48' }}>↕ الترتيب يحدد الأولوية</span>
             </p>
           </div>
         </div>
         <button onClick={() => { setEditTarget(null); setShowModal(true) }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
           style={{
-            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+            background: 'linear-gradient(135deg, #C08A48 0%, #4f46e5 100%)',
             color: '#fff', minHeight: '44px',
           }}>
           <Plus size={16} />
@@ -593,8 +615,8 @@ export default function ManageTextsPage() {
                 style={{
                   minHeight: '44px',
                   background: isActive ? 'rgba(99,102,241,0.15)' : 'var(--bg-card)',
-                  border: `1.5px solid ${isActive ? '#6366f1' : 'var(--border-color)'}`,
-                  color: isActive ? '#6366f1' : 'var(--text-muted)',
+                  border: `1.5px solid ${isActive ? '#C08A48' : 'var(--border-color)'}`,
+                  color: isActive ? '#C08A48' : 'var(--text-muted)',
                 }}>
                 {label} <span className="opacity-60">({count})</span>
               </button>

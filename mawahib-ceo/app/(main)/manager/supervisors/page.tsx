@@ -13,13 +13,13 @@ import { toast } from 'sonner'
 import { todayStr, toHijriDisplay } from '@/lib/hijri'
 
 function scoreColor(pct: number) {
-  return pct >= 80 ? '#22c55e' : pct >= 60 ? '#6366f1' : pct >= 40 ? '#f59e0b' : '#ef4444'
+  return pct >= 80 ? '#5A8F67' : pct >= 60 ? '#C08A48' : pct >= 40 ? '#C9972C' : '#B94838'
 }
 
 type SupAttStatus = 'present' | 'absent' | 'excused'
 const SUP_STATUS_META: Record<SupAttStatus, { label: string; bg: string; bgSoft: string; textSoft: string }> = {
   present: { label: 'حاضر',      bg: '#16a34a', bgSoft: '#f0fdf4', textSoft: '#15803d' },
-  absent:  { label: 'غائب',      bg: '#ef4444', bgSoft: '#fef2f2', textSoft: '#b91c1c' },
+  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', textSoft: '#b91c1c' },
   excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', textSoft: '#854d0e' },
 }
 
@@ -100,7 +100,7 @@ export default function ManagerSupervisorsPage() {
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#6366f1' }} />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#C08A48' }} />
       </div>
     )
   }
@@ -126,7 +126,7 @@ export default function ManagerSupervisorsPage() {
         <Link
           href="/manager/assignments"
           className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 shadow-md hover:shadow-lg"
-          style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #C08A48 0%, #4f46e5 100%)' }}
         >
           <ArrowLeftRight className="w-5 h-5" />
           توزيع المشرفين على الطلاب
@@ -137,7 +137,7 @@ export default function ManagerSupervisorsPage() {
       <div className="card rounded-xl p-5 space-y-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <CalendarCheck size={18} style={{ color: '#6366f1' }} />
+            <CalendarCheck size={18} style={{ color: '#C08A48' }} />
             <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>حضور المشرفين</h2>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>— {toHijriDisplay(attDate)}</span>
           </div>
@@ -154,7 +154,7 @@ export default function ManagerSupervisorsPage() {
           <button onClick={() => markAllSup('present')} className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ background: '#16a34a', color: '#fff' }}>
             <CheckCheck className="w-3.5 h-3.5" /> تحضير الكل
           </button>
-          <button onClick={() => markAllSup('absent')} className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ background: '#ef4444', color: '#fff' }}>
+          <button onClick={() => markAllSup('absent')} className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ background: '#B94838', color: '#fff' }}>
             <X className="w-3.5 h-3.5" /> تغييب الكل
           </button>
           <button onClick={() => markAllSup('excused')} className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ background: '#eab308', color: '#fff' }}>
@@ -164,7 +164,7 @@ export default function ManagerSupervisorsPage() {
 
         {attLoading ? (
           <div className="flex items-center justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#6366f1' }} />
+            <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#C08A48' }} />
           </div>
         ) : (
           <div className="space-y-2">
@@ -176,7 +176,7 @@ export default function ManagerSupervisorsPage() {
               return (
                 <div key={sup.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: 'var(--bg-body)' }}>
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(99,102,241,0.1)', color: '#C08A48' }}>
                       {sup.name.charAt(0)}
                     </div>
                     <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{sup.name}</p>
@@ -239,7 +239,7 @@ export default function ManagerSupervisorsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.1)' }}>
-                      <UserCheck size={18} style={{ color: '#6366f1' }} />
+                      <UserCheck size={18} style={{ color: '#C08A48' }} />
                     </div>
                     <div>
                       <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{sup.name}</p>
@@ -269,7 +269,7 @@ export default function ManagerSupervisorsPage() {
           {selectedSup ? (
             <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
               <h2 className="font-bold text-lg mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                <Users size={18} style={{ color: '#6366f1' }} />
+                <Users size={18} style={{ color: '#C08A48' }} />
                 طلاب {supervisors.find(s => s.id === selectedSup)?.name}
               </h2>
               {selectedSupStudents.length === 0 ? (
@@ -281,7 +281,7 @@ export default function ManagerSupervisorsPage() {
                     .map(st => (
                     <Link key={st.id} href={`/students/${st.id}`} className="flex items-center justify-between p-3 rounded-lg hover:opacity-80" style={{ background: 'var(--bg-body)' }}>
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(99,102,241,0.1)', color: '#C08A48' }}>
                           {st.name.charAt(0)}
                         </div>
                         <div>

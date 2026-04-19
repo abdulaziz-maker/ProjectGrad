@@ -183,7 +183,7 @@ export default function MeetingsPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]" dir="rtl">
         <div className="text-center space-y-3">
-          <Loader2 className="w-8 h-8 animate-spin text-[#6366f1] mx-auto" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#C08A48] mx-auto" />
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>جاري تحميل الاجتماعات...</p>
         </div>
       </div>

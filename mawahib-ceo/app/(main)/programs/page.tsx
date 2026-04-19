@@ -8,14 +8,14 @@ import {
 } from '@/lib/db'
 import { toHijriShort } from '@/lib/hijri'
 import { toast } from 'sonner'
-import { Loader2, CheckCheck, X, AlertCircle, Users as UsersIcon } from 'lucide-react'
+import { Loader2, CheckCheck, Check, X, AlertCircle, Users as UsersIcon } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 type ProgAttStatus = 'present' | 'absent' | 'excused'
-const PROG_ATT_META: Record<ProgAttStatus, { label: string; bg: string; bgSoft: string; textSoft: string }> = {
-  present: { label: 'حاضر',      bg: '#16a34a', bgSoft: '#f0fdf4', textSoft: '#15803d' },
-  absent:  { label: 'غائب',      bg: '#ef4444', bgSoft: '#fef2f2', textSoft: '#b91c1c' },
-  excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', textSoft: '#854d0e' },
+const PROG_ATT_META: Record<ProgAttStatus, { label: string; bg: string; bgSoft: string; textSoft: string; icon: typeof Check }> = {
+  present: { label: 'حاضر',      bg: '#16a34a', bgSoft: '#f0fdf4', textSoft: '#15803d', icon: Check },
+  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', textSoft: '#b91c1c', icon: X },
+  excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', textSoft: '#854d0e', icon: AlertCircle },
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -174,7 +174,9 @@ export default function ProgramsPage() {
     if (!editForm) return
     setSaving(true)
     try {
-      const updated = { ...editForm, status: computeStatus(editForm.start_date, editForm.end_date) }
+      // نحترم اختيار المشرف لحالة البرنامج (قد يختم برنامجاً مبكراً أو يعيد فتحه).
+      // لو أراد الحالة التلقائية فأزرار الحالة في النموذج تعرض الخيارات الثلاثة.
+      const updated = { ...editForm }
       await upsertProgram(updated)
       setPrograms(prev => prev.map(p => p.id === updated.id ? updated : p))
       setEditId(null)
@@ -210,7 +212,7 @@ export default function ProgramsPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]" dir="rtl">
         <div className="text-center space-y-3">
-          <Loader2 className="w-8 h-8 animate-spin text-[#6366f1] mx-auto" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#C08A48] mx-auto" />
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>جاري تحميل البرامج...</p>
         </div>
       </div>
@@ -325,7 +327,7 @@ export default function ProgramsPage() {
 
             if (isEditing && editForm) {
               return (
-                <div key={program.id} className="card-static border-2 p-6" style={{ borderColor: '#6366f1' }}>
+                <div key={program.id} className="card-static border-2 p-6" style={{ borderColor: '#C08A48' }}>
                   <h3 className="text-base font-bold mb-4" style={{ color: 'var(--text-primary)' }}>تعديل البرنامج</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -375,6 +377,34 @@ export default function ProgramsPage() {
                       <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>الأهداف</label>
                       <input type="text" value={editForm.objectives} onChange={e => setEditForm({ ...editForm, objectives: e.target.value })}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                        حالة البرنامج
+                        <span className="text-[11px] font-normal mr-2" style={{ color: 'var(--text-muted)' }}>(يُحدَّد تلقائياً حسب التاريخ — يمكن تعديلها يدوياً)</span>
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          { val: 'upcoming',  label: 'قادم',   color: '#356B6E' },
+                          { val: 'ongoing',   label: 'جارٍ',   color: '#C08A48' },
+                          { val: 'completed', label: 'مكتمل',  color: '#5A8F67' },
+                        ] as const).map(opt => {
+                          const active = editForm.status === opt.val
+                          return (
+                            <button key={opt.val} type="button"
+                              onClick={() => setEditForm({ ...editForm, status: opt.val })}
+                              className="py-2.5 px-3 rounded-xl text-sm font-semibold transition-all active:scale-[0.98]"
+                              style={{
+                                background: active ? opt.color : 'var(--bg-card)',
+                                color: active ? '#fff' : 'var(--text-secondary)',
+                                border: `1.5px solid ${active ? opt.color : 'var(--border-color)'}`,
+                                boxShadow: active ? `0 2px 8px ${opt.color}40` : 'none',
+                              }}>
+                              {opt.label}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
                   <div className="mt-4 flex gap-3 justify-end">
@@ -435,7 +465,7 @@ export default function ProgramsPage() {
                     </div>
                     {program.report && (
                       <div className="mt-3 border border-indigo-500/20 rounded-xl px-4 py-3" style={{ background: 'rgba(99,102,241,0.06)' }}>
-                        <span className="text-xs font-semibold" style={{ color: '#6366f1' }}>تقرير البرنامج: </span>
+                        <span className="text-xs font-semibold" style={{ color: '#C08A48' }}>تقرير البرنامج: </span>
                         <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{program.report}</span>
                       </div>
                     )}
@@ -453,21 +483,32 @@ export default function ProgramsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col gap-2 shrink-0">
+                  <div className="flex flex-col gap-2 shrink-0 w-36 sm:w-40">
                     <button onClick={() => openAttendance(program)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1 hover:opacity-90"
-                      style={{ background: '#6366f1' }}>
-                      <UsersIcon className="w-3 h-3" />
-                      تحضير الطلاب
+                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-white whitespace-nowrap transition-all hover:opacity-90 active:scale-[0.98]"
+                      style={{
+                        background: 'linear-gradient(135deg, #C08A48 0%, #8B5A1E 100%)',
+                        boxShadow: '0 2px 8px rgba(192,138,72,0.28), inset 0 0 0 1px rgba(255,255,255,0.08)',
+                      }}>
+                      <UsersIcon className="w-3.5 h-3.5 shrink-0" />
+                      <span>تحضير الطلاب</span>
                     </button>
                     <button onClick={() => { setEditId(program.id); setEditForm({ ...program }); setShowForm(false) }}
-                      className="px-3 py-1.5 rounded-lg border border-white/10 text-xs" style={{ color: 'var(--text-secondary)' }}>تعديل</button>
-                    {program.status === 'completed' && !isReporting && (
+                      className="w-full inline-flex items-center justify-center px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all hover:bg-[var(--bg-subtle)] active:scale-[0.98]"
+                      style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}>
+                      تعديل
+                    </button>
+                    {!isReporting && (
                       <button onClick={() => { setReportId(program.id); setReportText(program.report || '') }}
-                        className="btn-primary btn-ripple px-3 py-1.5 rounded-lg text-xs font-medium text-white hover:opacity-90">تقرير</button>
+                        className="btn-primary btn-ripple w-full inline-flex items-center justify-center px-3 py-2 rounded-xl text-xs font-semibold text-white whitespace-nowrap hover:opacity-90 active:scale-[0.98]">
+                        تقرير
+                      </button>
                     )}
                     <button onClick={() => handleDelete(program.id)}
-                      className="px-3 py-1.5 rounded-lg border border-red-100 text-xs text-red-500 hover:bg-red-50">حذف</button>
+                      className="w-full inline-flex items-center justify-center px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all hover:bg-red-50 active:scale-[0.98]"
+                      style={{ border: '1px solid rgba(185,72,56,0.22)', color: '#B94838', background: 'transparent' }}>
+                      حذف
+                    </button>
                   </div>
                 </div>
               </div>
@@ -490,7 +531,7 @@ export default function ProgramsPage() {
               <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col" dir="rtl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
                   <div>
-                    <h2 className="text-base font-bold" style={{ color: '#6366f1' }}>تحضير الطلاب — {attendanceFor.name}</h2>
+                    <h2 className="text-base font-bold" style={{ color: '#C08A48' }}>تحضير الطلاب — {attendanceFor.name}</h2>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                       {BATCH_LABEL[attendanceFor.batch_id] ?? attendanceFor.batch_id} — {progStudents.length} طالب
                     </p>
@@ -504,46 +545,101 @@ export default function ProgramsPage() {
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md" style={{ background: '#fef2f2', color: '#b91c1c' }}>غائب: {absentCount}</span>
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md" style={{ background: '#fefce8', color: '#854d0e' }}>بعذر: {excusedCount}</span>
                   </div>
-                  <div className="flex gap-1.5">
-                    <button onClick={() => markAllProgAtt('present', studIds)} className="px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1" style={{ background: '#16a34a', color: '#fff' }}>
-                      <CheckCheck className="w-3 h-3" /> الكل
+                  <div className="quick-mark-buttons">
+                    <button onClick={() => markAllProgAtt('present', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="present">
+                      <span className="qm-icon"><CheckCheck className="w-3 h-3" /></span><span>تحضير</span>
                     </button>
-                    <button onClick={() => markAllProgAtt('absent', studIds)} className="px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1" style={{ background: '#ef4444', color: '#fff' }}>
-                      <X className="w-3 h-3" /> غياب
+                    <button onClick={() => markAllProgAtt('absent', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="absent">
+                      <span className="qm-icon"><X className="w-3 h-3" /></span><span>تغييب</span>
                     </button>
-                    <button onClick={() => markAllProgAtt('excused', studIds)} className="px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1" style={{ background: '#eab308', color: '#fff' }}>
-                      <AlertCircle className="w-3 h-3" /> بعذر
+                    <button onClick={() => markAllProgAtt('excused', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="excused">
+                      <span className="qm-icon"><AlertCircle className="w-3 h-3" /></span><span>بعذر</span>
                     </button>
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-6 py-3 space-y-1.5">
+                <div className="flex-1 overflow-y-auto px-6 py-3">
                   {progStudents.length === 0 ? (
                     <p className="text-sm text-center py-8" style={{ color: 'var(--text-muted)' }}>لا يوجد طلاب في هذه الدفعة</p>
-                  ) : progStudents.map(student => {
-                    const st = progAttRecords[student.id]
-                    return (
-                      <div key={student.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: 'var(--bg-body)' }}>
-                        <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
-                        <div className="flex gap-1">
-                          {(['present','absent','excused'] as const).map(s => {
-                            const meta = PROG_ATT_META[s]
-                            const active = st === s
-                            return (
-                              <button
-                                key={s}
-                                onClick={() => setProgAttStatus(student.id, s)}
-                                className="px-2 py-0.5 rounded-md text-[11px] font-medium"
-                                style={active ? { background: meta.bg, color: '#fff' } : { background: meta.bgSoft, color: meta.textSoft }}
+                  ) : (
+                    <div className="attendance-roster space-y-2">
+                      {progStudents.map((student, idx) => {
+                        const st = progAttRecords[student.id]
+                        const activeMeta = st ? PROG_ATT_META[st] : null
+                        const initial = (student.name || '؟').trim().charAt(0)
+                        return (
+                          <div
+                            key={student.id}
+                            className="attendance-row card-static"
+                            data-status={st ?? 'unset'}
+                            style={{
+                              // @ts-expect-error — CSS custom prop
+                              '--row-accent': activeMeta?.bg ?? 'transparent',
+                              '--row-tint': activeMeta ? `${activeMeta.bg}0D` : 'transparent',
+                            }}
+                          >
+                            <div className="flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3">
+                              <span className="attendance-row-accent" aria-hidden="true" />
+                              <div
+                                className="attendance-avatar shrink-0"
+                                style={{
+                                  background: activeMeta
+                                    ? `linear-gradient(145deg, ${activeMeta.bg}, ${activeMeta.bg}CC)`
+                                    : 'linear-gradient(145deg, #3A3D44, #1A1B20)',
+                                  color: activeMeta ? '#fff' : '#E8C48A',
+                                  boxShadow: activeMeta
+                                    ? `0 4px 12px ${activeMeta.bg}40, inset 0 0 0 1px rgba(255,255,255,0.08)`
+                                    : '0 4px 12px rgba(26,27,32,0.18), inset 0 0 0 1px rgba(192,138,72,0.20)',
+                                }}
                               >
-                                {meta.label}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })}
+                                <span className="attendance-avatar-initial">{initial}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[14px] font-bold truncate" style={{ color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                                  {student.name}
+                                </p>
+                                <p className="text-[11px] mt-0.5 font-mono" style={{ color: 'var(--text-muted)' }}>
+                                  #{String(idx + 1).padStart(2, '0')}
+                                  {activeMeta && (
+                                    <>
+                                      {' · '}
+                                      <span style={{ color: activeMeta.bg, fontWeight: 700 }}>{activeMeta.label}</span>
+                                    </>
+                                  )}
+                                </p>
+                              </div>
+                              <div role="radiogroup" aria-label={`حالة ${student.name}`} className="attendance-segment shrink-0">
+                                {(['present','absent','excused'] as const).map(s => {
+                                  const meta = PROG_ATT_META[s]
+                                  const active = st === s
+                                  const Icon = meta.icon
+                                  return (
+                                    <button
+                                      key={s}
+                                      role="radio"
+                                      aria-checked={active}
+                                      onClick={() => setProgAttStatus(student.id, s)}
+                                      className="attendance-segment-btn"
+                                      data-active={active}
+                                      style={{
+                                        // @ts-expect-error CSS var
+                                        '--seg-color': meta.bg,
+                                        '--seg-soft': meta.bgSoft,
+                                      }}
+                                      title={meta.label}
+                                    >
+                                      <Icon className="attendance-segment-icon" size={13} />
+                                      <span className="attendance-segment-label">{meta.label}</span>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="px-6 py-3 border-t flex gap-3" style={{ borderColor: 'var(--border-color)' }}>

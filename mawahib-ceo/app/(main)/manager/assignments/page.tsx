@@ -28,12 +28,12 @@ function DraggableStudent({ student, isOverlay }: { student: DBStudent; isOverla
         className="flex items-center gap-2 px-3 py-2.5 rounded-xl shadow-xl border"
         style={{
           background: 'var(--bg-card)',
-          borderColor: '#6366f1',
+          borderColor: '#C08A48',
           boxShadow: '0 8px 32px rgba(99,102,241,0.25)',
           width: 220,
         }}
       >
-        <GripVertical size={14} style={{ color: '#6366f1' }} />
+        <GripVertical size={14} style={{ color: '#C08A48' }} />
         <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{student.name}</span>
       </div>
     )
@@ -133,7 +133,7 @@ function ConfirmDialog({
       <div className="card-static p-6 max-w-sm w-full mx-4 space-y-4" dir="rtl">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245,158,11,0.12)' }}>
-            <ArrowLeftRight size={18} style={{ color: '#f59e0b' }} />
+            <ArrowLeftRight size={18} style={{ color: '#C9972C' }} />
           </div>
           <h3 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>تأكيد النقل</h3>
         </div>
@@ -356,7 +356,7 @@ export default function AssignmentsPage() {
   if (authLoading || (!isCeo && !isBatchManager)) return null
 
   // Supervisor colors
-  const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#06b6d4', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6']
+  const COLORS = ['#C08A48', '#5A8F67', '#C9972C', '#356B6E', '#ec4899', '#8b5cf6', '#B94838', '#14b8a6']
 
   return (
     <div className="space-y-5 animate-fade-in-up" dir="rtl">
@@ -389,7 +389,7 @@ export default function AssignmentsPage() {
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
             style={{
               background: showHistory ? 'rgba(99,102,241,0.1)' : 'var(--bg-elevated)',
-              color: showHistory ? '#6366f1' : 'var(--text-secondary)',
+              color: showHistory ? '#C08A48' : 'var(--text-secondary)',
               border: '1px solid var(--border-color)',
             }}
           >
@@ -403,7 +403,7 @@ export default function AssignmentsPage() {
       <div className="grid grid-cols-3 gap-3">
         <div className="card-static px-4 py-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.1)' }}>
-            <Users size={17} style={{ color: '#6366f1' }} />
+            <Users size={17} style={{ color: '#C08A48' }} />
           </div>
           <div>
             <p className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{totalStudents}</p>
@@ -413,11 +413,11 @@ export default function AssignmentsPage() {
         <div className="card-static px-4 py-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: unassignedStudents.length > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)' }}>
             {unassignedStudents.length > 0
-              ? <AlertCircle size={17} style={{ color: '#ef4444' }} />
-              : <CheckCircle2 size={17} style={{ color: '#22c55e' }} />}
+              ? <AlertCircle size={17} style={{ color: '#B94838' }} />
+              : <CheckCircle2 size={17} style={{ color: '#5A8F67' }} />}
           </div>
           <div>
-            <p className="text-lg font-bold font-mono" style={{ color: unassignedStudents.length > 0 ? '#ef4444' : 'var(--text-primary)' }}>
+            <p className="text-lg font-bold font-mono" style={{ color: unassignedStudents.length > 0 ? '#B94838' : 'var(--text-primary)' }}>
               {unassignedStudents.length}
             </p>
             <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>غير موزعين</p>
@@ -425,7 +425,7 @@ export default function AssignmentsPage() {
         </div>
         <div className="card-static px-4 py-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.1)' }}>
-            <UserCheck size={17} style={{ color: '#06b6d4' }} />
+            <UserCheck size={17} style={{ color: '#356B6E' }} />
           </div>
           <div>
             <p className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{totalSupervisors}</p>
@@ -463,7 +463,7 @@ export default function AssignmentsPage() {
               title="طلاب غير مُعيّنين"
               subtitle={`${unassignedStudents.length} طالب`}
               students={unassignedStudents}
-              color="#ef4444"
+              color="#B94838"
               icon={AlertCircle}
               isOver={overTarget === 'unassigned'}
             />
@@ -504,9 +504,9 @@ export default function AssignmentsPage() {
       {showHistory && (
         <div className="card-static overflow-hidden">
           <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
-            <History size={16} style={{ color: '#6366f1' }} />
+            <History size={16} style={{ color: '#C08A48' }} />
             <h2 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>سجل التغييرات</h2>
-            <span className="text-xs rounded-full px-2 py-0.5" style={{ background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>
+            <span className="text-xs rounded-full px-2 py-0.5" style={{ background: 'rgba(99,102,241,0.1)', color: '#C08A48' }}>
               {history.length}
             </span>
           </div>
@@ -523,7 +523,7 @@ export default function AssignmentsPage() {
                     {h.from_supervisor_name && (
                       <span style={{ color: 'var(--text-muted)' }}> من {h.from_supervisor_name}</span>
                     )}
-                    <span style={{ color: '#6366f1' }}> → {h.to_supervisor_name || 'غير معيّن'}</span>
+                    <span style={{ color: '#C08A48' }}> → {h.to_supervisor_name || 'غير معيّن'}</span>
                   </p>
                 </div>
                 <span className="text-[11px] flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
