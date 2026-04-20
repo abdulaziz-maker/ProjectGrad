@@ -452,7 +452,7 @@ export default function ExamsPage() {
                 const hasResult = exam.status === 'passed' || exam.status === 'failed'
                 return (
                 <div key={exam.id} className={`rounded-xl border ${borderCls}`} style={{ background: bgColor, opacity: readOnly ? 0.75 : 1 }}>
-                  <div className="flex items-center gap-4 p-4">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 p-4">
                     {/* Time */}
                     <div className="text-center min-w-12">
                       <p className="font-bold text-sm font-mono" style={{ color: 'var(--text-primary)' }}>{exam.time}</p>
@@ -465,7 +465,7 @@ export default function ExamsPage() {
                     </div>
 
                     {/* Info */}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-[180px]">
                       <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{exam.student_name}</p>
                       <div className="flex items-center gap-3 text-xs mt-0.5 flex-wrap" style={{ color: 'var(--text-muted)' }}>
                         <span>{getBatchName(exam.batch_id)}</span>
@@ -499,7 +499,7 @@ export default function ExamsPage() {
                     </div>
 
                     {/* Status + top-level actions */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto sm:flex-shrink-0 mt-2 sm:mt-0">
                       {readOnly && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(148,163,184,0.2)', color: '#64748b' }}>
                           قراءة فقط
@@ -511,8 +511,8 @@ export default function ExamsPage() {
                       {!readOnly && !isMarking && exam.status === 'scheduled' && (
                         <button
                           onClick={() => openMarkingFor(exam)}
-                          className="text-xs border border-white/10 px-2.5 py-1.5 rounded-lg hover:bg-white/5 transition"
-                          style={{ color: 'var(--text-secondary)' }}
+                          className="text-xs font-semibold border px-3 py-2 rounded-lg hover:bg-white/5 transition active:scale-95"
+                          style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-soft)', minHeight: '36px' }}
                         >
                           تسجيل النتيجة
                         </button>
@@ -520,22 +520,23 @@ export default function ExamsPage() {
                       {!readOnly && !isMarking && hasResult && (
                         <button
                           onClick={() => openMarkingFor(exam)}
-                          className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg hover:opacity-90 transition"
-                          style={{ background: 'rgba(192,138,72,0.12)', color: '#8B5A1E', border: '1px solid rgba(192,138,72,0.3)' }}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg hover:opacity-90 transition active:scale-95"
+                          style={{ background: 'rgba(192,138,72,0.15)', color: '#8B5A1E', border: '1px solid rgba(192,138,72,0.4)', minHeight: '36px' }}
                           title="تعديل النتيجة — قد يُعيد حالة الجزء في خريطة الحفظ"
                         >
-                          <Pencil className="w-3 h-3" />
-                          تعديل النتيجة
+                          <Pencil className="w-3.5 h-3.5" />
+                          تعديل
                         </button>
                       )}
                       {canEditExam(exam) && !isMarking && (
                         <button
                           onClick={() => handleDeleteExam(exam.id)}
-                          className="p-1 rounded hover:bg-red-50 transition"
-                          style={{ color: 'var(--text-muted)' }}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg transition active:scale-95"
+                          style={{ background: 'rgba(185,72,56,0.10)', color: '#B94838', border: '1px solid rgba(185,72,56,0.35)', minHeight: '36px' }}
                           title="حذف الاختبار"
                         >
                           <X className="w-3.5 h-3.5" />
+                          حذف
                         </button>
                       )}
                     </div>
