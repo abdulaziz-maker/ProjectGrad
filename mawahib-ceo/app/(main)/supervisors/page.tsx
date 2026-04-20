@@ -82,7 +82,7 @@ function SupervisorCard({
             <p className="font-bold text-xs mb-1" style={{ color: '#C08A48' }}>تقرير</p>
             <p className="text-xs font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>
               {supervisor.last_report_date
-                ? new Date(supervisor.last_report_date).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' })
+                ? new Date(supervisor.last_report_date).toLocaleDateString('ar-SA-u-nu-latn', { month: 'short', day: 'numeric' })
                 : 'لا يوجد'}
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>آخر تقرير</p>

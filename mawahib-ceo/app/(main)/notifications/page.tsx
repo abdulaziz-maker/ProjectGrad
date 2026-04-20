@@ -43,7 +43,7 @@ function timeAgo(iso: string): string {
   if (hrs < 24)   return `منذ ${hrs} ساعة`
   const days = Math.floor(hrs / 24)
   if (days < 7)   return `منذ ${days} يوم`
-  return new Date(iso).toLocaleDateString('ar-SA')
+  return new Date(iso).toLocaleDateString('ar-SA-u-nu-latn')
 }
 
 // ── Main Component ─────────────────────────────────────────────────────

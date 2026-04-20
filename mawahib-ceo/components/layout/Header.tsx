@@ -111,7 +111,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const initial     = displayName?.charAt(0) ?? 'م'
 
   // Today in Arabic for header hint
-  const todayLabel = new Date().toLocaleDateString('ar-SA', {
+  const todayLabel = new Date().toLocaleDateString('ar-SA-u-nu-latn', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   })
 

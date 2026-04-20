@@ -26,7 +26,7 @@ export function getCompletionBarColor(percentage: number): string {
 export function formatDate(dateStr: string | null): string {
   if (!dateStr) return '—'
   const date = new Date(dateStr)
-  return date.toLocaleDateString('ar-SA', {
+  return date.toLocaleDateString('ar-SA-u-nu-latn', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -34,7 +34,7 @@ export function formatDate(dateStr: string | null): string {
 }
 
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('ar-SA', {
+  return new Intl.NumberFormat('ar-SA-u-nu-latn', {
     style: 'currency',
     currency: 'SAR',
     maximumFractionDigits: 0,

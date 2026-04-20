@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode } fro
 import { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { UserProfile, getProfile } from '@/lib/auth'
+import { clearCache } from '@/lib/cache'
 
 interface AuthContextValue {
   session: Session | null
@@ -40,6 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userId = s?.user?.id ?? null
       if (!userId) {
         setProfile(null)
+        // ⚠️ CRITICAL: امسح الكاش عند تسجيل الخروج لمنع تسرّب بيانات
+        // المستخدم السابق (مثلاً: CEO يرى كل الدفعات) إلى المستخدم التالي
+        // (مدير دفعة) في نفس التاب.
+        clearCache()
         lastUserIdRef.current = null
         return
       }
@@ -47,6 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // لا تجلب الملف الشخصي إلا إذا تغيّر المستخدم فعلاً.
       // TOKEN_REFRESHED يطلق كثيراً ولا يحتاج جلبا جديدا.
       if (userId === lastUserIdRef.current) return
+
+      // ⚠️ CRITICAL: إذا تغيّر المستخدم (login مختلف في نفس التاب) امسح
+      // الكاش السابق — بياناته كانت مخزّنة بصلاحيات المستخدم الأول.
+      if (lastUserIdRef.current !== null && lastUserIdRef.current !== userId) {
+        clearCache()
+      }
       lastUserIdRef.current = userId
 
       // جلب في الخلفية — لا يحجب عرض الصفحة.

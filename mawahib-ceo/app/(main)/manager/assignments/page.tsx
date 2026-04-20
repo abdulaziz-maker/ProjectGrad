@@ -527,7 +527,7 @@ export default function AssignmentsPage() {
                   </p>
                 </div>
                 <span className="text-[11px] flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
-                  {new Date(h.assigned_at).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  {new Date(h.assigned_at).toLocaleDateString('ar-SA-u-nu-latn', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
             ))}

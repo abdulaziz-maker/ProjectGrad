@@ -51,13 +51,17 @@ function AlertIcon({ type }: { type: string }) {
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const todayISO = new Date().toISOString().split('T')[0]
-  const today = new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  const today = new Date().toLocaleDateString('ar-SA-u-nu-latn', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
   const { profile } = useAuth()
   const isCeo = profile?.role === 'ceo'
   // مقيَّد بالدفعة: يشمل مدير الدفعة كذلك (ليس فقط المشرف/المعلم)
   const isSupervisor = profile?.role === 'supervisor' || profile?.role === 'teacher' || profile?.role === 'batch_manager'
   const myBatchId = profile?.batch_id ?? null
+  // ⚠️ SECURITY: إذا لم يُحمَّل الملف بعد، نعتبر المستخدم مقيَّد ولا نُظهر بيانات
+  // خارج نطاقه. هذا يمنع السباق الذي كان يُظهر طلاب دفعة ٤٦ لمدير دفعة ٤٨
+  // لحظة التحميل الأول.
+  const profileLoaded = profile !== null
 
   const [loading, setLoading] = useState(true)
   const [students, setStudents] = useState<DBStudent[]>([])
@@ -81,10 +85,16 @@ export default function DashboardPage() {
   }, [])
 
   // ── Derived data ─────────────────────────────────────────────────────────────
-  const activeStudents = useMemo(() =>
-    students.filter(s => s.status === 'active' &&
-      (!isSupervisor || myBatchId === null || s.batch_id === myBatchId)
-    ), [students, isSupervisor, myBatchId])
+  const activeStudents = useMemo(() => {
+    // لم يُحمَّل الملف الشخصي بعد → لا تُظهر شيء (أمان قبل الأداء)
+    if (!profileLoaded) return []
+    return students.filter(s => {
+      if (s.status !== 'active') return false
+      if (isCeo) return true // CEO يرى كل الدفعات
+      if (isSupervisor) return s.batch_id === myBatchId // مقيَّد بدفعته فقط
+      return true // أدوار أخرى — السلوك الافتراضي
+    })
+  }, [students, profileLoaded, isCeo, isSupervisor, myBatchId])
 
   // Memorized juz count per student (from source of truth: juz_progress)
   const memorizedByStudent = useMemo(() => {

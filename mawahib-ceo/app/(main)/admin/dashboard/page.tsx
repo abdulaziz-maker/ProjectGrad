@@ -283,7 +283,7 @@ export default function AdminDashboardPage() {
           </h1>
           <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
             {hijri && <span>{hijri} · </span>}
-            {new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            {new Date().toLocaleDateString('ar-SA-u-nu-latn', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">

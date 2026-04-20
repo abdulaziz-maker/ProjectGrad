@@ -453,7 +453,7 @@ export default function ProgramsPage() {
                       {program.budget > 0 && (
                         <div>
                           <span className="text-xs block mb-0.5" style={{ color: 'var(--text-muted)' }}>الميزانية</span>
-                          <p className="font-medium" style={{ color: 'var(--text-secondary)' }}>{program.budget.toLocaleString('ar-SA')} ر.س</p>
+                          <p className="font-medium" style={{ color: 'var(--text-secondary)' }}>{program.budget.toLocaleString('ar-SA-u-nu-latn')} ر.س</p>
                         </div>
                       )}
                       {program.objectives && (

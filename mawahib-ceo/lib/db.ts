@@ -105,10 +105,13 @@ export async function deleteBatch(id: number): Promise<void> {
   invalidateCache(CACHE_KEYS.BATCHES)
 }
 
-// Supervisors
+// Supervisors — مرتّبة أبجدياً بالاسم
 export async function getSupervisors(): Promise<DBSupervisor[]> {
   return cachedFetch(CACHE_KEYS.SUPERVISORS, async () => {
-    const { data, error } = await supabase.from('supervisors').select('id,name,age,specialty,experience_years,strengths,weaknesses,rating,student_count,last_report_date,avg_student_progress,notes,batch_id,user_id')
+    const { data, error } = await supabase
+      .from('supervisors')
+      .select('id,name,age,specialty,experience_years,strengths,weaknesses,rating,student_count,last_report_date,avg_student_progress,notes,batch_id,user_id')
+      .order('name', { ascending: true })
     if (error) throw error
     return data as DBSupervisor[]
   })
@@ -120,10 +123,13 @@ export async function upsertSupervisor(s: DBSupervisor): Promise<void> {
   invalidateCache(CACHE_KEYS.SUPERVISORS)
 }
 
-// Students
+// Students — مرتّبة أبجدياً بالاسم
 export async function getStudents(): Promise<DBStudent[]> {
   return cachedFetch(CACHE_KEYS.STUDENTS, async () => {
-    const { data, error } = await supabase.from('students').select('id,name,batch_id,supervisor_id,supervisor_name,enrollment_date,status,notes,juz_completed,completion_percentage,last_followup,near_review,far_review,national_id,birth_date,parent_phone')
+    const { data, error } = await supabase
+      .from('students')
+      .select('id,name,batch_id,supervisor_id,supervisor_name,enrollment_date,status,notes,juz_completed,completion_percentage,last_followup,near_review,far_review,national_id,birth_date,parent_phone')
+      .order('name', { ascending: true })
     if (error) throw error
     return data as DBStudent[]
   })

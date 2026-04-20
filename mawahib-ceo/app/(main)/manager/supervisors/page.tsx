@@ -256,7 +256,7 @@ export default function ManagerSupervisorsPage() {
                 </div>
                 {sup.last_report_date && (
                   <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
-                    آخر تقرير: {new Date(sup.last_report_date).toLocaleDateString('ar-SA')}
+                    آخر تقرير: {new Date(sup.last_report_date).toLocaleDateString('ar-SA-u-nu-latn')}
                   </p>
                 )}
               </button>

@@ -48,6 +48,8 @@ export default function StudentsPage() {
   const isSupervisor = role === 'supervisor' || role === 'teacher' // للاستخدامات الأقدم
   const myBatchId = profile?.batch_id ?? null
   const supervisorBatchId = myBatchId // alias للتوافق
+  // ⚠️ SECURITY: لا نُظهر أي طلاب حتى يُحمَّل الملف الشخصي — يمنع التسرّب بين الأدوار
+  const profileLoaded = profile !== null
 
   const [students, setStudents] = useState<DBStudent[]>([])
   const [supervisors, setSupervisors] = useState<DBSupervisor[]>([])
@@ -97,10 +99,15 @@ export default function StudentsPage() {
   }, [])
 
   const filtered = useMemo(() => {
+    // حتى يُحمَّل الملف الشخصي: لا نُظهر شيء. يمنع تسرّب بيانات دفعات أخرى
+    // للمستخدم الحالي في اللحظة التي بين mount و profile fetch.
+    if (!profileLoaded) return []
     let list = students
     // المستخدمون المقيَّدون بدفعة (مشرف/معلم/مدير دفعة): لا يرون إلا دفعتهم.
     // أي تسريب بيانات يُقصَى هنا client-side بالإضافة إلى حماية RLS على الخادم.
-    if (isScopedToBatch && myBatchId !== null) {
+    if (isScopedToBatch) {
+      // مقيَّد بدفعة لكن بدون batch_id → لا يُظهر شيء (بدل تجاوز الفلتر)
+      if (myBatchId === null) return []
       list = list.filter(s => s.batch_id === myBatchId)
     } else if (batchFilter !== '') {
       list = list.filter(s => s.batch_id === batchFilter)
@@ -111,7 +118,7 @@ export default function StudentsPage() {
     }
     if (statusFilter !== '') list = list.filter(s => s.status === statusFilter)
     return list
-  }, [students, search, batchFilter, statusFilter, isScopedToBatch, myBatchId])
+  }, [students, search, batchFilter, statusFilter, isScopedToBatch, myBatchId, profileLoaded])
 
   const effectivePageSize = pageSize === 0 ? filtered.length || 1 : pageSize
   const totalPages = Math.max(1, Math.ceil(filtered.length / effectivePageSize))
