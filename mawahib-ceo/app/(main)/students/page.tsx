@@ -44,6 +44,7 @@ export default function StudentsPage() {
   // مدير الدفعة والمشرف والمعلم: كل واحد منهم مقيَّد بدفعة واحدة فقط.
   // المدير التنفيذي (ceo) فقط يرى كل الدفعات.
   const role = profile?.role
+  // records_officer: وصول كامل (مثل ceo) عبر كل الدفعات
   const isScopedToBatch = role === 'supervisor' || role === 'teacher' || role === 'batch_manager'
   const isSupervisor = role === 'supervisor' || role === 'teacher' // للاستخدامات الأقدم
   const myBatchId = profile?.batch_id ?? null

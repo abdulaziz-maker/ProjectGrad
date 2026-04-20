@@ -25,7 +25,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     }
     return false
   })
-  const { session, loading } = useAuth()
+  const { session, profile, loading } = useAuth()
   const router   = useRouter()
   const pathname = usePathname()
 
@@ -130,6 +130,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!loading && !session) router.replace('/login')
   }, [loading, session, router])
+
+  /* ── Role-based route guard: موظف السجلات يُقصر على ٣ صفحات ── */
+  useEffect(() => {
+    if (!profile) return
+    if (profile.role !== 'records_officer') return
+    // /students يشمل /students/[id] — /batches يشمل أي route فرعي
+    const ALLOWED = ['/exams', '/students', '/batches', '/quran']
+    const ok = ALLOWED.some(p => pathname === p || pathname.startsWith(p + '/'))
+    if (!ok) router.replace('/exams')
+  }, [profile, pathname, router])
 
   /* ── Loading screen ── */
   if (loading) {

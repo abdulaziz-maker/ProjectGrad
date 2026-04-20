@@ -72,14 +72,20 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
   const { profile } = useAuth()
   const role = profile?.role ?? 'ceo'
 
-  const visibleItems = navItems.filter(item => !item.roles || item.roles.includes(role))
+  // موظف السجلات: يرى فقط ٣ صفحات (خريطة الحفظ + الاختبارات + الطلاب)
+  const RECORDS_OFFICER_PATHS = new Set(['/batches', '/exams', '/students'])
+
+  const visibleItems = navItems.filter(item => {
+    if (role === 'records_officer') return RECORDS_OFFICER_PATHS.has(item.href)
+    return !item.roles || item.roles.includes(role)
+  })
 
   const handleSignOut = async () => {
     await signOut()
     router.replace('/login')
   }
 
-  const roleLabels: Record<string, string> = { ceo: 'المدير التنفيذي', batch_manager: 'مدير الدفعة', supervisor: 'مشرف', teacher: 'معلم' }
+  const roleLabels: Record<string, string> = { ceo: 'المدير التنفيذي', batch_manager: 'مدير الدفعة', supervisor: 'مشرف', teacher: 'معلم', records_officer: 'موظف سجلات' }
   const roleLabel  = roleLabels[role] ?? 'مستخدم'
   const initial    = profile?.name?.charAt(0) ?? 'م'
   const width      = collapsed ? 76 : 268

@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export type UserRole = 'ceo' | 'batch_manager' | 'supervisor' | 'teacher'
+export type UserRole = 'ceo' | 'batch_manager' | 'supervisor' | 'teacher' | 'records_officer'
 
 export interface UserProfile {
   id: string

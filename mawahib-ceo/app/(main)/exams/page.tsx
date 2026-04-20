@@ -46,6 +46,9 @@ export default function ExamsPage() {
   const { profile } = useAuth()
   const role = profile?.role ?? null
   const isCeo = role === 'ceo'
+  // موظف السجلات: صلاحيات كاملة عبر كل الدفعات (مثل CEO في هذه الصفحة)
+  const isRecordsOfficer = role === 'records_officer'
+  const isCrossBatch = isCeo || isRecordsOfficer
   const myBatchId = profile?.batch_id ?? null
 
   const today = todayIso()
@@ -78,13 +81,13 @@ export default function ExamsPage() {
 
   // هل يستطيع المستخدم تعديل/حذف هذا الاختبار؟
   const canEditExam = (exam: DBExam): boolean => {
-    if (isCeo) return true
+    if (isCrossBatch) return true // ceo + records_officer
     if (role === 'batch_manager' || role === 'supervisor' || role === 'teacher') {
       return myBatchId !== null && exam.batch_id === myBatchId
     }
     return false
   }
-  const isOtherBatch = (exam: DBExam): boolean => !isCeo && myBatchId !== null && exam.batch_id !== myBatchId
+  const isOtherBatch = (exam: DBExam): boolean => !isCrossBatch && myBatchId !== null && exam.batch_id !== myBatchId
 
   useEffect(() => {
     async function fetchData() {
@@ -122,7 +125,7 @@ export default function ExamsPage() {
       id: `e${Date.now()}`,
       student_id: form.studentId,
       student_name: student.name,
-      batch_id: (!isCeo && myBatchId !== null) ? myBatchId : (students.find(s => s.id === form.studentId)?.batch_id ?? 0),
+      batch_id: (!isCrossBatch && myBatchId !== null) ? myBatchId : (students.find(s => s.id === form.studentId)?.batch_id ?? 0),
       juz_number: Number(form.juzNumber),
       examiner: form.examiner,
       date: form.date,
