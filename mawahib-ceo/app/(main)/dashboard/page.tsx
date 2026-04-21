@@ -17,6 +17,8 @@ import Link from 'next/link'
 import CountUp from '@/components/ui/CountUp'
 import ProgressRing from '@/components/ui/ProgressRing'
 import WisdomCard from '@/components/ui/WisdomCard'
+import SupervisorTrackingAlert from '@/components/ui/SupervisorTrackingAlert'
+import { computeAllSupervisorStatuses } from '@/lib/supervisor-tracking'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PROGRAM_START = new Date('2026-02-27') // ٢٩ رجب ١٤٤٧
@@ -130,6 +132,16 @@ export default function DashboardPage() {
     activeStudents.filter(s => (memorizedByStudent[s.id] || 0) === 0 ||
       (memorizedByStudent[s.id] || 0) / 30 < 0.1)
   , [activeStudents, memorizedByStudent])
+
+  // ── المتابعة الأسبوعية للمشرفين ──
+  // للمدير التنفيذي: جميع المشرفين. لمدير الدفعة: مشرفو دفعته فقط.
+  const supervisorStatuses = useMemo(() => {
+    if (!profileLoaded) return []
+    const scopedSupervisors = isCeo
+      ? supervisors
+      : supervisors.filter(sv => myBatchId !== null && sv.batch_id === myBatchId)
+    return computeAllSupervisorStatuses(scopedSupervisors, activeStudents)
+  }, [profileLoaded, isCeo, supervisors, activeStudents, myBatchId])
 
   // Program pace
   const weeks = weeksElapsed()
@@ -267,6 +279,13 @@ export default function DashboardPage() {
 
       {/* ── Wisdom reminder ── */}
       <WisdomCard />
+
+      {/* ── المتابعة الأسبوعية للمشرفين — يظهر تلقائياً عند وجود تأخر ── */}
+      <SupervisorTrackingAlert
+        statuses={supervisorStatuses}
+        title={isCeo ? 'المتابعة الأسبوعية للمشرفين' : 'المتابعة الأسبوعية لمشرفي دفعتي'}
+        alertsOnly
+      />
 
       {/* ── Hero KPIs ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

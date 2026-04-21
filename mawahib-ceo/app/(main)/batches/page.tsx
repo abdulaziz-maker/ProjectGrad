@@ -325,11 +325,14 @@ export default function BatchesPage() {
             <thead>
               <tr className="border-b border-white/5" style={{ background: 'var(--bg-elevated)' }}>
                 <th
-                  className="sticky right-0 z-20 text-right px-3 py-3 font-semibold min-w-44 border-l border-white/5"
+                  className="sticky right-0 z-20 text-right px-2 sm:px-3 py-3 font-semibold border-l border-white/5"
                   style={{
                     background: 'var(--bg-elevated)',
                     color: 'var(--text-secondary)',
                     boxShadow: '-8px 0 12px -8px rgba(0,0,0,0.35)',
+                    width: '116px',
+                    minWidth: '116px',
+                    maxWidth: '140px',
                   }}
                 >
                   الطالب
@@ -362,10 +365,13 @@ export default function BatchesPage() {
                 return (
                   <tr key={student.id} className="border-b border-white/5">
                     <td
-                      className="sticky right-0 z-20 px-3 py-2 border-l border-white/5"
+                      className="sticky right-0 z-20 px-2 sm:px-3 py-2 border-l border-white/5"
                       style={{
                         background: rowIdx % 2 === 1 ? 'var(--bg-elevated)' : 'var(--bg-card)',
                         boxShadow: '-8px 0 12px -8px rgba(0,0,0,0.35)',
+                        width: '116px',
+                        minWidth: '116px',
+                        maxWidth: '140px',
                       }}
                     >
                       {isEditing ? (
@@ -380,14 +386,14 @@ export default function BatchesPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2 group">
+                        <div className="flex items-center gap-1.5 group">
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-xs leading-tight" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
-                            {student.supervisorName && <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{student.supervisorName}</p>}
+                            <p className="font-semibold text-xs leading-tight truncate" style={{ color: 'var(--text-primary)' }} title={student.name}>{student.name}</p>
+                            {student.supervisorName && <p className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }} title={student.supervisorName}>{student.supervisorName}</p>}
                           </div>
                           <button
                             onClick={() => { setEditingStudent(student.id); setEditName(student.name); setEditSupervisor(student.supervisorName) }}
-                            className="opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity" style={{ color: 'var(--text-muted)' }}>
+                            className="opacity-40 sm:opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity" style={{ color: 'var(--text-muted)' }}>
                             <Edit3 className="w-3 h-3" />
                           </button>
                         </div>
@@ -427,11 +433,14 @@ export default function BatchesPage() {
               {/* Summary row */}
               <tr className="border-t-2 border-white/10 font-semibold" style={{ background: 'var(--bg-elevated)' }}>
                 <td
-                  className="sticky right-0 z-20 px-3 py-2.5 text-xs border-l border-white/5"
+                  className="sticky right-0 z-20 px-2 sm:px-3 py-2.5 text-xs border-l border-white/5 truncate"
                   style={{
                     background: 'var(--bg-elevated)',
                     color: 'var(--text-secondary)',
                     boxShadow: '-8px 0 12px -8px rgba(0,0,0,0.35)',
+                    width: '116px',
+                    minWidth: '116px',
+                    maxWidth: '140px',
                   }}
                 >إجمالي المحفوظ</td>
                 {Array.from({ length: 30 }, (_, i) => {

@@ -1134,6 +1134,26 @@ export async function upsertDailyFollowup(followup: DailyFollowup): Promise<void
   )
   if (error) throw error
   invalidateCache(CACHE_KEYS.DAILY_FOLLOWUPS)
+
+  // Also stamp student.last_followup so weekly supervisor-tracking works automatically.
+  // Only advance the date forward — never rewind it.
+  try {
+    const { data: existing } = await supabase
+      .from('students')
+      .select('last_followup')
+      .eq('id', followup.student_id)
+      .maybeSingle()
+    const prev = existing?.last_followup as string | null | undefined
+    if (!prev || followup.followup_date > prev) {
+      await supabase
+        .from('students')
+        .update({ last_followup: followup.followup_date })
+        .eq('id', followup.student_id)
+      invalidateCache(CACHE_KEYS.STUDENTS)
+    }
+  } catch (err) {
+    console.warn('last_followup stamp failed (non-fatal):', err)
+  }
 }
 
 // ─── Batch Schedule ──────────────────────────────

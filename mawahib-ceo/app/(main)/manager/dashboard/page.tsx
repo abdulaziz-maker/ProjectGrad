@@ -17,6 +17,8 @@ import {
 import Link from 'next/link'
 import { todayStr } from '@/lib/hijri'
 import WisdomCard from '@/components/ui/WisdomCard'
+import SupervisorTrackingAlert from '@/components/ui/SupervisorTrackingAlert'
+import { computeAllSupervisorStatuses } from '@/lib/supervisor-tracking'
 
 const PROGRAM_START = new Date('2026-02-27')
 
@@ -123,6 +125,11 @@ export default function ManagerDashboardPage() {
     }
   }, [students, juzProgress, attendance, supervisors, exams, programs, meetings])
 
+  const supervisorStatuses = useMemo(
+    () => computeAllSupervisorStatuses(supervisors, students.filter(s => s.status === 'active' || !s.status)),
+    [supervisors, students]
+  )
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -149,6 +156,13 @@ export default function ManagerDashboardPage() {
 
       {/* Wisdom reminder */}
       <WisdomCard />
+
+      {/* المتابعة الأسبوعية للمشرفين — يظهر عند وجود تأخر */}
+      <SupervisorTrackingAlert
+        statuses={supervisorStatuses}
+        title="المتابعة الأسبوعية لمشرفي الدفعة"
+        alertsOnly
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

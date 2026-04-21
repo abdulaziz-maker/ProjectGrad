@@ -261,7 +261,8 @@ export default function TasksPage() {
         <div className="flex gap-2">
           <button
             onClick={() => { setShowAddSection(!showAddSection); setShowAdd(false) }}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50" style={{ color: 'var(--text-secondary)' }}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition hover:opacity-90"
+            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-color)', background: 'var(--bg-subtle)' }}
           >
             <FolderPlus className="w-4 h-4" />
             قسم جديد
@@ -300,7 +301,7 @@ export default function TasksPage() {
 
       {/* Add section form */}
       {showAddSection && (
-        <div className="card-static p-5 border-2 border-dashed border-gray-200 space-y-4">
+        <div className="card-static p-5 border-2 border-dashed space-y-4" style={{ borderColor: 'var(--border-soft)' }}>
           <h2 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
             <FolderPlus className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
             إضافة قسم جديد
@@ -313,7 +314,8 @@ export default function TasksPage() {
                 onChange={e => setNewSection({ ...newSection, label: e.target.value })}
                 onKeyDown={e => e.key === 'Enter' && addSection()}
                 placeholder="مثال: متابعة البرامج التربوية"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]"
+                className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none focus:border-[#C08A48]"
+                style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                 autoFocus
               />
             </div>
@@ -324,7 +326,8 @@ export default function TasksPage() {
                   <button
                     key={opt.value}
                     onClick={() => setNewSection({ ...newSection, color: opt.value })}
-                    className={`w-7 h-7 rounded-lg border-2 transition-all ${newSection.color === opt.value ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                    className="w-7 h-7 rounded-lg border-2 transition-all"
+                    style={{ borderColor: newSection.color === opt.value ? 'var(--text-primary)' : 'transparent', transform: newSection.color === opt.value ? 'scale(1.10)' : 'scale(1)' }}
                   >
                     <span className={`flex items-center justify-center w-full h-full rounded-md text-xs font-bold ${opt.value}`}>أ</span>
                   </button>
@@ -336,7 +339,7 @@ export default function TasksPage() {
             <button onClick={addSection} className="btn-primary btn-ripple px-5 py-2.5 text-sm font-medium text-white rounded-xl">
               إنشاء القسم
             </button>
-            <button onClick={() => setShowAddSection(false)} className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl hover:bg-gray-50" style={{ color: 'var(--text-muted)' }}>
+            <button onClick={() => setShowAddSection(false)} className="px-5 py-2.5 text-sm rounded-xl transition hover:opacity-90" style={{ color: 'var(--text-muted)', border: '1px solid var(--border-color)', background: 'var(--bg-subtle)' }}>
               إلغاء
             </button>
           </div>
@@ -355,7 +358,8 @@ export default function TasksPage() {
                 onChange={e => setNewTask({ ...newTask, title: e.target.value })}
                 onKeyDown={e => e.key === 'Enter' && addTask()}
                 placeholder="ما هي المهمة؟"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]"
+                className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none focus:border-[#C08A48]"
+                style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                 autoFocus
               />
             </div>
@@ -365,7 +369,8 @@ export default function TasksPage() {
                 value={newTask.description}
                 onChange={e => setNewTask({ ...newTask, description: e.target.value })}
                 placeholder="تفاصيل إضافية (اختياري)"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]"
+                className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none focus:border-[#C08A48]"
+                style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
               />
             </div>
             <div>
@@ -373,7 +378,8 @@ export default function TasksPage() {
               <select
                 value={newTask.category}
                 onChange={e => setNewTask({ ...newTask, category: e.target.value })}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]"
+                className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none focus:border-[#C08A48]"
+                style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
               >
                 {allCategories.map(c => (
                   <option key={c.id} value={c.id}>{c.label}</option>
@@ -382,7 +388,9 @@ export default function TasksPage() {
             </div>
             <div>
               <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>التكرار</label>
-              <select value={newTask.recurrence} onChange={e => setNewTask({ ...newTask, recurrence: e.target.value as LocalTask['recurrence'] })} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]">
+              <select value={newTask.recurrence} onChange={e => setNewTask({ ...newTask, recurrence: e.target.value as LocalTask['recurrence'] })}
+                className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none focus:border-[#C08A48]"
+                style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
                 <option value="daily">يومية</option>
                 <option value="weekly">أسبوعية</option>
                 <option value="monthly">شهرية</option>
@@ -391,7 +399,9 @@ export default function TasksPage() {
             </div>
             <div>
               <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>الأولوية</label>
-              <select value={newTask.priority} onChange={e => setNewTask({ ...newTask, priority: e.target.value as LocalTask['priority'] })} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]">
+              <select value={newTask.priority} onChange={e => setNewTask({ ...newTask, priority: e.target.value as LocalTask['priority'] })}
+                className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none focus:border-[#C08A48]"
+                style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
                 <option value="high">عاجل</option>
                 <option value="medium">متوسط</option>
                 <option value="low">عادي</option>
@@ -399,12 +409,14 @@ export default function TasksPage() {
             </div>
             <div>
               <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>تاريخ الاستحقاق</label>
-              <input type="date" value={newTask.dueDate} onChange={e => setNewTask({ ...newTask, dueDate: e.target.value })} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#C08A48]" />
+              <input type="date" value={newTask.dueDate} onChange={e => setNewTask({ ...newTask, dueDate: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none focus:border-[#C08A48]"
+                style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
             </div>
           </div>
           <div className="flex gap-3">
             <button onClick={addTask} className="btn-primary btn-ripple px-5 py-2.5 text-sm font-medium text-white rounded-xl">إضافة</button>
-            <button onClick={() => setShowAdd(false)} className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl hover:bg-gray-50" style={{ color: 'var(--text-muted)' }}>إلغاء</button>
+            <button onClick={() => setShowAdd(false)} className="px-5 py-2.5 text-sm rounded-xl transition hover:opacity-90" style={{ color: 'var(--text-muted)', border: '1px solid var(--border-color)', background: 'var(--bg-subtle)' }}>إلغاء</button>
           </div>
         </div>
       )}
@@ -421,7 +433,7 @@ export default function TasksPage() {
         return (
           <div key={cat.id} className="card-static overflow-hidden">
             {/* Category header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
               <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${cat.color}`}>
                   <Icon className="w-4 h-4" />
@@ -435,7 +447,7 @@ export default function TasksPage() {
                 {/* Mini progress */}
                 {catTasks.length > 0 && (
                   <div className="flex items-center gap-2">
-                    <div className="w-16 bg-gray-100 rounded-full h-1.5">
+                    <div className="w-16 rounded-full h-1.5" style={{ background: 'var(--bg-subtle)' }}>
                       <div
                         className="h-1.5 rounded-full bg-green-500"
                         style={{ width: `${(catDone / catTasks.length) * 100}%` }}
@@ -447,7 +459,8 @@ export default function TasksPage() {
                 {/* Quick add task to this category */}
                 <button
                   onClick={() => { setNewTask(n => ({ ...n, category: cat.id })); setShowAdd(true); setShowAddSection(false) }}
-                  className="text-gray-300 p-1 transition-colors" style={{ ['--hover-color' as string]: '#C08A48' }}
+                  className="p-1 transition-colors hover:opacity-80"
+                  style={{ color: 'var(--text-muted)' }}
                   title="إضافة مهمة لهذا القسم"
                 >
                   <Plus className="w-4 h-4" />
@@ -456,12 +469,12 @@ export default function TasksPage() {
                 {cat.isCustom && (
                   deletingCat === cat.id ? (
                     <div className="flex items-center gap-1.5 text-xs">
-                      <span className="text-red-600">حذف القسم؟</span>
-                      <button onClick={() => deleteSection(cat.id)} className="text-red-600 font-medium hover:text-red-700">نعم</button>
-                      <button onClick={() => setDeletingCat(null)} className="text-gray-400 hover:text-gray-600">لا</button>
+                      <span style={{ color: '#B94838' }}>حذف القسم؟</span>
+                      <button onClick={() => deleteSection(cat.id)} className="font-medium hover:opacity-80" style={{ color: '#B94838' }}>نعم</button>
+                      <button onClick={() => setDeletingCat(null)} className="hover:opacity-80" style={{ color: 'var(--text-muted)' }}>لا</button>
                     </div>
                   ) : (
-                    <button onClick={() => setDeletingCat(cat.id)} className="text-gray-200 hover:text-red-400 p-1 transition-colors">
+                    <button onClick={() => setDeletingCat(cat.id)} className="p-1 transition-colors hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )
@@ -472,7 +485,7 @@ export default function TasksPage() {
             {/* Tasks */}
             {catTasks.length === 0 ? (
               <div className="px-5 py-4 text-center">
-                <p className="text-sm text-gray-400">لا توجد مهام بعد</p>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>لا توجد مهام بعد</p>
                 <button
                   onClick={() => { setNewTask(n => ({ ...n, category: cat.id })); setShowAdd(true); setShowAddSection(false) }}
                   className="mt-1.5 text-xs hover:underline" style={{ color: '#C08A48' }}
@@ -481,47 +494,52 @@ export default function TasksPage() {
                 </button>
               </div>
             ) : (
-              <div className="divide-y divide-gray-50">
-                {catTasks.map(task => {
+              <div>
+                {catTasks.map((task, idx) => {
                   const done = isDoneToday(task)
                   const isOverdue = task.dueDate && task.dueDate < today && !done
                   return (
                     <div
                       key={task.id}
-                      className={`flex items-start gap-3 px-5 py-4 transition-colors ${done ? 'bg-gray-50/50' : isOverdue ? 'bg-red-50/30' : ''}`}
+                      className="flex items-start gap-3 px-5 py-4 transition-colors"
+                      style={{
+                        borderTop: idx === 0 ? undefined : '1px solid var(--border-faint)',
+                        background: done ? 'var(--bg-subtle)' : isOverdue ? 'rgba(185,72,56,0.08)' : 'transparent',
+                        opacity: done ? 0.7 : 1,
+                      }}
                     >
                       <button onClick={() => toggleDone(task.id)} className="mt-0.5 flex-shrink-0">
                         {done
                           ? <CheckSquare className="w-5 h-5 text-green-500" />
-                          : <Square className="w-5 h-5 text-gray-300 hover:text-gray-400" />
+                          : <Square className="w-5 h-5 hover:opacity-80" style={{ color: 'var(--text-muted)' }} />
                         }
                       </button>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium ${done ? 'line-through text-gray-400' : isOverdue ? 'text-red-700' : ''}`}
-                          style={!done && !isOverdue ? { color: 'var(--text-primary)' } : undefined}>
+                        <p className={`text-sm font-medium ${done ? 'line-through' : ''}`}
+                          style={{ color: done ? 'var(--text-muted)' : isOverdue ? '#B94838' : 'var(--text-primary)' }}>
                           {task.title}
-                          {isOverdue && <span className="mr-2 text-xs text-red-500 font-normal">⚠ متأخرة</span>}
+                          {isOverdue && <span className="mr-2 text-xs font-normal" style={{ color: '#B94838' }}>⚠ متأخرة</span>}
                         </p>
                         {task.description && (
-                          <p className={`text-xs mt-0.5 ${done ? 'text-gray-300' : ''}`} style={!done ? { color: 'var(--text-muted)' } : undefined}>{task.description}</p>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{task.description}</p>
                         )}
                         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                           <span className={`text-[10px] px-1.5 py-0.5 rounded ${PRIORITY_CONFIG[task.priority].color}`}>
                             {PRIORITY_CONFIG[task.priority].label}
                           </span>
-                          <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                          <span className="text-[10px] flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                             <RefreshCw className="w-2.5 h-2.5" />
                             {RECURRENCE_LABELS[task.recurrence]}
                           </span>
                           {task.dueDate && (
-                            <span className={`text-[10px] flex items-center gap-1 ${isOverdue ? 'text-red-500' : 'text-gray-400'}`}>
+                            <span className="text-[10px] flex items-center gap-1" style={{ color: isOverdue ? '#B94838' : 'var(--text-muted)' }}>
                               <Calendar className="w-2.5 h-2.5" />
                               {task.dueDate}
                             </span>
                           )}
                         </div>
                       </div>
-                      <button onClick={() => handleDeleteTask(task.id)} className="text-gray-200 hover:text-red-400 flex-shrink-0 p-1">
+                      <button onClick={() => handleDeleteTask(task.id)} className="flex-shrink-0 p-1 hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -535,7 +553,7 @@ export default function TasksPage() {
 
       {/* Empty state */}
       {tasks.length === 0 && (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
           <CheckSquare className="w-12 h-12 mx-auto mb-3 opacity-20" />
           <p className="text-sm">لا توجد مهام بعد — أضف مهمة أو قسم جديد</p>
         </div>

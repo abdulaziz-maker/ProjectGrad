@@ -20,6 +20,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import SupervisorTrackingAlert from '@/components/ui/SupervisorTrackingAlert'
+import { computeAllSupervisorStatuses, computeSupervisorWeeklyStatus } from '@/lib/supervisor-tracking'
 
 export default function FollowupsPage() {
   const { profile } = useAuth()
@@ -126,6 +128,23 @@ export default function FollowupsPage() {
     if (!isSupervisor || studentFilter === 'all') return allBatchStudents
     return allBatchStudents.filter(s => myAssignedIds.has(s.id))
   }, [allBatchStudents, isSupervisor, studentFilter, myAssignedIds])
+
+  // ── حالة المتابعة الأسبوعية ──
+  const supervisorTrackingStatuses = useMemo(() => {
+    const activeBatchStudents = allBatchStudents.filter(s => s.status === 'active' || !s.status)
+    if (isSupervisor && mySupervisorTableId) {
+      // مشرف → حالته هو فقط
+      const mySup = supervisorsList.find(sv => sv.id === mySupervisorTableId)
+      if (!mySup) return []
+      const st = computeSupervisorWeeklyStatus(mySup, activeBatchStudents)
+      return st.totalStudents > 0 ? [st] : []
+    }
+    // CEO / batch manager → يرى كل المشرفين ضمن نطاقه
+    const scoped = isCeo
+      ? supervisorsList
+      : supervisorsList.filter(sv => myBatchId !== null && sv.batch_id === myBatchId)
+    return computeAllSupervisorStatuses(scoped, activeBatchStudents)
+  }, [allBatchStudents, supervisorsList, isSupervisor, mySupervisorTableId, isCeo, myBatchId])
 
   // Build plan map: student_id → plan
   const planMap = useMemo(() => {
@@ -404,6 +423,20 @@ export default function FollowupsPage() {
 
   return (
     <div className="space-y-5 animate-fade-in-up">
+      {/* ── تنبيه المتابعة الأسبوعية — يظهر تلقائياً عند وجود تأخر ── */}
+      <SupervisorTrackingAlert
+        statuses={supervisorTrackingStatuses}
+        title={
+          isSupervisor
+            ? 'متطلباتك الأسبوعية — متابعة طلابك'
+            : isCeo
+            ? 'المتابعة الأسبوعية للمشرفين'
+            : 'المتابعة الأسبوعية لمشرفي الدفعة'
+        }
+        singleSupervisor={isSupervisor}
+        alertsOnly
+      />
+
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3 mb-2">
         <div className="min-w-0">

@@ -20,6 +20,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import SupervisorTrackingAlert from '@/components/ui/SupervisorTrackingAlert'
+import { computeAllSupervisorStatuses } from '@/lib/supervisor-tracking'
 
 const DAY_TYPES: Record<string, { label: string; color: string }> = {
   normal: { label: 'عادي', color: 'bg-white/5' },
@@ -85,6 +87,12 @@ export default function ManagerFollowupPage() {
   const batchId = isCeo ? selectedBatch : (myBatchId ?? 46)
   const batchStudents = students.filter(s => s.batch_id === batchId)
   const batchSupervisors = supervisors.filter(s => s.batch_id === batchId)
+
+  // حالة المتابعة الأسبوعية لمشرفي الدفعة
+  const supervisorStatuses = useMemo(
+    () => computeAllSupervisorStatuses(batchSupervisors, batchStudents.filter(s => s.status === 'active' || !s.status)),
+    [batchSupervisors, batchStudents]
+  )
 
   // Schedule map
   const scheduleMap = useMemo(() => {
@@ -196,6 +204,13 @@ export default function ManagerFollowupPage() {
 
   return (
     <div className="space-y-5 animate-fade-in-up">
+      {/* تنبيه المتابعة الأسبوعية — يظهر تلقائياً عند تأخر المشرفين */}
+      <SupervisorTrackingAlert
+        statuses={supervisorStatuses}
+        title="المتابعة الأسبوعية — مشرفو الدفعة"
+        alertsOnly
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="min-w-0">
