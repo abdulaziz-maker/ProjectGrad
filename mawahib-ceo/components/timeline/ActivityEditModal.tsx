@@ -35,6 +35,8 @@ import {
   approveActivity,
   rejectActivity,
   requestActivityApproval,
+  writeAuditEntry,
+  createTimelineNotification,
 } from '@/lib/timeline/db'
 import type {
   TimelineActivity,
@@ -419,6 +421,23 @@ export default function ActivityEditModal({
   const handleSaveProposed = async () => {
     const saved = await saveInternal('proposed')
     if (saved) {
+      // Fire-and-forget: audit entry + CEO/records notification
+      if (userId) {
+        await writeAuditEntry({
+          activityId: saved.id,
+          action: isCreate ? 'created' : 'updated',
+          performedBy: userId,
+          changes: { to_status: 'proposed', title: saved.title },
+        })
+      }
+      await createTimelineNotification({
+        type: 'timeline_proposed',
+        title: 'طلب اعتماد نشاط جديد',
+        body: `تم اقتراح النشاط "${saved.title}" ينتظر اعتمادك.`,
+        severity: 'info',
+        targetRole: 'ceo',
+        data: { activity_id: saved.id, batch_id: saved.batch_id },
+      })
       toast.success('تم إرسال النشاط للاعتماد')
       onClose()
     }
@@ -432,6 +451,23 @@ export default function ActivityEditModal({
       try {
         const approved = await approveActivity(saved.id, userId)
         onSaved(approved)
+        // Audit + notify proposer
+        await writeAuditEntry({
+          activityId: approved.id,
+          action: 'approved',
+          performedBy: userId,
+          changes: { title: approved.title },
+        })
+        if (approved.proposed_by && approved.proposed_by !== userId) {
+          await createTimelineNotification({
+            type: 'timeline_approved',
+            title: 'تم اعتماد نشاطك',
+            body: `اعتُمِد النشاط "${approved.title}".`,
+            severity: 'success',
+            targetUserId: approved.proposed_by,
+            data: { activity_id: approved.id },
+          })
+        }
         toast.success('تم اعتماد النشاط')
         onClose()
       } catch (err) {
@@ -445,10 +481,32 @@ export default function ActivityEditModal({
 
   const handleReject = async () => {
     if (!activity) return
+    const reason = prompt('سبب الرفض (اختياري — يظهر للمقترح):')
     setApproving(true)
     try {
       const rejected = await rejectActivity(activity.id)
       onSaved(rejected)
+      if (userId) {
+        await writeAuditEntry({
+          activityId: rejected.id,
+          action: 'rejected',
+          performedBy: userId,
+          changes: { reason: reason || null, title: rejected.title },
+        })
+      }
+      if (rejected.proposed_by && rejected.proposed_by !== userId) {
+        await createTimelineNotification({
+          type: 'timeline_rejected',
+          title: 'تم رفض نشاطك',
+          body:
+            `رُفِض النشاط "${rejected.title}"` +
+            (reason ? ` — السبب: ${reason}` : '') +
+            '. أعد الصياغة وأرسله مجدداً.',
+          severity: 'warning',
+          targetUserId: rejected.proposed_by,
+          data: { activity_id: rejected.id, reason: reason || null },
+        })
+      }
       toast.success('تم إعادة النشاط كمسودة')
       onClose()
     } catch (err) {
@@ -465,6 +523,22 @@ export default function ActivityEditModal({
     try {
       const updated = await requestActivityApproval(activity.id)
       onSaved(updated)
+      if (userId) {
+        await writeAuditEntry({
+          activityId: updated.id,
+          action: 'updated',
+          performedBy: userId,
+          changes: { to_status: 'proposed', title: updated.title },
+        })
+      }
+      await createTimelineNotification({
+        type: 'timeline_proposed',
+        title: 'طلب اعتماد نشاط',
+        body: `تم إرسال النشاط "${updated.title}" لاعتمادك.`,
+        severity: 'info',
+        targetRole: 'ceo',
+        data: { activity_id: updated.id, batch_id: updated.batch_id },
+      })
       toast.success('تم إرسال الطلب للاعتماد')
       onClose()
     } catch (err) {

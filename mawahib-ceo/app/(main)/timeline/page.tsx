@@ -54,6 +54,8 @@ import {
   Plus,
   DollarSign,
   Tag,
+  Clock,
+  Copy,
 } from 'lucide-react'
 import { hijriYearLength } from '@/lib/timeline/hijri'
 
@@ -316,6 +318,46 @@ export default function TimelinePage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {isCrossBatch ? (
+            <>
+              <Link
+                href="/timeline/approvals"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition hover:bg-white/5"
+                style={{
+                  borderColor: 'rgba(185,72,56,0.45)',
+                  color: '#8B2F23',
+                  background: 'rgba(185,72,56,0.04)',
+                }}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                الاعتمادات
+              </Link>
+              <Link
+                href="/timeline/master"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition hover:bg-white/5"
+                style={{
+                  borderColor: 'rgba(99,102,241,0.45)',
+                  color: '#4F46E5',
+                  background: 'rgba(99,102,241,0.04)',
+                }}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                العرض الموحَّد
+              </Link>
+              <Link
+                href="/timeline/clone"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition hover:bg-white/5"
+                style={{
+                  borderColor: 'rgba(148,163,184,0.45)',
+                  color: '#475569',
+                  background: 'rgba(148,163,184,0.04)',
+                }}
+              >
+                <Copy className="w-3.5 h-3.5" />
+                القوالب
+              </Link>
+            </>
+          ) : null}
           <Link
             href="/timeline/finance"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition hover:bg-white/5"
@@ -338,7 +380,7 @@ export default function TimelinePage() {
             }}
           >
             <Tag className="w-3.5 h-3.5" />
-            أنواع الأنشطة
+            الأنواع
           </Link>
           <div
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold"
@@ -349,7 +391,7 @@ export default function TimelinePage() {
             }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Phase 4 — نظام التكاليف
+            Phase 5 — workflow + استنساخ
           </div>
           {canEditCurrentBatch && activeCalendar ? (
             <button

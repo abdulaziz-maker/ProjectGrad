@@ -14,6 +14,9 @@ import type {
   TimelineActivityType,
   TimelineActivity,
   TimelineActivityCost,
+  TimelinePlanTemplate,
+  TimelineAuditEntry,
+  TimelineAuditAction,
 } from '@/types/timeline'
 
 // ─── Calendars ───────────────────────────────────────────────────────
@@ -385,4 +388,152 @@ export async function getBatchesForTimeline(): Promise<TimelineBatchRef[]> {
     .order('id', { ascending: true })
   if (error) throw error
   return (data ?? []) as TimelineBatchRef[]
+}
+
+// ─── Approvals queue ─────────────────────────────────────────────────
+/** Fetch all `status='proposed'` activities across the given calendar. */
+export async function getProposedActivities(
+  calendarId: string,
+): Promise<TimelineActivity[]> {
+  const { data, error } = await supabase
+    .from('timeline_activities')
+    .select(
+      'id,batch_id,calendar_id,activity_type_id,title,description,start_date,end_date,custom_color,status,proposed_by,approved_by,approved_at,notes,created_at,updated_at',
+    )
+    .eq('calendar_id', calendarId)
+    .eq('status', 'proposed')
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as TimelineActivity[]
+}
+
+// ─── Audit log ───────────────────────────────────────────────────────
+export async function writeAuditEntry(params: {
+  activityId: string | null
+  action: TimelineAuditAction | string
+  performedBy: string
+  changes?: Record<string, unknown>
+}): Promise<void> {
+  const { error } = await supabase.from('timeline_audit_log').insert({
+    activity_id: params.activityId,
+    action: params.action,
+    performed_by: params.performedBy,
+    changes: params.changes ?? null,
+  })
+  if (error) {
+    // Audit log is non-critical — surface to console but never block the UX
+    console.warn('[timeline] failed to write audit entry:', error.message)
+  }
+}
+
+export async function getAuditEntries(
+  activityId: string,
+): Promise<TimelineAuditEntry[]> {
+  const { data, error } = await supabase
+    .from('timeline_audit_log')
+    .select('id,activity_id,action,performed_by,changes,performed_at')
+    .eq('activity_id', activityId)
+    .order('performed_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as TimelineAuditEntry[]
+}
+
+// ─── Notifications (fire-and-forget) ─────────────────────────────────
+/**
+ * Write a notification row to the shared `notifications` table.
+ * Uses the same table as escalations/reports so /notifications displays it.
+ * RLS on `notifications`: authenticated users can INSERT; filtered on SELECT
+ * by target_role or target_user_id.
+ */
+export async function createTimelineNotification(params: {
+  type: string              // 'timeline_proposed' | 'timeline_approved' | 'timeline_rejected'
+  title: string
+  body: string
+  severity?: 'info' | 'warning' | 'error' | 'success'
+  targetRole?: string | null
+  targetUserId?: string | null
+  data?: Record<string, unknown>
+}): Promise<void> {
+  const { error } = await supabase.from('notifications').insert({
+    type: params.type,
+    title: params.title,
+    body: params.body,
+    severity: params.severity ?? 'info',
+    target_role: params.targetRole ?? null,
+    target_user_id: params.targetUserId ?? null,
+    data: params.data ?? {},
+    read: false,
+  })
+  if (error) {
+    console.warn('[timeline] failed to write notification:', error.message)
+  }
+}
+
+// ─── Plan Templates (clone system) ───────────────────────────────────
+export async function getPlanTemplates(): Promise<TimelinePlanTemplate[]> {
+  const { data, error } = await supabase
+    .from('timeline_plan_templates')
+    .select('id,name,batch_id,template_data,source_year,created_at,created_by')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as TimelinePlanTemplate[]
+}
+
+export async function createPlanTemplate(params: {
+  name: string
+  batchId: number | null
+  templateData: unknown
+  sourceYear: number | null
+  createdBy: string | null
+}): Promise<TimelinePlanTemplate> {
+  const { data, error } = await supabase
+    .from('timeline_plan_templates')
+    .insert({
+      name: params.name,
+      batch_id: params.batchId,
+      template_data: params.templateData,
+      source_year: params.sourceYear,
+      created_by: params.createdBy,
+    })
+    .select('id,name,batch_id,template_data,source_year,created_at,created_by')
+    .single()
+  if (error) throw error
+  return data as TimelinePlanTemplate
+}
+
+export async function deletePlanTemplate(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('timeline_plan_templates')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
+/**
+ * Bulk-insert activities (used by template clone).
+ * Returns count of inserted rows.
+ */
+export async function bulkInsertActivities(
+  rows: Array<
+    Omit<TimelineActivity, 'id' | 'created_at' | 'updated_at' | 'approved_by' | 'approved_at'>
+  >,
+): Promise<number> {
+  if (rows.length === 0) return 0
+  const { error } = await supabase.from('timeline_activities').insert(
+    rows.map((r) => ({
+      batch_id: r.batch_id,
+      calendar_id: r.calendar_id,
+      activity_type_id: r.activity_type_id,
+      title: r.title,
+      description: r.description,
+      start_date: r.start_date,
+      end_date: r.end_date,
+      custom_color: r.custom_color,
+      status: r.status,
+      proposed_by: r.proposed_by,
+      notes: r.notes,
+    })),
+  )
+  if (error) throw error
+  return rows.length
 }
