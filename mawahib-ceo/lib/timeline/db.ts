@@ -237,6 +237,136 @@ export async function getActivityCosts(activityId: string): Promise<TimelineActi
   return (data ?? []) as TimelineActivityCost[]
 }
 
+/** Fetch costs for many activities in a single query (used by finance dashboard). */
+export async function getCostsForActivities(
+  activityIds: string[],
+): Promise<TimelineActivityCost[]> {
+  if (activityIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('timeline_activity_costs')
+    .select(
+      'id,activity_id,cost_type,amount,per_student,estimated_students,notes,receipt_url,created_at',
+    )
+    .in('activity_id', activityIds)
+  if (error) throw error
+  return (data ?? []) as TimelineActivityCost[]
+}
+
+/**
+ * Replace all cost rows for an activity with the new set.
+ * Used by the "detailed" cost mode in ActivityEditModal.
+ */
+export async function replaceActivityCosts(
+  activityId: string,
+  costs: Array<Omit<TimelineActivityCost, 'id' | 'activity_id' | 'created_at'>>,
+): Promise<void> {
+  const { error: delErr } = await supabase
+    .from('timeline_activity_costs')
+    .delete()
+    .eq('activity_id', activityId)
+  if (delErr) throw delErr
+  if (costs.length === 0) return
+  const payload = costs.map((c) => ({
+    activity_id: activityId,
+    cost_type: c.cost_type,
+    amount: c.amount,
+    per_student: c.per_student,
+    estimated_students: c.estimated_students,
+    notes: c.notes,
+    receipt_url: c.receipt_url,
+  }))
+  const { error: insErr } = await supabase
+    .from('timeline_activity_costs')
+    .insert(payload)
+  if (insErr) throw insErr
+}
+
+// ─── Approval workflow ──────────────────────────────────────────────
+/**
+ * Transition an activity to 'proposed' status (submit for approval).
+ * DB RLS ensures only the owning batch_manager / supervisor / teacher can do this.
+ */
+export async function requestActivityApproval(id: string): Promise<TimelineActivity> {
+  return updateActivity(id, { status: 'proposed' })
+}
+
+/**
+ * CEO/records_officer approves an activity.
+ * Sets status='approved', approved_by=userId, approved_at=now().
+ */
+export async function approveActivity(
+  id: string,
+  approverId: string,
+): Promise<TimelineActivity> {
+  return updateActivity(id, {
+    status: 'approved',
+    approved_by: approverId,
+    approved_at: new Date().toISOString(),
+  })
+}
+
+/** Reject a proposed activity — sets it back to draft. */
+export async function rejectActivity(id: string): Promise<TimelineActivity> {
+  return updateActivity(id, {
+    status: 'draft',
+    approved_by: null,
+    approved_at: null,
+  })
+}
+
+// ─── Activity-Type CRUD (CEO / records_officer only at DB level) ────
+export async function upsertActivityType(
+  t:
+    | (Omit<
+        TimelineActivityType,
+        'id' | 'created_at' | 'is_system'
+      > & { id?: string })
+    | TimelineActivityType,
+): Promise<TimelineActivityType> {
+  const payload = {
+    name: t.name,
+    arabic_name: t.arabic_name,
+    default_color: t.default_color,
+    cost_model: t.cost_model,
+    default_lump_sum: t.default_lump_sum,
+    default_per_student: t.default_per_student,
+    icon: t.icon,
+    ...('id' in t && t.id ? { id: t.id } : {}),
+  }
+  const { data, error } = await supabase
+    .from('timeline_activity_types')
+    .upsert(payload)
+    .select(
+      'id,name,arabic_name,default_color,cost_model,default_lump_sum,default_per_student,icon,is_system,created_at',
+    )
+    .single()
+  if (error) throw error
+  return data as TimelineActivityType
+}
+
+export async function deleteActivityType(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('timeline_activity_types')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
+// ─── All activities (finance dashboard — no batch filter) ───────────
+export async function getAllActivitiesForCalendar(
+  calendarId: string,
+): Promise<TimelineActivity[]> {
+  const { data, error } = await supabase
+    .from('timeline_activities')
+    .select(
+      'id,batch_id,calendar_id,activity_type_id,title,description,start_date,end_date,custom_color,status,proposed_by,approved_by,approved_at,notes,created_at,updated_at',
+    )
+    .eq('calendar_id', calendarId)
+    .order('start_date', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as TimelineActivity[]
+}
+
 // ─── Batches (read-only access to existing table — no FK or policy changes) ───
 export interface TimelineBatchRef {
   id: number

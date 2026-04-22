@@ -1,18 +1,16 @@
 'use client'
 /**
- * ActivityEditModal — create / view / edit a single activity.
+ * ActivityEditModal — create / view / edit a single activity (Phase 4).
  *
- * Modes:
- *   - null activity + defaultStartIso → "Create" mode
- *   - existing activity → "Edit" mode
+ * Adds on top of Phase 3:
+ *   - Type picker with color + icon preview
+ *   - Dynamic cost section:
+ *       lump_sum:   single amount + optional "affected by student count"
+ *       per_student: price × student count (auto)
+ *       detailed:   add/remove line-item table (food/transport/housing/…)
+ *   - Save as draft vs Send for approval vs Approve (CEO) vs Reject
  *
- * Validation:
- *   - title required
- *   - start_date <= end_date
- *   - both dates must exist in current calendar's days
- *   - warn if exam/weekend day (does not block)
- *
- * Hijri-first: user picks Hijri month + day. Gregorian shown under as readonly.
+ * Hijri-first. Never modifies Sidebar / Header / AuthContext.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -25,15 +23,24 @@ import {
 } from '@/lib/timeline/hijri'
 import {
   checkActivityPlacement,
-  estimateActivityCost,
-  formatSAR,
   hijriSpanLength,
+  formatSAR,
 } from '@/lib/timeline/activity-helpers'
-import { createActivity, updateActivity, deleteActivity } from '@/lib/timeline/db'
+import {
+  createActivity,
+  updateActivity,
+  deleteActivity,
+  getActivityCosts,
+  replaceActivityCosts,
+  approveActivity,
+  rejectActivity,
+  requestActivityApproval,
+} from '@/lib/timeline/db'
 import type {
   TimelineActivity,
   TimelineActivityType,
   TimelineActivityStatus,
+  TimelineActivityCost,
   TimelineDay,
 } from '@/types/timeline'
 import {
@@ -45,6 +52,11 @@ import {
   Tag,
   Clock,
   DollarSign,
+  Plus,
+  Send,
+  CheckCircle2,
+  XCircle,
+  Users,
 } from 'lucide-react'
 
 const STATUS_LABELS: Record<TimelineActivityStatus, string> = {
@@ -61,14 +73,29 @@ const STATUS_COLORS: Record<TimelineActivityStatus, string> = {
   cancelled: '#8B2F23',
 }
 
+// Default line items for detailed mode (what an admin typically adds)
+const DEFAULT_DETAILED_LINES = [
+  { cost_type: 'تغذية', amount: 0, per_student: true },
+  { cost_type: 'نقل', amount: 0, per_student: false },
+  { cost_type: 'إقامة', amount: 0, per_student: true },
+  { cost_type: 'مكافآت', amount: 0, per_student: false },
+]
+
+// Form shape for cost rows (no id — we replace the whole set on save)
+interface CostRowForm {
+  cost_type: string
+  amount: number
+  per_student: boolean
+  estimated_students: number | null
+  notes: string | null
+  receipt_url: string | null
+}
+
 interface Props {
   open: boolean
   onClose: () => void
-  /** Existing activity for edit; null for create. */
   activity: TimelineActivity | null
-  /** Called with the updated/new record after save (for parent state). */
   onSaved: (a: TimelineActivity) => void
-  /** Called after delete (edit mode only). */
   onDeleted?: (id: string) => void
   activityTypes: TimelineActivityType[]
   daysMap: Map<string, TimelineDay>
@@ -78,6 +105,8 @@ interface Props {
   studentCount: number
   defaultStartIso?: string | null
   canEdit: boolean
+  /** Role-scoped — enables Approve / Reject buttons. */
+  canApprove?: boolean
   userId: string | null
 }
 
@@ -95,11 +124,12 @@ export default function ActivityEditModal({
   studentCount,
   defaultStartIso,
   canEdit,
+  canApprove = false,
   userId,
 }: Props) {
   const isCreate = !activity
 
-  // ── Form fields
+  // ── Activity fields
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [typeId, setTypeId] = useState<string | null>(null)
@@ -108,10 +138,36 @@ export default function ActivityEditModal({
   const [endIso, setEndIso] = useState('')
   const [customColor, setCustomColor] = useState<string | null>(null)
   const [notes, setNotes] = useState('')
+
+  // ── Cost fields
+  const [costRows, setCostRows] = useState<CostRowForm[]>([])
+  const [lumpSumAmount, setLumpSumAmount] = useState<number>(0)
+  const [lumpPerStudent, setLumpPerStudent] = useState<boolean>(false)
+  const [perStudentAmount, setPerStudentAmount] = useState<number>(0)
+  const [costsLoading, setCostsLoading] = useState(false)
+
+  // ── UI state
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [approving, setApproving] = useState(false)
 
-  // ── Reset form when dialog opens
+  // ── Derived
+  const selectedType = useMemo(
+    () => activityTypes.find((t) => t.id === typeId) ?? null,
+    [activityTypes, typeId],
+  )
+
+  const startDay = daysMap.get(startIso) ?? null
+  const endDay = daysMap.get(endIso) ?? null
+
+  const span = useMemo(
+    () => (startIso && endIso ? hijriSpanLength(startIso, endIso, hijriYear) : null),
+    [startIso, endIso, hijriYear],
+  )
+
+  const costModel = selectedType?.cost_model ?? null
+
+  // ── Reset form when opening
   useEffect(() => {
     if (!open) return
     if (activity) {
@@ -132,33 +188,99 @@ export default function ActivityEditModal({
       setEndIso(defaultStartIso ?? '')
       setCustomColor(null)
       setNotes('')
+      // Reset cost fields
+      setCostRows([])
+      setLumpSumAmount(0)
+      setLumpPerStudent(false)
+      setPerStudentAmount(0)
     }
   }, [open, activity, defaultStartIso, activityTypes])
 
-  // ── Derived: validation + cost + warnings
-  const selectedType = useMemo(
-    () => activityTypes.find((t) => t.id === typeId) ?? null,
-    [activityTypes, typeId],
-  )
+  // ── When type changes or when editing, hydrate cost fields from DB
+  useEffect(() => {
+    if (!open) return
+    if (!activity) {
+      // In create mode, seed cost fields from the type's defaults
+      if (selectedType?.cost_model === 'lump_sum') {
+        setLumpSumAmount(selectedType.default_lump_sum ?? 0)
+        setLumpPerStudent(false)
+        setCostRows([])
+      } else if (selectedType?.cost_model === 'per_student') {
+        setPerStudentAmount(selectedType.default_per_student ?? 0)
+        setCostRows([])
+      } else if (selectedType?.cost_model === 'detailed') {
+        setCostRows(
+          DEFAULT_DETAILED_LINES.map((l) => ({
+            ...l,
+            estimated_students: null,
+            notes: null,
+            receipt_url: null,
+          })),
+        )
+      }
+      return
+    }
+    // Edit mode — load cost rows from DB
+    let alive = true
+    setCostsLoading(true)
+    ;(async () => {
+      try {
+        const costs = await getActivityCosts(activity.id)
+        if (!alive) return
+        // If the activity has a type, hydrate mode-specific fields
+        if (selectedType?.cost_model === 'lump_sum') {
+          const lump = costs.find((c) => !c.per_student)
+          const per = costs.find((c) => c.per_student)
+          setLumpSumAmount(lump?.amount ?? 0)
+          setLumpPerStudent(!!per)
+          setPerStudentAmount(per?.amount ?? 0)
+        } else if (selectedType?.cost_model === 'per_student') {
+          const per = costs.find((c) => c.per_student)
+          setPerStudentAmount(per?.amount ?? selectedType.default_per_student ?? 0)
+        } else if (selectedType?.cost_model === 'detailed') {
+          setCostRows(
+            (costs.length > 0 ? costs : DEFAULT_DETAILED_LINES.map((l) => ({ ...l, id: '', activity_id: '', estimated_students: null, notes: null, receipt_url: null, created_at: '' }) as unknown as TimelineActivityCost)).map(
+              (c) => ({
+                cost_type: c.cost_type,
+                amount: c.amount,
+                per_student: c.per_student,
+                estimated_students: c.estimated_students ?? null,
+                notes: c.notes ?? null,
+                receipt_url: c.receipt_url ?? null,
+              }),
+            ),
+          )
+        }
+      } catch (err) {
+        console.error(err)
+        toast.error('تعذّر تحميل بنود التكلفة')
+      } finally {
+        if (alive) setCostsLoading(false)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [open, activity, selectedType])
 
-  const startDay = daysMap.get(startIso) ?? null
-  const endDay = daysMap.get(endIso) ?? null
+  // ── Computed cost total (live)
+  const computedTotal = useMemo(() => {
+    if (costModel === 'lump_sum') {
+      return lumpSumAmount + (lumpPerStudent ? perStudentAmount * studentCount : 0)
+    }
+    if (costModel === 'per_student') {
+      return perStudentAmount * studentCount
+    }
+    if (costModel === 'detailed') {
+      return costRows.reduce((acc, r) => {
+        const mult = r.per_student ? r.estimated_students ?? studentCount : 1
+        return acc + r.amount * mult
+      }, 0)
+    }
+    return 0
+  }, [costModel, lumpSumAmount, lumpPerStudent, perStudentAmount, costRows, studentCount])
 
-  const span = useMemo(
-    () => (startIso && endIso ? hijriSpanLength(startIso, endIso, hijriYear) : null),
-    [startIso, endIso, hijriYear],
-  )
-
-  const cost = useMemo(() => {
-    if (!startIso || !endIso || !selectedType) return null
-    return estimateActivityCost(
-      { activity_type_id: typeId, start_date: startIso, end_date: endIso },
-      selectedType,
-      studentCount,
-      hijriYear,
-    )
-  }, [startIso, endIso, typeId, selectedType, studentCount, hijriYear])
-
+  // ── Warnings
   const warnings = useMemo(() => {
     const out: string[] = []
     if (!title.trim()) out.push('العنوان مطلوب')
@@ -168,7 +290,6 @@ export default function ActivityEditModal({
     if (startIso && endIso && startIso > endIso) out.push('تاريخ البداية بعد النهاية')
     if (startIso && !startDay) out.push(`اليوم ${startIso} غير موجود في التقويم`)
     if (endIso && !endDay) out.push(`اليوم ${endIso} غير موجود في التقويم`)
-    // Placement warnings for start day
     const pc = checkActivityPlacement(startDay, selectedType)
     out.push(...pc.warnings)
     return out
@@ -185,13 +306,71 @@ export default function ActivityEditModal({
     endDay &&
     !saving
 
-  // ── Save handler
-  const handleSave = async () => {
-    if (!canSave) return
+  // ── Save helpers
+  const buildCostsPayload = (): Array<Omit<TimelineActivityCost, 'id' | 'activity_id' | 'created_at'>> => {
+    if (costModel === 'lump_sum') {
+      const out: Array<Omit<TimelineActivityCost, 'id' | 'activity_id' | 'created_at'>> = []
+      if (lumpSumAmount > 0) {
+        out.push({
+          cost_type: 'الأساسي',
+          amount: lumpSumAmount,
+          per_student: false,
+          estimated_students: null,
+          notes: null,
+          receipt_url: null,
+        })
+      }
+      if (lumpPerStudent && perStudentAmount > 0) {
+        out.push({
+          cost_type: 'للطالب الواحد',
+          amount: perStudentAmount,
+          per_student: true,
+          estimated_students: studentCount,
+          notes: null,
+          receipt_url: null,
+        })
+      }
+      return out
+    }
+    if (costModel === 'per_student') {
+      if (perStudentAmount <= 0) return []
+      return [
+        {
+          cost_type: 'للطالب الواحد',
+          amount: perStudentAmount,
+          per_student: true,
+          estimated_students: studentCount,
+          notes: null,
+          receipt_url: null,
+        },
+      ]
+    }
+    if (costModel === 'detailed') {
+      return costRows
+        .filter((r) => r.cost_type.trim() && r.amount > 0)
+        .map((r) => ({
+          cost_type: r.cost_type.trim(),
+          amount: r.amount,
+          per_student: r.per_student,
+          estimated_students: r.per_student
+            ? r.estimated_students ?? studentCount
+            : null,
+          notes: r.notes ?? null,
+          receipt_url: r.receipt_url ?? null,
+        }))
+    }
+    return []
+  }
+
+  const saveInternal = async (
+    finalStatus: TimelineActivityStatus,
+  ): Promise<TimelineActivity | null> => {
+    if (!canSave) return null
     setSaving(true)
     try {
+      let saved: TimelineActivity
       if (isCreate) {
-        const created = await createActivity({
+        saved = await createActivity({
           batch_id: batchId,
           calendar_id: calendarId,
           activity_type_id: typeId,
@@ -200,32 +379,99 @@ export default function ActivityEditModal({
           start_date: startIso,
           end_date: endIso,
           custom_color: customColor,
-          status,
+          status: finalStatus,
           proposed_by: userId,
           notes: notes.trim() || null,
         })
-        toast.success('تم إنشاء النشاط')
-        onSaved(created)
       } else {
-        const updated = await updateActivity(activity!.id, {
+        saved = await updateActivity(activity!.id, {
           activity_type_id: typeId,
           title: title.trim(),
           description: description.trim() || null,
           start_date: startIso,
           end_date: endIso,
           custom_color: customColor,
-          status,
+          status: finalStatus,
           notes: notes.trim() || null,
         })
-        toast.success('تم حفظ التعديلات')
-        onSaved(updated)
       }
-      onClose()
+      // Replace cost rows
+      await replaceActivityCosts(saved.id, buildCostsPayload())
+      onSaved(saved)
+      return saved
     } catch (err) {
       console.error(err)
       toast.error('تعذّر حفظ النشاط')
+      return null
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSaveDraft = async () => {
+    const saved = await saveInternal('draft')
+    if (saved) {
+      toast.success('تم الحفظ كمسودة')
+      onClose()
+    }
+  }
+
+  const handleSaveProposed = async () => {
+    const saved = await saveInternal('proposed')
+    if (saved) {
+      toast.success('تم إرسال النشاط للاعتماد')
+      onClose()
+    }
+  }
+
+  const handleSaveApproved = async () => {
+    // Save first (status stays), then approve
+    const saved = await saveInternal(status === 'approved' ? 'approved' : status)
+    if (saved && userId) {
+      setApproving(true)
+      try {
+        const approved = await approveActivity(saved.id, userId)
+        onSaved(approved)
+        toast.success('تم اعتماد النشاط')
+        onClose()
+      } catch (err) {
+        console.error(err)
+        toast.error('تعذّر الاعتماد')
+      } finally {
+        setApproving(false)
+      }
+    }
+  }
+
+  const handleReject = async () => {
+    if (!activity) return
+    setApproving(true)
+    try {
+      const rejected = await rejectActivity(activity.id)
+      onSaved(rejected)
+      toast.success('تم إعادة النشاط كمسودة')
+      onClose()
+    } catch (err) {
+      console.error(err)
+      toast.error('تعذّر الرفض')
+    } finally {
+      setApproving(false)
+    }
+  }
+
+  const handleSubmitForApproval = async () => {
+    if (!activity) return
+    setApproving(true)
+    try {
+      const updated = await requestActivityApproval(activity.id)
+      onSaved(updated)
+      toast.success('تم إرسال الطلب للاعتماد')
+      onClose()
+    } catch (err) {
+      console.error(err)
+      toast.error('تعذّر الإرسال')
+    } finally {
+      setApproving(false)
     }
   }
 
@@ -246,16 +492,39 @@ export default function ActivityEditModal({
     }
   }
 
+  // ── Cost-row editors (detailed)
+  const addCostRow = () => {
+    setCostRows([
+      ...costRows,
+      {
+        cost_type: '',
+        amount: 0,
+        per_student: false,
+        estimated_students: null,
+        notes: null,
+        receipt_url: null,
+      },
+    ])
+  }
+
+  const updateCostRow = (idx: number, patch: Partial<CostRowForm>) => {
+    setCostRows(costRows.map((r, i) => (i === idx ? { ...r, ...patch } : r)))
+  }
+
+  const removeCostRow = (idx: number) => {
+    setCostRows(costRows.filter((_, i) => i !== idx))
+  }
+
   if (!open) return null
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3"
       style={{ background: 'rgba(0,0,0,0.55)' }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-5 space-y-4 animate-fade-in-up"
+        className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-2xl p-5 space-y-4 animate-fade-in-up"
         style={{
           background: 'var(--bg-primary)',
           border: '1px solid var(--border-color)',
@@ -273,6 +542,18 @@ export default function ActivityEditModal({
             >
               {isCreate ? 'إضافة نشاط جديد' : 'تعديل النشاط'}
             </h2>
+            {activity ? (
+              <span
+                className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                style={{
+                  background: STATUS_COLORS[activity.status] + '22',
+                  color: STATUS_COLORS[activity.status],
+                  border: `1px solid ${STATUS_COLORS[activity.status]}55`,
+                }}
+              >
+                {STATUS_LABELS[activity.status]}
+              </span>
+            ) : null}
           </div>
           <button
             type="button"
@@ -284,7 +565,47 @@ export default function ActivityEditModal({
           </button>
         </div>
 
-        {/* Title */}
+        {/* Type picker with preview */}
+        <div className="space-y-1.5">
+          <label
+            className="text-xs font-semibold inline-flex items-center gap-1"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <Tag className="w-3 h-3" /> نوع النشاط *
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {activityTypes.map((t) => {
+              const active = typeId === t.id
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => canEdit && setTypeId(t.id)}
+                  disabled={!canEdit}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition"
+                  style={{
+                    background: active ? `${t.default_color}22` : 'transparent',
+                    color: active ? t.default_color : 'var(--text-secondary)',
+                    border: `1.5px solid ${active ? t.default_color : 'var(--border-color)'}`,
+                  }}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ background: t.default_color }}
+                  />
+                  {t.arabic_name}
+                  <span
+                    className="text-[9px] opacity-60 ml-1"
+                  >
+                    ({costModelLabel(t.cost_model)})
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Title + dates */}
         <div className="space-y-1.5">
           <label
             className="text-xs font-semibold"
@@ -307,74 +628,6 @@ export default function ActivityEditModal({
           />
         </div>
 
-        {/* Type + Status */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label
-              className="text-xs font-semibold inline-flex items-center gap-1"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              <Tag className="w-3 h-3" /> نوع النشاط *
-            </label>
-            <select
-              value={typeId ?? ''}
-              onChange={(e) => setTypeId(e.target.value || null)}
-              disabled={!canEdit}
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-              style={{
-                background: 'var(--bg-subtle)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-primary)',
-              }}
-            >
-              <option value="">-- اختر --</option>
-              {activityTypes.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.arabic_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label
-              className="text-xs font-semibold"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              الحالة
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {(Object.keys(STATUS_LABELS) as TimelineActivityStatus[]).map(
-                (s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => canEdit && setStatus(s)}
-                    disabled={!canEdit}
-                    className="px-2.5 py-1 rounded-lg text-xs font-semibold transition"
-                    style={
-                      status === s
-                        ? {
-                            background: STATUS_COLORS[s],
-                            color: 'white',
-                            border: `1px solid ${STATUS_COLORS[s]}`,
-                          }
-                        : {
-                            background: 'transparent',
-                            color: STATUS_COLORS[s],
-                            border: `1px solid ${STATUS_COLORS[s]}55`,
-                          }
-                    }
-                  >
-                    {STATUS_LABELS[s]}
-                  </button>
-                ),
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Dates — Hijri pickers */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <HijriPicker
             label="تاريخ البداية *"
@@ -392,13 +645,13 @@ export default function ActivityEditModal({
           />
         </div>
 
-        {/* Custom color (optional) */}
+        {/* Custom color */}
         <div className="space-y-1.5">
           <label
             className="text-xs font-semibold"
             style={{ color: 'var(--text-secondary)' }}
           >
-            لون مخصَّص (اختياري — يتجاوز لون النوع)
+            لون مخصَّص (اختياري)
           </label>
           <div className="flex items-center gap-2">
             <input
@@ -456,6 +709,228 @@ export default function ActivityEditModal({
           />
         </div>
 
+        {/* Cost section — dynamic based on type */}
+        {selectedType ? (
+          <div
+            className="rounded-xl p-3 space-y-3"
+            style={{
+              background: 'rgba(192,138,72,0.04)',
+              border: '1px solid rgba(192,138,72,0.2)',
+            }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div
+                className="text-xs font-bold inline-flex items-center gap-1.5"
+                style={{ color: '#7A4E1E' }}
+              >
+                <DollarSign className="w-4 h-4" />
+                التكلفة — {costModelLabel(selectedType.cost_model)}
+              </div>
+              <div className="inline-flex items-center gap-1 text-[11px]"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <Users className="w-3 h-3" />
+                الطلاب: <span className="font-mono font-bold">{studentCount}</span>
+              </div>
+            </div>
+
+            {costsLoading ? (
+              <div className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
+                جاري تحميل التكاليف...
+              </div>
+            ) : costModel === 'lump_sum' ? (
+              <div className="space-y-2">
+                <div>
+                  <label className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    المبلغ الإجمالي (ر.س)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={lumpSumAmount}
+                    onChange={(e) => setLumpSumAmount(Number(e.target.value) || 0)}
+                    disabled={!canEdit}
+                    className="w-full mt-1 px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{
+                      background: 'var(--bg-subtle)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)',
+                    }}
+                  />
+                </div>
+                <label className="inline-flex items-center gap-2 cursor-pointer text-xs"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={lumpPerStudent}
+                    onChange={(e) => setLumpPerStudent(e.target.checked)}
+                    disabled={!canEdit}
+                  />
+                  <span>يتأثر بعدد الطلاب (أضف سعراً للطالب الواحد)</span>
+                </label>
+                {lumpPerStudent ? (
+                  <div>
+                    <label className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                      سعر الطالب الواحد (ر.س)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={perStudentAmount}
+                      onChange={(e) => setPerStudentAmount(Number(e.target.value) || 0)}
+                      disabled={!canEdit}
+                      className="w-full mt-1 px-3 py-2 rounded-lg text-sm outline-none"
+                      style={{
+                        background: 'var(--bg-subtle)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-primary)',
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ) : costModel === 'per_student' ? (
+              <div>
+                <label className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                  سعر الطالب الواحد (ر.س)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={perStudentAmount}
+                  onChange={(e) => setPerStudentAmount(Number(e.target.value) || 0)}
+                  disabled={!canEdit}
+                  className="w-full mt-1 px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{
+                    background: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                  الإجمالي = {perStudentAmount} × {studentCount} طالب
+                </p>
+              </div>
+            ) : costModel === 'detailed' ? (
+              <div className="space-y-2">
+                {costRows.map((row, idx) => (
+                  <div
+                    key={idx}
+                    className="grid grid-cols-12 gap-2 items-center"
+                  >
+                    <input
+                      type="text"
+                      value={row.cost_type}
+                      onChange={(e) =>
+                        updateCostRow(idx, { cost_type: e.target.value })
+                      }
+                      disabled={!canEdit}
+                      placeholder="البند"
+                      className="col-span-4 px-2 py-1.5 rounded-md text-xs outline-none"
+                      style={{
+                        background: 'var(--bg-subtle)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-primary)',
+                      }}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      value={row.amount}
+                      onChange={(e) =>
+                        updateCostRow(idx, { amount: Number(e.target.value) || 0 })
+                      }
+                      disabled={!canEdit}
+                      placeholder="المبلغ"
+                      className="col-span-3 px-2 py-1.5 rounded-md text-xs font-mono outline-none"
+                      style={{
+                        background: 'var(--bg-subtle)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-primary)',
+                      }}
+                    />
+                    <label
+                      className="col-span-3 inline-flex items-center gap-1 text-[10px] cursor-pointer"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={row.per_student}
+                        onChange={(e) =>
+                          updateCostRow(idx, { per_student: e.target.checked })
+                        }
+                        disabled={!canEdit}
+                      />
+                      للطالب
+                    </label>
+                    <span
+                      className="col-span-1 text-[10px] font-mono text-left"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      {row.per_student
+                        ? `× ${row.estimated_students ?? studentCount}`
+                        : ''}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeCostRow(idx)}
+                      disabled={!canEdit}
+                      className="col-span-1 p-1 rounded-md hover:bg-white/5"
+                      aria-label="حذف البند"
+                    >
+                      <Trash2
+                        className="w-3.5 h-3.5"
+                        style={{ color: '#8B2F23' }}
+                      />
+                    </button>
+                  </div>
+                ))}
+                {canEdit ? (
+                  <button
+                    type="button"
+                    onClick={addCostRow}
+                    className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-md transition hover:bg-white/5 border"
+                    style={{
+                      borderColor: 'rgba(192,138,72,0.4)',
+                      color: '#7A4E1E',
+                    }}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    إضافة بند
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <div
+                className="text-[11px] text-center py-2"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                اختر نوع النشاط لعرض نموذج التكلفة
+              </div>
+            )}
+
+            {/* Live total */}
+            <div
+              className="flex items-center justify-between pt-2 border-t"
+              style={{ borderColor: 'rgba(192,138,72,0.25)' }}
+            >
+              <span
+                className="text-xs font-semibold"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                الإجمالي المقدَّر
+              </span>
+              <span
+                className="text-lg font-bold font-mono"
+                style={{ color: '#7A4E1E' }}
+              >
+                {formatSAR(computedTotal)}
+              </span>
+            </div>
+          </div>
+        ) : null}
+
         {/* Notes */}
         <div className="space-y-1.5">
           <label
@@ -493,27 +968,6 @@ export default function ActivityEditModal({
               المدة: {span} يوم
             </span>
           ) : null}
-          {cost && cost.total > 0 ? (
-            <span
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-semibold"
-              style={{
-                background: 'rgba(192,138,72,0.12)',
-                color: '#7A4E1E',
-                border: '1px solid rgba(192,138,72,0.35)',
-              }}
-            >
-              <DollarSign className="w-3 h-3" />
-              التكلفة المقدَّرة: {formatSAR(cost.total)}
-            </span>
-          ) : null}
-          {cost?.model === 'detailed' ? (
-            <span
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              التكلفة: تُدخل يدويًا لاحقاً
-            </span>
-          ) : null}
         </div>
 
         {/* Warnings */}
@@ -544,7 +998,7 @@ export default function ActivityEditModal({
             <button
               type="button"
               onClick={handleDelete}
-              disabled={deleting || saving}
+              disabled={deleting || saving || approving}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition disabled:opacity-50"
               style={{
                 background: 'rgba(185,72,56,0.08)',
@@ -553,12 +1007,12 @@ export default function ActivityEditModal({
               }}
             >
               <Trash2 className="w-3.5 h-3.5" />
-              حذف النشاط
+              حذف
             </button>
           ) : (
             <span />
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={onClose}
@@ -571,21 +1025,87 @@ export default function ActivityEditModal({
             >
               إلغاء
             </button>
+            {canApprove && activity && activity.status === 'proposed' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleReject}
+                  disabled={approving || saving}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-50 transition"
+                  style={{
+                    background: 'rgba(185,72,56,0.08)',
+                    color: '#8B2F23',
+                    border: '1px solid rgba(185,72,56,0.3)',
+                  }}
+                >
+                  <XCircle className="w-4 h-4" />
+                  رفض
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveApproved}
+                  disabled={!canSave || saving || approving}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50 transition active:scale-95"
+                  style={{
+                    background: 'linear-gradient(135deg, #356B6E, #244A4C)',
+                    boxShadow: '0 2px 10px rgba(53,107,110,0.35)',
+                  }}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  اعتماد
+                </button>
+              </>
+            ) : null}
             {canEdit ? (
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={!canSave || saving}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50 transition active:scale-95"
-                style={{
-                  background:
-                    'linear-gradient(135deg, #C08A48, #9A6A2E)',
-                  boxShadow: '0 2px 10px rgba(192,138,72,0.35)',
-                }}
-              >
-                <Save className="w-4 h-4" />
-                {saving ? '...' : isCreate ? 'إنشاء' : 'حفظ'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={!canSave || saving || approving}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-50 transition"
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #C08A48',
+                    color: '#7A4E1E',
+                  }}
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? '...' : 'حفظ كمسودة'}
+                </button>
+                {!canApprove ? (
+                  <button
+                    type="button"
+                    onClick={
+                      isCreate || activity?.status === 'draft'
+                        ? handleSaveProposed
+                        : handleSubmitForApproval
+                    }
+                    disabled={!canSave || saving || approving}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50 transition active:scale-95"
+                    style={{
+                      background: 'linear-gradient(135deg, #C08A48, #9A6A2E)',
+                      boxShadow: '0 2px 10px rgba(192,138,72,0.35)',
+                    }}
+                  >
+                    <Send className="w-4 h-4" />
+                    {saving || approving ? '...' : 'إرسال للاعتماد'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    disabled={!canSave || saving || approving}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50 transition active:scale-95"
+                    style={{
+                      background: 'linear-gradient(135deg, #C08A48, #9A6A2E)',
+                      boxShadow: '0 2px 10px rgba(192,138,72,0.35)',
+                    }}
+                  >
+                    <Save className="w-4 h-4" />
+                    {saving ? '...' : 'حفظ'}
+                  </button>
+                )}
+              </>
             ) : null}
           </div>
         </div>
@@ -594,7 +1114,16 @@ export default function ActivityEditModal({
   )
 }
 
-// ─── Hijri picker (small inline component) ─────────────────────────────
+// ─── Cost-model label helper ───────────────────────────────────────
+function costModelLabel(m: 'lump_sum' | 'per_student' | 'detailed'): string {
+  switch (m) {
+    case 'lump_sum': return 'مبلغ مقطوع'
+    case 'per_student': return 'سعر للطالب'
+    case 'detailed': return 'بنود تفصيلية'
+  }
+}
+
+// ─── Hijri picker ─────────────────────────────────────────────────
 function HijriPicker({
   label,
   value,

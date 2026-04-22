@@ -52,6 +52,8 @@ import {
   Upload,
   AlertTriangle,
   Plus,
+  DollarSign,
+  Tag,
 } from 'lucide-react'
 import { hijriYearLength } from '@/lib/timeline/hijri'
 
@@ -314,6 +316,30 @@ export default function TimelinePage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href="/timeline/finance"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition hover:bg-white/5"
+            style={{
+              borderColor: 'rgba(53,107,110,0.45)',
+              color: '#235052',
+              background: 'rgba(53,107,110,0.04)',
+            }}
+          >
+            <DollarSign className="w-3.5 h-3.5" />
+            الميزانية
+          </Link>
+          <Link
+            href="/timeline/activity-types"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition hover:bg-white/5"
+            style={{
+              borderColor: 'rgba(192,138,72,0.45)',
+              color: '#7A4E1E',
+              background: 'rgba(192,138,72,0.04)',
+            }}
+          >
+            <Tag className="w-3.5 h-3.5" />
+            أنواع الأنشطة
+          </Link>
           <div
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold"
             style={{
@@ -323,7 +349,7 @@ export default function TimelinePage() {
             }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Phase 3 — شبكة تفاعلية
+            Phase 4 — نظام التكاليف
           </div>
           {canEditCurrentBatch && activeCalendar ? (
             <button
@@ -573,6 +599,7 @@ export default function TimelinePage() {
           studentCount={currentBatch?.student_count ?? 0}
           defaultStartIso={defaultStartIso}
           canEdit={canEditCurrentBatch}
+          canApprove={isCrossBatch}
           userId={userId}
         />
       ) : null}
