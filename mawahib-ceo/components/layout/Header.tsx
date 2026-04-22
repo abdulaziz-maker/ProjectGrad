@@ -1,9 +1,10 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Bell, Menu, Sun, Moon, CheckCheck, Trash2, ExternalLink } from 'lucide-react'
+import { Bell, Menu, Sun, Moon, CheckCheck, Trash2, ExternalLink, LogOut } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useRouter } from 'next/navigation'
+import { signOut } from '@/lib/auth'
 import {
   getNotifications, getUnreadCount, markNotificationRead,
   markAllRead, deleteNotification, type DBNotification,
@@ -93,6 +94,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
     await markAllRead(role).catch(() => {})
     setNotifications(prev => prev.map(x => ({ ...x, read: true })))
     setUnreadCount(0)
+  }
+
+  // ⚡️ تسجيل خروج سريع — نتنقّل أولاً ثم نستدعي signOut في الخلفية حتى لا
+  // تبدو الواجهة متجمّدة على الجوال عندما تكون شبكة Supabase بطيئة.
+  const handleQuickSignOut = () => {
+    router.replace('/login')
+    signOut().catch(() => {})
   }
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
@@ -349,6 +357,23 @@ export default function Header({ onMenuClick }: HeaderProps) {
             </div>
           )}
         </div>
+
+        {/* زر تسجيل الخروج السريع — بارز على الجوال، ومخفي على الشاشات الكبيرة (يبقى في الشريط الجانبي) */}
+        <button
+          onClick={handleQuickSignOut}
+          className="lg:hidden w-10 h-10 flex items-center justify-center active:scale-95"
+          style={{
+            borderRadius: 12,
+            border: '1px solid rgba(185,72,56,0.35)',
+            background: 'rgba(185,72,56,0.08)',
+            color: 'var(--semantic-danger)',
+            transition: 'background-color 150ms, transform 150ms',
+          }}
+          title="تسجيل الخروج"
+          aria-label="تسجيل الخروج"
+        >
+          <LogOut size={18} />
+        </button>
 
         <div
           className="hidden sm:block mx-1"

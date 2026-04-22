@@ -80,9 +80,11 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
     return !item.roles || item.roles.includes(role)
   })
 
-  const handleSignOut = async () => {
-    await signOut()
+  // ⚡️ نتنقّل أولاً ثم نستدعي signOut في الخلفية — على الجوال تبدو العملية
+  // فورية حتى لو تأخّرت شبكة Supabase.
+  const handleSignOut = () => {
     router.replace('/login')
+    signOut().catch(() => {})
   }
 
   const roleLabels: Record<string, string> = { ceo: 'المدير التنفيذي', batch_manager: 'مدير الدفعة', supervisor: 'مشرف', teacher: 'معلم', records_officer: 'موظف سجلات' }
@@ -340,28 +342,31 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
             )}
           </div>
 
-          {/* Sign out */}
+          {/* Sign out — بارز دائماً (أحمر) حتى يكون واضحاً على الجوال */}
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center rounded-xl text-sm"
+            className="w-full flex items-center rounded-xl text-sm font-semibold active:scale-[0.98]"
             style={{
-              color: 'var(--text-muted)',
+              color: 'var(--semantic-danger)',
+              background: 'rgba(185,72,56,0.08)',
+              border: '1px solid rgba(185,72,56,0.28)',
               gap: collapsed ? 0 : 8,
-              padding: collapsed ? '8px 0' : '8px 12px',
+              padding: collapsed ? '10px 0' : '10px 12px',
               justifyContent: collapsed ? 'center' : 'flex-start',
-              transition: 'color 200ms, background 200ms',
+              transition: 'background 200ms, transform 150ms, border-color 200ms',
+              minHeight: 40,
             }}
             title={collapsed ? 'تسجيل الخروج' : undefined}
             onMouseEnter={e => {
-              e.currentTarget.style.color = 'var(--semantic-danger)'
-              e.currentTarget.style.background = 'rgba(185,72,56,0.08)'
+              e.currentTarget.style.background = 'rgba(185,72,56,0.16)'
+              e.currentTarget.style.borderColor = 'rgba(185,72,56,0.45)'
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.color = 'var(--text-muted)'
-              e.currentTarget.style.background = ''
+              e.currentTarget.style.background = 'rgba(185,72,56,0.08)'
+              e.currentTarget.style.borderColor = 'rgba(185,72,56,0.28)'
             }}
           >
-            <LogOut size={16} />
+            <LogOut size={17} />
             {!collapsed && <span className="sidebar-label">تسجيل الخروج</span>}
           </button>
         </div>

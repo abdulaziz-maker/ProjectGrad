@@ -4,6 +4,9 @@ import Header from '@/components/layout/Header'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useIdleLogout } from '@/hooks/useIdleLogout'
+
+const IDLE_TIMEOUT_MS = 90 * 60 * 1000 // ساعة ونصف
 
 const CARD_SEL = '.card, .card-static, .card-interactive'
 function lerp(a: number, b: number, t: number) { return a + (b - a) * t }
@@ -130,6 +133,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!loading && !session) router.replace('/login')
   }, [loading, session, router])
+
+  /* ── Idle auto-logout (90 min for everyone) ── */
+  useIdleLogout({ timeoutMs: IDLE_TIMEOUT_MS, enabled: !!session })
 
   /* ── Role-based route guard: موظف السجلات يُقصر على ٣ صفحات ── */
   useEffect(() => {

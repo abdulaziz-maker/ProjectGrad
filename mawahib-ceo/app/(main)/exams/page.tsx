@@ -1,10 +1,18 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { getExams, upsertExam, deleteExam as deleteExamDB, getStudents, getSupervisors, upsertJuzProgress, type DBExam, type DBStudent, type DBSupervisor } from '@/lib/db'
-import { CalendarCheck, Plus, BookOpen, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Bell, PauseCircle, Pencil } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { getExams, upsertExam, deleteExam as deleteExamDB, getStudents, getSupervisors, upsertJuzProgress, getDailyFollowups, type DBExam, type DBStudent, type DBSupervisor } from '@/lib/db'
+import { CalendarCheck, Plus, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Bell, PauseCircle, Pencil, Save, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { getBatchName } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+
+// نهايات أجزاء القرآن (مصحف المدينة — ٦٠٤ صفحة). رقم الصفحة عند آخر وجه
+// في الجزء. يُستعمل لحساب «كم وجه يتبقّى للطالب ليصل لنهاية الجزء».
+const JUZ_END_PAGE: Record<number, number> = {
+  1: 21,  2: 41,  3: 61,  4: 81,  5: 101, 6: 121, 7: 141, 8: 161, 9: 181, 10: 201,
+  11: 221, 12: 241, 13: 261, 14: 281, 15: 301, 16: 321, 17: 341, 18: 361, 19: 381, 20: 401,
+  21: 421, 22: 441, 23: 461, 24: 481, 25: 501, 26: 521, 27: 541, 28: 561, 29: 581, 30: 604,
+}
 
 const DAYS_AR = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
 const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
@@ -56,6 +64,7 @@ export default function ExamsPage() {
   const [exams, setExams] = useState<DBExam[]>([])
   const [students, setStudents] = useState<DBStudent[]>([])
   const [supervisors, setSupervisors] = useState<DBSupervisor[]>([])
+  const [latestPosByStudent, setLatestPosByStudent] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [weekOffset, setWeekOffset] = useState(0)
@@ -65,6 +74,9 @@ export default function ExamsPage() {
   const [errors, setErrors] = useState('')
   const [warnings, setWarnings] = useState('')
   const [hesitations, setHesitations] = useState('')
+  // تعديل تفاصيل اختبار (الجزء/التاريخ/الوقت/المقيّم/الملاحظات)
+  const [editingExamId, setEditingExamId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ juzNumber: '1', date: today, time: '10:00', examiner: '', notes: '' })
   const [form, setForm] = useState({
     studentId: '',
     juzNumber: '1',
@@ -92,14 +104,35 @@ export default function ExamsPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [examsData, studentsData, supervisorsData] = await Promise.all([
+        // نجلب آخر ١٢٠ يوماً من المتابعات اليومية لاستنتاج آخر موضع لكل طالب.
+        // RLS على الخادم يحدّ البيانات حسب صلاحية المستخدم — لا تسرّب بين الدفعات.
+        const d = new Date()
+        d.setDate(d.getDate() - 120)
+        const dateFrom = d.toISOString().split('T')[0]
+
+        const [examsData, studentsData, supervisorsData, followupsData] = await Promise.all([
           getExams(),
           getStudents(),
           getSupervisors(),
+          getDailyFollowups({ dateFrom }),
         ])
         setExams(examsData)
         setStudents(studentsData)
         setSupervisors(supervisorsData)
+
+        // آخر موضع (actual_position) لكل طالب — الأحدث تاريخاً مع قيمة غير فارغة.
+        // followupsData مرتّبة تنازلياً حسب followup_date، فأول ظهور هو الأحدث.
+        const latest: Record<string, { date: string; pos: number }> = {}
+        for (const f of followupsData) {
+          if (f.actual_position == null) continue
+          const prev = latest[f.student_id]
+          if (!prev || f.followup_date > prev.date) {
+            latest[f.student_id] = { date: f.followup_date, pos: f.actual_position }
+          }
+        }
+        const posMap: Record<string, number> = {}
+        for (const sid of Object.keys(latest)) posMap[sid] = latest[sid].pos
+        setLatestPosByStudent(posMap)
       } catch (err) {
         console.error(err)
         toast.error('حدث خطأ أثناء تحميل البيانات')
@@ -109,6 +142,16 @@ export default function ExamsPage() {
     }
     fetchData()
   }, [])
+
+  // «كم وجه متبقّى» للطالب حتى نهاية جزء الاختبار. null إذا لم يتوفّر موضع.
+  const remainingFor = useMemo(() => {
+    return (exam: DBExam): { remaining: number; hasPos: boolean } => {
+      const pos = latestPosByStudent[exam.student_id]
+      const end = JUZ_END_PAGE[exam.juz_number] ?? exam.juz_number * 20
+      if (pos == null) return { remaining: end, hasPos: false }
+      return { remaining: Math.max(0, end - pos), hasPos: true }
+    }
+  }, [latestPosByStudent])
 
   const dayExams = visibleExams.filter(e => e.date === selectedDay).sort((a, b) => a.time.localeCompare(b.time))
   const todayExams = visibleExams.filter(e => e.date === today)
@@ -200,6 +243,46 @@ export default function ExamsPage() {
     } catch (err) {
       console.error(err)
       toast.error('حدث خطأ أثناء تسجيل النتيجة')
+    }
+  }
+
+  // ─── تعديل تفاصيل الاختبار (الجزء / التاريخ / الوقت / المقيّم / الملاحظات) ───
+  const openEditFor = (exam: DBExam) => {
+    // نغلق أي نموذج تسجيل نتيجة مفتوح لتجنّب التداخل البصري
+    if (markingExam) resetMarkingForm()
+    setEditingExamId(exam.id)
+    setEditForm({
+      juzNumber: String(exam.juz_number),
+      date: exam.date,
+      time: exam.time,
+      examiner: exam.examiner,
+      notes: exam.notes || '',
+    })
+  }
+  const cancelEdit = () => { setEditingExamId(null) }
+  const saveEdit = async (examId: string) => {
+    const exam = exams.find(e => e.id === examId)
+    if (!exam) return
+    const newJuz = Number(editForm.juzNumber)
+    if (!newJuz || newJuz < 1 || newJuz > 30) { toast.error('رقم الجزء غير صحيح'); return }
+    if (!editForm.date || !editForm.time) { toast.error('التاريخ والوقت مطلوبان'); return }
+    if (!editForm.examiner.trim()) { toast.error('اسم المقيّم مطلوب'); return }
+    const updated: DBExam = {
+      ...exam,
+      juz_number: newJuz,
+      date: editForm.date,
+      time: editForm.time,
+      examiner: editForm.examiner.trim(),
+      notes: editForm.notes,
+    }
+    try {
+      await upsertExam(updated)
+      setExams(prev => prev.map(e => e.id === examId ? updated : e))
+      setEditingExamId(null)
+      toast.success('تم حفظ تعديلات الاختبار')
+    } catch (err) {
+      console.error(err)
+      toast.error('حدث خطأ أثناء حفظ التعديلات')
     }
   }
 
@@ -475,6 +558,35 @@ export default function ExamsPage() {
                           <span style={{ color: '#C08A48' }} className="font-medium font-mono">الدرجة: {exam.score}/100</span>
                         )}
                       </div>
+                      {/* توقُّع — كم وجه متبقّى للطالب لنهاية الجزء */}
+                      {!hasResult && (() => {
+                        const { remaining, hasPos } = remainingFor(exam)
+                        if (!hasPos) {
+                          return (
+                            <div className="mt-1.5">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold" style={{ background: 'rgba(148,163,184,0.12)', color: 'var(--text-muted)', border: '1px solid var(--border-soft)' }}>
+                                <BookOpen className="w-3 h-3" />
+                                لا توجد بيانات موضع — الجزء {exam.juz_number}: {JUZ_END_PAGE[exam.juz_number] ?? exam.juz_number * 20} وجه
+                              </span>
+                            </div>
+                          )
+                        }
+                        const tone = remaining === 0
+                          ? { bg: 'rgba(90,143,103,0.15)', color: '#356B42', border: 'rgba(90,143,103,0.35)', label: 'جاهز للاختبار — وصل لنهاية الجزء' }
+                          : remaining <= 3
+                            ? { bg: 'rgba(90,143,103,0.12)', color: '#356B42', border: 'rgba(90,143,103,0.30)', label: `متبقّ ${remaining} وجه — قريب` }
+                            : remaining <= 8
+                              ? { bg: 'rgba(192,138,72,0.12)', color: '#8B5A1E', border: 'rgba(192,138,72,0.30)', label: `متبقّ ${remaining} وجه` }
+                              : { bg: 'rgba(185,72,56,0.10)', color: '#8B2F23', border: 'rgba(185,72,56,0.30)', label: `متبقّ ${remaining} وجه — بعيد` }
+                        return (
+                          <div className="mt-1.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold font-mono" style={{ background: tone.bg, color: tone.color, border: `1px solid ${tone.border}` }}>
+                              <BookOpen className="w-3 h-3" />
+                              {tone.label}
+                            </span>
+                          </div>
+                        )
+                      })()}
                       {/* Counter pills — Errors / Warnings / Hesitations */}
                       {(exam.errors || exam.warnings || exam.hesitations) && (
                         <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -528,6 +640,17 @@ export default function ExamsPage() {
                           تعديل
                         </button>
                       )}
+                      {canEditExam(exam) && !isMarking && editingExamId !== exam.id && (
+                        <button
+                          onClick={() => openEditFor(exam)}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg transition active:scale-95"
+                          style={{ background: 'rgba(53,107,110,0.10)', color: '#235052', border: '1px solid rgba(53,107,110,0.35)', minHeight: '36px' }}
+                          title="تعديل الجزء والتاريخ والوقت"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          تعديل التفاصيل
+                        </button>
+                      )}
                       {canEditExam(exam) && !isMarking && (
                         <button
                           onClick={() => handleDeleteExam(exam.id)}
@@ -541,6 +664,89 @@ export default function ExamsPage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Edit details form — expanded row with 5 inputs */}
+                  {canEditExam(exam) && editingExamId === exam.id && (
+                    <div
+                      className="px-4 pb-4 pt-0 border-t mt-2"
+                      style={{ borderColor: 'rgba(53,107,110,0.25)' }}
+                    >
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3">
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>الجزء</label>
+                          <select
+                            value={editForm.juzNumber}
+                            onChange={e => setEditForm({ ...editForm, juzNumber: e.target.value })}
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          >
+                            {Array.from({ length: 30 }, (_, i) => (
+                              <option key={i + 1} value={i + 1}>الجزء {i + 1}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>التاريخ</label>
+                          <input
+                            type="date"
+                            value={editForm.date}
+                            onChange={e => setEditForm({ ...editForm, date: e.target.value })}
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>الوقت</label>
+                          <input
+                            type="time"
+                            value={editForm.time}
+                            onChange={e => setEditForm({ ...editForm, time: e.target.value })}
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>المقيّم</label>
+                          <input
+                            value={editForm.examiner}
+                            onChange={e => setEditForm({ ...editForm, examiner: e.target.value })}
+                            list="examiners-list-edit"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          />
+                          <datalist id="examiners-list-edit">
+                            {supervisors.map(s => <option key={s.id} value={s.name} />)}
+                          </datalist>
+                        </div>
+                        <div className="col-span-2 md:col-span-1">
+                          <label className="text-[11px] font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>ملاحظات</label>
+                          <input
+                            value={editForm.notes}
+                            onChange={e => setEditForm({ ...editForm, notes: e.target.value })}
+                            placeholder="اختياري"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-end gap-2 mt-3 flex-wrap">
+                        <button
+                          onClick={() => saveEdit(exam.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition active:scale-95"
+                          style={{ background: 'linear-gradient(135deg, #356B6E, #244A4C)', boxShadow: '0 2px 8px rgba(53,107,110,0.3)' }}
+                        >
+                          <Save className="w-3.5 h-3.5" /> حفظ التعديلات
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="text-xs px-3 py-1.5 rounded-lg border transition hover:bg-white/5"
+                          style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                        >
+                          إلغاء
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Marking form — expanded row with 4 inputs */}
                   {!readOnly && isMarking && (
