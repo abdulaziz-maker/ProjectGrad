@@ -240,6 +240,57 @@ export async function deleteExam(id: string): Promise<void> {
   invalidateCache(CACHE_KEYS.EXAMS)
 }
 
+// Exam Candidates (القريبون للاختبار) — تنبيهات تسبق الاختبار الرسمي
+export interface DBExamCandidate {
+  id: string
+  student_id: string
+  student_name: string
+  batch_id: number
+  juz_number: number
+  remaining_pages: number | null
+  posted_date: string
+  expected_date: string | null
+  created_by?: string | null
+  notes?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export async function getExamCandidates(): Promise<DBExamCandidate[]> {
+  return cachedFetch(CACHE_KEYS.EXAM_CANDIDATES, async () => {
+    const data = await paginateAll<DBExamCandidate>(() =>
+      supabase.from('exam_candidates')
+        .select('id,student_id,student_name,batch_id,juz_number,remaining_pages,posted_date,expected_date,created_by,notes,created_at,updated_at')
+        .order('expected_date', { ascending: true, nullsFirst: false })
+    )
+    return data
+  })
+}
+
+export async function upsertExamCandidate(c: DBExamCandidate): Promise<void> {
+  const { error } = await supabase.from('exam_candidates').upsert({
+    id: c.id,
+    student_id: c.student_id,
+    student_name: c.student_name,
+    batch_id: c.batch_id,
+    juz_number: c.juz_number,
+    remaining_pages: c.remaining_pages,
+    posted_date: c.posted_date,
+    expected_date: c.expected_date,
+    created_by: c.created_by ?? null,
+    notes: c.notes ?? null,
+    updated_at: new Date().toISOString(),
+  })
+  if (error) throw error
+  invalidateCache(CACHE_KEYS.EXAM_CANDIDATES)
+}
+
+export async function deleteExamCandidate(id: string): Promise<void> {
+  const { error } = await supabase.from('exam_candidates').delete().eq('id', id)
+  if (error) throw error
+  invalidateCache(CACHE_KEYS.EXAM_CANDIDATES)
+}
+
 // Meetings
 export async function getMeetings(): Promise<DBMeeting[]> {
   return cachedFetch(CACHE_KEYS.MEETINGS, async () => {

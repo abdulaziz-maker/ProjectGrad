@@ -114,4 +114,5 @@ export const CACHE_KEYS = {
   DAILY_FOLLOWUPS: 'daily_followups',
   WEEKLY_PLANS: 'weekly_plans',
   FOLLOWUP_ESCALATIONS: 'followup_escalations',
+  EXAM_CANDIDATES: 'exam_candidates',
 } as const

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { getExams, upsertExam, deleteExam as deleteExamDB, getStudents, getSupervisors, upsertJuzProgress, type DBExam, type DBStudent, type DBSupervisor } from '@/lib/db'
-import { CalendarCheck, Plus, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Bell, PauseCircle, Pencil, Save, BookOpen } from 'lucide-react'
+import { getExams, upsertExam, deleteExam as deleteExamDB, getStudents, getSupervisors, upsertJuzProgress, getExamCandidates, upsertExamCandidate, deleteExamCandidate as deleteExamCandidateDB, type DBExam, type DBStudent, type DBSupervisor, type DBExamCandidate } from '@/lib/db'
+import { CalendarCheck, Plus, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Bell, PauseCircle, Pencil, Save, BookOpen, Sparkles, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getBatchName } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -77,6 +77,25 @@ export default function ExamsPage() {
     notes: '',
     remainingPages: '',
   })
+  // ─── قريبو الاختبار (تنبيه مسبق قبل الجدولة الرسمية) ───
+  const [candidates, setCandidates] = useState<DBExamCandidate[]>([])
+  const [showAddCandidate, setShowAddCandidate] = useState(false)
+  const [candidateForm, setCandidateForm] = useState({
+    studentId: '',
+    juzNumber: '1',
+    remainingPages: '',
+    postedDate: today,
+    expectedDate: '',
+    notes: '',
+  })
+  const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null)
+  const [candidateEditForm, setCandidateEditForm] = useState({
+    juzNumber: '1',
+    remainingPages: '',
+    postedDate: today,
+    expectedDate: '',
+    notes: '',
+  })
 
   const weekDates = getWeekDates(weekOffset)
 
@@ -96,14 +115,16 @@ export default function ExamsPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [examsData, studentsData, supervisorsData] = await Promise.all([
+        const [examsData, studentsData, supervisorsData, candidatesData] = await Promise.all([
           getExams(),
           getStudents(),
           getSupervisors(),
+          getExamCandidates(),
         ])
         setExams(examsData)
         setStudents(studentsData)
         setSupervisors(supervisorsData)
+        setCandidates(candidatesData)
       } catch (err) {
         console.error(err)
         toast.error('حدث خطأ أثناء تحميل البيانات')
@@ -260,6 +281,99 @@ export default function ExamsPage() {
     }
   }
 
+  // ─── مرشّحو الاختبار (تنبيهات) ───
+  const canEditCandidate = (c: DBExamCandidate): boolean => {
+    if (isCrossBatch) return true
+    if (role === 'batch_manager' || role === 'supervisor' || role === 'teacher') {
+      return myBatchId !== null && c.batch_id === myBatchId
+    }
+    return false
+  }
+
+  const addCandidate = async () => {
+    if (!candidateForm.studentId) { toast.error('اختر الطالب'); return }
+    const student = students.find(s => s.id === candidateForm.studentId)
+    if (!student) return
+    const remVal = candidateForm.remainingPages.trim() === '' ? null : Number(candidateForm.remainingPages)
+    if (remVal !== null && (isNaN(remVal) || remVal < 0 || remVal > 604)) {
+      toast.error('عدد الأوجه المتبقية يجب أن يكون بين 0 و 604'); return
+    }
+    const juz = Number(candidateForm.juzNumber)
+    if (!juz || juz < 1 || juz > 30) { toast.error('رقم الجزء غير صحيح'); return }
+    const newC: DBExamCandidate = {
+      id: `ec_${Date.now()}`,
+      student_id: student.id,
+      student_name: student.name,
+      batch_id: (!isCrossBatch && myBatchId !== null) ? myBatchId : (student.batch_id ?? 0),
+      juz_number: juz,
+      remaining_pages: remVal,
+      posted_date: candidateForm.postedDate || today,
+      expected_date: candidateForm.expectedDate || null,
+      created_by: profile?.id ?? null,
+      notes: candidateForm.notes || null,
+    }
+    try {
+      await upsertExamCandidate(newC)
+      setCandidates(prev => [...prev, newC])
+      setShowAddCandidate(false)
+      setCandidateForm({ studentId: '', juzNumber: '1', remainingPages: '', postedDate: today, expectedDate: '', notes: '' })
+      toast.success(`تمت إضافة ${student.name} إلى قائمة القريبين للاختبار`)
+    } catch (err) {
+      console.error(err)
+      toast.error('حدث خطأ أثناء الحفظ')
+    }
+  }
+
+  const openEditCandidate = (c: DBExamCandidate) => {
+    setEditingCandidateId(c.id)
+    setCandidateEditForm({
+      juzNumber: String(c.juz_number),
+      remainingPages: c.remaining_pages != null ? String(c.remaining_pages) : '',
+      postedDate: c.posted_date,
+      expectedDate: c.expected_date || '',
+      notes: c.notes || '',
+    })
+  }
+
+  const saveEditCandidate = async (id: string) => {
+    const c = candidates.find(x => x.id === id)
+    if (!c) return
+    const juz = Number(candidateEditForm.juzNumber)
+    if (!juz || juz < 1 || juz > 30) { toast.error('رقم الجزء غير صحيح'); return }
+    const remVal = candidateEditForm.remainingPages.trim() === '' ? null : Number(candidateEditForm.remainingPages)
+    if (remVal !== null && (isNaN(remVal) || remVal < 0 || remVal > 604)) {
+      toast.error('عدد الأوجه المتبقية يجب أن يكون بين 0 و 604'); return
+    }
+    const updated: DBExamCandidate = {
+      ...c,
+      juz_number: juz,
+      remaining_pages: remVal,
+      posted_date: candidateEditForm.postedDate || c.posted_date,
+      expected_date: candidateEditForm.expectedDate || null,
+      notes: candidateEditForm.notes || null,
+    }
+    try {
+      await upsertExamCandidate(updated)
+      setCandidates(prev => prev.map(x => x.id === id ? updated : x))
+      setEditingCandidateId(null)
+      toast.success('تم حفظ التعديلات')
+    } catch (err) {
+      console.error(err)
+      toast.error('حدث خطأ أثناء الحفظ')
+    }
+  }
+
+  const handleDeleteCandidate = async (id: string) => {
+    try {
+      await deleteExamCandidateDB(id)
+      setCandidates(prev => prev.filter(x => x.id !== id))
+      toast.success('تم الحذف')
+    } catch (err) {
+      console.error(err)
+      toast.error('حدث خطأ أثناء الحذف')
+    }
+  }
+
   const handleDeleteExam = async (examId: string) => {
     try {
       await deleteExamDB(examId)
@@ -290,14 +404,259 @@ export default function ExamsPage() {
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>جدول اختبارات الأجزاء</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>تنظيم اختبارات حفظ القرآن الأسبوعية</p>
         </div>
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          className="btn-primary btn-ripple flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white rounded-xl"
-        >
-          <Plus className="w-4 h-4" />
-          إضافة اختبار
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => { setShowAddCandidate(v => !v); if (!showAddCandidate) setShowAdd(false) }}
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #C08A48, #9A6A2E)', color: '#fff', boxShadow: '0 2px 10px rgba(192,138,72,0.35)' }}
+          >
+            <Sparkles className="w-4 h-4" />
+            إضافة قريبي الاختبار
+          </button>
+          <button
+            onClick={() => { setShowAdd(!showAdd); if (!showAdd) setShowAddCandidate(false) }}
+            className="btn-primary btn-ripple flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white rounded-xl"
+          >
+            <Plus className="w-4 h-4" />
+            إضافة اختبار
+          </button>
+        </div>
       </div>
+
+      {/* Candidates alert — قائمة القريبين للاختبار */}
+      {candidates.length > 0 && (
+        <div className="rounded-2xl p-4" style={{ background: 'rgba(192,138,72,0.08)', border: '1px solid rgba(192,138,72,0.35)' }}>
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <p className="font-bold text-sm flex items-center gap-2" style={{ color: '#7A4E1E' }}>
+              <Sparkles className="w-4 h-4" style={{ color: '#C08A48' }} />
+              تنبيه: طلاب قريبون للاختبار (<span className="font-mono">{candidates.filter(c => isCrossBatch || (myBatchId !== null && c.batch_id === myBatchId)).length}</span>)
+            </p>
+            <p className="text-[11px]" style={{ color: '#8A6A3C' }}>يظهر هنا قائمة بالطلاب المتوقَّع جهوزيّتهم للاختبار قريباً.</p>
+          </div>
+          <div className="space-y-2">
+            {candidates
+              .slice()
+              .sort((a, b) => (a.expected_date || '9999').localeCompare(b.expected_date || '9999'))
+              .map(c => {
+                const readOnly = !canEditCandidate(c)
+                const isEditing = editingCandidateId === c.id
+                const expectedSoon = c.expected_date ? (c.expected_date <= today) : false
+                return (
+                  <div key={c.id} className="rounded-xl p-3" style={{ background: readOnly ? 'rgba(148,163,184,0.05)' : '#FFFBF3', border: `1px solid ${expectedSoon ? 'rgba(185,72,56,0.35)' : 'rgba(192,138,72,0.22)'}` }}>
+                    {!isEditing ? (
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm" style={{ color: readOnly ? 'var(--text-muted)' : '#3a2412' }}>{c.student_name}</span>
+                          {!isCrossBatch ? null : <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(53,107,110,0.10)', color: '#235052' }}>دفعة {c.batch_id}</span>}
+                          <span className="text-[11px] px-2 py-0.5 rounded-md font-bold font-mono" style={{ background: 'rgba(192,138,72,0.15)', color: '#7A4E1E' }}>الجزء {c.juz_number}</span>
+                          {c.remaining_pages != null && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-md font-bold font-mono" style={{ background: 'rgba(53,107,110,0.10)', color: '#235052', border: '1px solid rgba(53,107,110,0.25)' }}>
+                              متبقّ {c.remaining_pages} وجه
+                            </span>
+                          )}
+                          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            نُشر: <span className="font-mono">{c.posted_date}</span>
+                          </span>
+                          {c.expected_date && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-md font-bold" style={{ background: expectedSoon ? 'rgba(185,72,56,0.10)' : 'rgba(192,138,72,0.10)', color: expectedSoon ? '#8B2F23' : '#7A4E1E' }}>
+                              متوقَّع: <span className="font-mono">{c.expected_date}</span>
+                            </span>
+                          )}
+                          {c.notes && <span className="text-[11px] italic" style={{ color: 'var(--text-muted)' }}>— {c.notes}</span>}
+                        </div>
+                        {!readOnly && (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => openEditCandidate(c)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition active:scale-95"
+                              style={{ background: 'rgba(53,107,110,0.10)', color: '#235052', border: '1px solid rgba(53,107,110,0.25)' }}
+                            >
+                              <Pencil className="w-3 h-3" /> تعديل
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCandidate(c.id)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition active:scale-95"
+                              style={{ background: 'rgba(185,72,56,0.08)', color: '#8B2F23', border: '1px solid rgba(185,72,56,0.25)' }}
+                            >
+                              <Trash2 className="w-3 h-3" /> حذف
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="font-bold text-sm" style={{ color: '#3a2412' }}>تعديل: {c.student_name}</p>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                          <div>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>الجزء</label>
+                            <select
+                              value={candidateEditForm.juzNumber}
+                              onChange={e => setCandidateEditForm({ ...candidateEditForm, juzNumber: e.target.value })}
+                              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none"
+                              style={{ background: '#fff', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
+                            >
+                              {Array.from({ length: 30 }, (_, i) => <option key={i + 1} value={i + 1}>الجزء {i + 1}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>الأوجه المتبقية</label>
+                            <input
+                              type="number" min={0} max={604} inputMode="numeric"
+                              value={candidateEditForm.remainingPages}
+                              onChange={e => setCandidateEditForm({ ...candidateEditForm, remainingPages: e.target.value })}
+                              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none font-mono"
+                              style={{ background: '#fff', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>تاريخ النشر</label>
+                            <input
+                              type="date"
+                              value={candidateEditForm.postedDate}
+                              onChange={e => setCandidateEditForm({ ...candidateEditForm, postedDate: e.target.value })}
+                              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none"
+                              style={{ background: '#fff', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>التاريخ المتوقَّع</label>
+                            <input
+                              type="date"
+                              value={candidateEditForm.expectedDate}
+                              onChange={e => setCandidateEditForm({ ...candidateEditForm, expectedDate: e.target.value })}
+                              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none"
+                              style={{ background: '#fff', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>ملاحظات</label>
+                            <input
+                              value={candidateEditForm.notes}
+                              onChange={e => setCandidateEditForm({ ...candidateEditForm, notes: e.target.value })}
+                              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none"
+                              style={{ background: '#fff', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={() => saveEditCandidate(c.id)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white"
+                            style={{ background: 'linear-gradient(135deg, #356B6E, #244A4C)' }}
+                          >
+                            <Save className="w-3.5 h-3.5" /> حفظ
+                          </button>
+                          <button
+                            onClick={() => setEditingCandidateId(null)}
+                            className="text-xs px-3 py-1.5 rounded-lg border"
+                            style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                          >
+                            إلغاء
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Add candidate form */}
+      {showAddCandidate && (
+        <div className="card-static p-5 space-y-4" style={{ borderColor: 'rgba(192,138,72,0.35)' }}>
+          <h2 className="font-bold flex items-center gap-2" style={{ color: '#7A4E1E' }}>
+            <Sparkles className="w-4 h-4" style={{ color: '#C08A48' }} />
+            إضافة قريبي للاختبار
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>الطالب *</label>
+              <select
+                value={candidateForm.studentId}
+                onChange={e => setCandidateForm({ ...candidateForm, studentId: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
+              >
+                <option value="">اختر الطالب</option>
+                {(() => {
+                  const opts = (!isCrossBatch && myBatchId !== null)
+                    ? students.filter(s => s.batch_id === myBatchId)
+                    : students
+                  return [...new Set(opts.map(s => s.batch_id))].sort().map(batch => (
+                    <optgroup key={batch} label={`دفعة ${batch}`}>
+                      {opts.filter(s => s.batch_id === batch).map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </optgroup>
+                  ))
+                })()}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>الجزء *</label>
+              <select
+                value={candidateForm.juzNumber}
+                onChange={e => setCandidateForm({ ...candidateForm, juzNumber: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
+              >
+                {Array.from({ length: 30 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>الجزء {i + 1}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>الأوجه المتبقية</label>
+              <input
+                type="number" min={0} max={604} inputMode="numeric"
+                value={candidateForm.remainingPages}
+                onChange={e => setCandidateForm({ ...candidateForm, remainingPages: e.target.value })}
+                placeholder="مثال: 5"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>تاريخ النشر *</label>
+              <input
+                type="date"
+                value={candidateForm.postedDate}
+                onChange={e => setCandidateForm({ ...candidateForm, postedDate: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>التاريخ المتوقَّع للاختبار</label>
+              <input
+                type="date"
+                value={candidateForm.expectedDate}
+                onChange={e => setCandidateForm({ ...candidateForm, expectedDate: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
+              />
+            </div>
+            <div className="col-span-2 md:col-span-3">
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>ملاحظات</label>
+              <input
+                value={candidateForm.notes}
+                onChange={e => setCandidateForm({ ...candidateForm, notes: e.target.value })}
+                placeholder="اختياري"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
+              />
+            </div>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={addCandidate}
+              className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition active:scale-95"
+              style={{ background: 'linear-gradient(135deg, #C08A48, #9A6A2E)', boxShadow: '0 2px 10px rgba(192,138,72,0.35)' }}
+            >
+              حفظ
+            </button>
+            <button onClick={() => setShowAddCandidate(false)} className="px-5 py-2.5 text-sm border border-white/10 rounded-xl" style={{ color: 'var(--text-muted)' }}>
+              إلغاء
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Today summary */}
       {todayExams.length > 0 && (
