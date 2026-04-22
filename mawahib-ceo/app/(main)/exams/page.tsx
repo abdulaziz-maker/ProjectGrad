@@ -413,20 +413,20 @@ export default function ExamsPage() {
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>جدول اختبارات الأجزاء</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>تنظيم اختبارات حفظ القرآن الأسبوعية</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => { setShowAddCandidate(v => !v); if (!showAddCandidate) setShowAdd(false) }}
-            className="inline-flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl transition active:scale-95 flex-1 sm:flex-initial"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition active:scale-95 w-full sm:w-auto whitespace-nowrap"
             style={{ background: 'linear-gradient(135deg, #C08A48, #9A6A2E)', color: '#fff', boxShadow: '0 2px 10px rgba(192,138,72,0.35)' }}
           >
-            <Sparkles className="w-4 h-4" />
-            إضافة قريبي
+            <Sparkles className="w-4 h-4 shrink-0" />
+            إضافة قريبي الاختبار
           </button>
           <button
             onClick={() => { setShowAdd(!showAdd); if (!showAdd) setShowAddCandidate(false) }}
-            className="btn-primary btn-ripple flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-white rounded-xl flex-1 sm:flex-initial"
+            className="btn-primary btn-ripple flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white rounded-xl w-full sm:w-auto whitespace-nowrap"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             إضافة اختبار
           </button>
         </div>
