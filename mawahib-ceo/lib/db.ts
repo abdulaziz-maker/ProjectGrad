@@ -73,6 +73,7 @@ export interface DBExam {
   juz_number: number; examiner: string; date: string; time: string
   status: string; score: number | null; notes: string
   errors?: number | null; warnings?: number | null; hesitations?: number | null
+  remaining_pages?: number | null
 }
 
 export interface DBTask {
@@ -199,7 +200,7 @@ export async function getExams(): Promise<DBExam[]> {
   return cachedFetch(CACHE_KEYS.EXAMS, async () => {
   // Paginate — exams can exceed 1000 rows as the program scales
   const data = await paginateAll<DBExam>(() =>
-    supabase.from('exams').select('id,student_id,student_name,batch_id,juz_number,examiner,date,time,status,score,notes')
+    supabase.from('exams').select('id,student_id,student_name,batch_id,juz_number,examiner,date,time,status,score,notes,remaining_pages')
   )
   return data.map(exam => {
     const match = exam.notes?.match(/\[EWH:(.*?)\]/)
