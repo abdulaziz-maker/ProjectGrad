@@ -163,6 +163,64 @@ export async function upsertActivity(
   if (error) throw error
 }
 
+/** Create a new activity (omits id — DB generates) and returns the full row. */
+export async function createActivity(
+  a: Omit<TimelineActivity, 'id' | 'created_at' | 'updated_at' | 'approved_by' | 'approved_at'>
+): Promise<TimelineActivity> {
+  const { data, error } = await supabase
+    .from('timeline_activities')
+    .insert({
+      batch_id: a.batch_id,
+      calendar_id: a.calendar_id,
+      activity_type_id: a.activity_type_id,
+      title: a.title,
+      description: a.description,
+      start_date: a.start_date,
+      end_date: a.end_date,
+      custom_color: a.custom_color,
+      status: a.status,
+      proposed_by: a.proposed_by,
+      notes: a.notes,
+    })
+    .select(
+      'id,batch_id,calendar_id,activity_type_id,title,description,start_date,end_date,custom_color,status,proposed_by,approved_by,approved_at,notes,created_at,updated_at'
+    )
+    .single()
+  if (error) throw error
+  return data as TimelineActivity
+}
+
+/** Update an existing activity (partial). */
+export async function updateActivity(
+  id: string,
+  patch: Partial<
+    Omit<TimelineActivity, 'id' | 'created_at' | 'updated_at' | 'batch_id' | 'calendar_id'>
+  >,
+): Promise<TimelineActivity> {
+  const { data, error } = await supabase
+    .from('timeline_activities')
+    .update(patch)
+    .eq('id', id)
+    .select(
+      'id,batch_id,calendar_id,activity_type_id,title,description,start_date,end_date,custom_color,status,proposed_by,approved_by,approved_at,notes,created_at,updated_at'
+    )
+    .single()
+  if (error) throw error
+  return data as TimelineActivity
+}
+
+/**
+ * Move an activity to a new start date, keeping its duration.
+ * Used by drag-and-drop — computes the new end_date to preserve span.
+ */
+export async function moveActivity(
+  id: string,
+  newStartHijriIso: string,
+  newEndHijriIso: string,
+): Promise<TimelineActivity> {
+  return updateActivity(id, { start_date: newStartHijriIso, end_date: newEndHijriIso })
+}
+
 export async function deleteActivity(id: string): Promise<void> {
   const { error } = await supabase.from('timeline_activities').delete().eq('id', id)
   if (error) throw error

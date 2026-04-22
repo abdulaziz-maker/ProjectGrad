@@ -1,31 +1,48 @@
 'use client'
 /**
- * /timeline — Executive Schedule dashboard.
+ * /timeline — Executive Schedule dashboard (Phase 3 — live grid).
  *
- * Phase 1: skeleton page that renders the batch selector + activity-type palette
- * so that permission flow can be verified for all 3 roles. Actual grid/calendar
- * UI arrives in Phase 4.
+ * Layout:
+ *   ├─ header + permission banner + active calendar banner
+ *   ├─ batch tabs + current batch summary
+ *   ├─ TimelineControls (zoom / view / Gregorian toggle / filters / export)
+ *   ├─ TimelineGrid (12×30 interactive grid)
+ *   └─ ActivityEditModal (add/edit/delete)
  *
  * Gated behind NEXT_PUBLIC_TIMELINE_ENABLED.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { TIMELINE_ENABLED } from '@/lib/timeline/flag'
 import {
   getActivityTypes,
   getBatchesForTimeline,
   getActivities,
   getActiveCalendar,
+  getDays,
+  moveActivity as dbMoveActivity,
   type TimelineBatchRef,
 } from '@/lib/timeline/db'
 import type {
   TimelineActivityType,
   TimelineActivity,
   TimelineCalendar,
+  TimelineDay,
+  TimelineActivityStatus,
 } from '@/types/timeline'
 import { useAuth } from '@/contexts/AuthContext'
 import BatchTabs from '@/components/timeline/BatchTabs'
+import TimelineGrid from '@/components/timeline/TimelineGrid'
+import TimelineControls, {
+  type ZoomLevel,
+} from '@/components/timeline/TimelineControls'
+import ActivityEditModal from '@/components/timeline/ActivityEditModal'
+import {
+  buildDayMap,
+  type TimelineViewMode,
+} from '@/lib/timeline/activity-helpers'
 import {
   Calendar,
   Sparkles,
@@ -34,33 +51,53 @@ import {
   Layers,
   Upload,
   AlertTriangle,
+  Plus,
 } from 'lucide-react'
-import { toast } from 'sonner'
 import { hijriYearLength } from '@/lib/timeline/hijri'
 
 export default function TimelinePage() {
   const router = useRouter()
   const { profile, loading: authLoading } = useAuth()
   const role = profile?.role ?? null
+  const userId = profile?.id ?? null
   const isCrossBatch = role === 'ceo' || role === 'records_officer'
   const myBatchId = profile?.batch_id ?? null
 
   const [batches, setBatches] = useState<TimelineBatchRef[]>([])
   const [activityTypes, setActivityTypes] = useState<TimelineActivityType[]>([])
   const [activities, setActivities] = useState<TimelineActivity[]>([])
-  const [activeCalendar, setActiveCalendarState] = useState<TimelineCalendar | null>(null)
+  const [activeCalendar, setActiveCalendar] =
+    useState<TimelineCalendar | null>(null)
+  const [calendarDays, setCalendarDays] = useState<TimelineDay[]>([])
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activitiesLoading, setActivitiesLoading] = useState(false)
+  const [, startTransition] = useTransition()
 
-  // Feature flag gate — redirect if disabled.
-  // Using router.replace avoids flash-of-404 for users who haven't enabled it.
+  // Grid controls
+  const [zoom, setZoom] = useState<ZoomLevel>(100)
+  const [view, setView] = useState<TimelineViewMode>('year')
+  const [focusMonth, setFocusMonth] = useState(1)
+  const [showGregorian, setShowGregorian] = useState(true)
+
+  // Filters
+  const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([])
+  const [selectedStatuses, setSelectedStatuses] = useState<
+    TimelineActivityStatus[]
+  >([])
+
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingActivity, setEditingActivity] =
+    useState<TimelineActivity | null>(null)
+  const [defaultStartIso, setDefaultStartIso] = useState<string | null>(null)
+
+  // Feature flag gate
   useEffect(() => {
-    if (!TIMELINE_ENABLED) {
-      router.replace('/dashboard')
-    }
+    if (!TIMELINE_ENABLED) router.replace('/dashboard')
   }, [router])
 
-  // Initial load — batches + activity types (role-agnostic; RLS gates activities).
+  // Initial load
   useEffect(() => {
     if (!TIMELINE_ENABLED || authLoading) return
     let alive = true
@@ -73,20 +110,26 @@ export default function TimelinePage() {
         ])
         if (!alive) return
 
-        // Filter batches for non-cross-batch roles — UI-level guardrail in
-        // addition to DB RLS on activities.
         const visibleBatches =
-          !isCrossBatch && myBatchId != null ? b.filter((x) => x.id === myBatchId) : b
+          !isCrossBatch && myBatchId != null
+            ? b.filter((x) => x.id === myBatchId)
+            : b
 
         setBatches(visibleBatches)
         setActivityTypes(t)
-        setActiveCalendarState(ac)
-        // Auto-select first batch (or user's own batch if locked).
+        setActiveCalendar(ac)
+
         const initial =
           !isCrossBatch && myBatchId != null
             ? myBatchId
             : visibleBatches[0]?.id ?? null
         setSelectedBatchId(initial)
+
+        // Load calendar days if active calendar present
+        if (ac) {
+          const d = await getDays(ac.id)
+          if (alive) setCalendarDays(d)
+        }
       } catch (err) {
         console.error(err)
         toast.error('حدث خطأ أثناء تحميل بيانات الخطة الزمنية')
@@ -99,26 +142,32 @@ export default function TimelinePage() {
     }
   }, [authLoading, isCrossBatch, myBatchId])
 
-  // Fetch activities whenever the selected batch changes.
+  // Fetch activities when batch or calendar changes
   useEffect(() => {
-    if (!TIMELINE_ENABLED || selectedBatchId == null) {
+    if (!TIMELINE_ENABLED || selectedBatchId == null || !activeCalendar) {
       setActivities([])
       return
     }
     let alive = true
+    setActivitiesLoading(true)
     ;(async () => {
       try {
-        const data = await getActivities({ batchId: selectedBatchId })
+        const data = await getActivities({
+          batchId: selectedBatchId,
+          calendarId: activeCalendar.id,
+        })
         if (alive) setActivities(data)
       } catch (err) {
         console.error(err)
         if (alive) toast.error('تعذّر تحميل أنشطة الدفعة')
+      } finally {
+        if (alive) setActivitiesLoading(false)
       }
     })()
     return () => {
       alive = false
     }
-  }, [selectedBatchId])
+  }, [selectedBatchId, activeCalendar])
 
   const currentBatch = useMemo(
     () => batches.find((b) => b.id === selectedBatchId) ?? null,
@@ -129,18 +178,117 @@ export default function TimelinePage() {
     if (!profile) return false
     if (isCrossBatch) return true
     if (
-      ['batch_manager', 'supervisor', 'teacher'].includes(role ?? '') &&
+      ['batch_manager', 'teacher'].includes(role ?? '') &&
       selectedBatchId === myBatchId
     )
-      return role !== 'supervisor' // supervisor read-only per spec
+      return true
     return false
   }, [profile, role, isCrossBatch, selectedBatchId, myBatchId])
 
+  const daysMap = useMemo(() => buildDayMap(calendarDays), [calendarDays])
+
+  // Filter activities by active filters
+  const filteredActivities = useMemo(() => {
+    let out = activities
+    if (selectedTypeIds.length > 0) {
+      const s = new Set(selectedTypeIds)
+      out = out.filter(
+        (a) => a.activity_type_id !== null && s.has(a.activity_type_id),
+      )
+    }
+    if (selectedStatuses.length > 0) {
+      const s = new Set(selectedStatuses)
+      out = out.filter((a) => s.has(a.status))
+    }
+    return out
+  }, [activities, selectedTypeIds, selectedStatuses])
+
+  // ── Grid event handlers
+  const handleDayClick = useCallback(
+    (iso: string) => {
+      if (!canEditCurrentBatch) return
+      setEditingActivity(null)
+      setDefaultStartIso(iso)
+      setModalOpen(true)
+    },
+    [canEditCurrentBatch],
+  )
+
+  const handleActivityEdit = useCallback((a: TimelineActivity) => {
+    setEditingActivity(a)
+    setDefaultStartIso(null)
+    setModalOpen(true)
+  }, [])
+
+  const handleActivityMove = useCallback(
+    async (id: string, newStartIso: string, newEndIso: string) => {
+      // Optimistic update
+      setActivities((prev) =>
+        prev.map((a) =>
+          a.id === id
+            ? { ...a, start_date: newStartIso, end_date: newEndIso }
+            : a,
+        ),
+      )
+      try {
+        await dbMoveActivity(id, newStartIso, newEndIso)
+        toast.success('تم نقل النشاط')
+      } catch (err) {
+        console.error(err)
+        toast.error('تعذّر النقل — تم التراجع')
+        // Reload to revert
+        if (selectedBatchId != null && activeCalendar) {
+          const fresh = await getActivities({
+            batchId: selectedBatchId,
+            calendarId: activeCalendar.id,
+          })
+          setActivities(fresh)
+        }
+      }
+    },
+    [selectedBatchId, activeCalendar],
+  )
+
+  const handleActivitySaved = useCallback((saved: TimelineActivity) => {
+    setActivities((prev) => {
+      const idx = prev.findIndex((a) => a.id === saved.id)
+      if (idx === -1) return [...prev, saved]
+      const next = prev.slice()
+      next[idx] = saved
+      return next
+    })
+  }, [])
+
+  const handleActivityDeleted = useCallback((id: string) => {
+    setActivities((prev) => prev.filter((a) => a.id !== id))
+  }, [])
+
+  const handlePrint = useCallback(() => {
+    window.print()
+  }, [])
+
+  // Open blank-create shortcut
+  const handleAddActivityClick = useCallback(() => {
+    if (!canEditCurrentBatch) return
+    if (!activeCalendar) {
+      toast.error('لا يوجد تقويم نشط — استورد تقويماً أولاً')
+      return
+    }
+    if (calendarDays.length === 0) return
+    setEditingActivity(null)
+    const firstStudy =
+      calendarDays.find((d) => d.day_type === 'study')?.hijri_date ??
+      calendarDays[0].hijri_date
+    setDefaultStartIso(firstStudy)
+    setModalOpen(true)
+  }, [canEditCurrentBatch, activeCalendar, calendarDays])
+
+  // ── Render
   if (!TIMELINE_ENABLED || authLoading || loading) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-8 h-8 border-2 border-[#C08A48] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             جاري تحميل الخطة الزمنية...
           </p>
@@ -150,7 +298,7 @@ export default function TimelinePage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div className="space-y-5 animate-fade-in-up">
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
@@ -162,30 +310,46 @@ export default function TimelinePage() {
             الخطة الزمنية
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            تخطيط الأنشطة السنوية وربطها بالتقويم الأكاديمي والميزانية
+            شبكة سنوية هجرية تفاعلية — أضف الأنشطة، اسحبها، وعدّلها.
           </p>
         </div>
-        <div
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold"
-          style={{
-            background: 'rgba(192,138,72,0.12)',
-            border: '1px solid rgba(192,138,72,0.30)',
-            color: '#7A4E1E',
-          }}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          مرحلة البناء — Phase 1
+        <div className="flex items-center gap-2 flex-wrap">
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold"
+            style={{
+              background: 'rgba(53,107,110,0.08)',
+              border: '1px solid rgba(53,107,110,0.30)',
+              color: '#235052',
+            }}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Phase 3 — شبكة تفاعلية
+          </div>
+          {canEditCurrentBatch && activeCalendar ? (
+            <button
+              type="button"
+              onClick={handleAddActivityClick}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white transition active:scale-95"
+              style={{
+                background: 'linear-gradient(135deg, #C08A48, #9A6A2E)',
+                boxShadow: '0 2px 10px rgba(192,138,72,0.35)',
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              نشاط جديد
+            </button>
+          ) : null}
         </div>
       </div>
 
-      {/* Permission hint banner */}
+      {/* Permission banner */}
       <div
-        className="rounded-2xl p-3 flex items-center gap-2 text-xs"
+        className="rounded-xl p-2.5 flex items-center gap-2 text-xs"
         style={{
           background: isCrossBatch
-            ? 'rgba(53,107,110,0.08)'
-            : 'rgba(99,102,241,0.06)',
-          border: `1px solid ${isCrossBatch ? 'rgba(53,107,110,0.30)' : 'rgba(99,102,241,0.25)'}`,
+            ? 'rgba(53,107,110,0.06)'
+            : 'rgba(192,138,72,0.05)',
+          border: `1px solid ${isCrossBatch ? 'rgba(53,107,110,0.25)' : 'rgba(192,138,72,0.25)'}`,
           color: 'var(--text-secondary)',
         }}
       >
@@ -193,14 +357,14 @@ export default function TimelinePage() {
           <>
             <ShieldAlert className="w-4 h-4" style={{ color: '#356B6E' }} />
             <span>
-              صلاحيتك: <b>كامل على جميع الدفعات</b> — ترى وتعدّل كل خطة.
+              صلاحيتك: <b>كامل على جميع الدفعات</b> — أضف، عدّل، اسحب، احذف.
             </span>
           </>
         ) : role === 'batch_manager' ? (
           <>
-            <Layers className="w-4 h-4" style={{ color: '#6366f1' }} />
+            <Layers className="w-4 h-4" style={{ color: '#C08A48' }} />
             <span>
-              صلاحيتك: تعديل خطة <b>دفعتك فقط</b>.
+              صلاحيتك: إدارة خطة <b>دفعتك فقط</b>.
             </span>
           </>
         ) : (
@@ -216,18 +380,22 @@ export default function TimelinePage() {
       {/* Active calendar banner */}
       {activeCalendar ? (
         <div
-          className="rounded-2xl p-3 flex items-center justify-between gap-3 flex-wrap"
+          className="rounded-xl p-2.5 flex items-center justify-between gap-3 flex-wrap"
           style={{
             background: 'rgba(53,107,110,0.06)',
             border: '1px solid rgba(53,107,110,0.25)',
           }}
         >
-          <div className="flex items-center gap-2 text-xs" style={{ color: '#235052' }}>
+          <div
+            className="flex items-center gap-2 text-xs"
+            style={{ color: '#235052' }}
+          >
             <Calendar className="w-4 h-4" />
             <span>
               التقويم النشط: <b>{activeCalendar.name}</b>{' '}
               <span className="font-mono opacity-75">
-                ({activeCalendar.hijri_year}هـ — {hijriYearLength(activeCalendar.hijri_year)} يوم)
+                ({activeCalendar.hijri_year}هـ —{' '}
+                {hijriYearLength(activeCalendar.hijri_year)} يوم)
               </span>
             </span>
           </div>
@@ -241,19 +409,20 @@ export default function TimelinePage() {
         </div>
       ) : (
         <div
-          className="rounded-2xl p-3 flex items-center justify-between gap-3 flex-wrap"
+          className="rounded-xl p-3 flex items-center justify-between gap-3 flex-wrap"
           style={{
             background: 'rgba(192,138,72,0.08)',
             border: '1px solid rgba(192,138,72,0.35)',
           }}
         >
-          <div className="flex items-center gap-2 text-xs" style={{ color: '#7A4E1E' }}>
+          <div
+            className="flex items-center gap-2 text-xs"
+            style={{ color: '#7A4E1E' }}
+          >
             <AlertTriangle className="w-4 h-4" />
-            <span>
-              لا يوجد تقويم نشط — ستحتاج تقويماً أكاديمياً قبل إنشاء الأنشطة.
-            </span>
+            <span>لا يوجد تقويم نشط — استورد تقويماً أكاديمياً أولاً.</span>
           </div>
-          {isCrossBatch && (
+          {isCrossBatch ? (
             <Link
               href="/timeline/calendar/import"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white"
@@ -265,7 +434,7 @@ export default function TimelinePage() {
               <Upload className="w-3.5 h-3.5" />
               استيراد تقويم
             </Link>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -273,19 +442,22 @@ export default function TimelinePage() {
       <BatchTabs
         batches={batches}
         selectedBatchId={selectedBatchId}
-        onSelect={setSelectedBatchId}
+        onSelect={(id) => startTransition(() => setSelectedBatchId(id))}
         locked={!isCrossBatch}
       />
 
       {/* Current batch summary */}
-      {currentBatch && (
-        <div className="card-static p-5">
+      {currentBatch ? (
+        <div className="card-static p-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                 الدفعة المختارة
               </p>
-              <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              <h2
+                className="text-lg font-bold"
+                style={{ color: 'var(--text-primary)' }}
+              >
                 {currentBatch.name}
               </h2>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
@@ -294,84 +466,116 @@ export default function TimelinePage() {
                   {currentBatch.manager_name ?? '—'}
                 </span>
                 <span className="mx-2">•</span>
-                عدد الطلاب:{' '}
-                <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>
+                الطلاب:{' '}
+                <span
+                  className="font-mono"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   {currentBatch.student_count ?? '—'}
                 </span>
               </p>
             </div>
             <div className="text-left">
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                عدد الأنشطة المخططة
+                الأنشطة المعروضة
               </p>
               <p
                 className="text-2xl font-bold font-mono"
                 style={{ color: '#C08A48' }}
               >
-                {activities.length}
+                {filteredActivities.length}
+                {filteredActivities.length !== activities.length ? (
+                  <span
+                    className="text-xs font-semibold mr-1"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    / {activities.length}
+                  </span>
+                ) : null}
               </p>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Activity types palette — read-only reference */}
-      <div className="card-static p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3
-            className="font-bold text-sm flex items-center gap-2"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            <Sparkles className="w-4 h-4" style={{ color: '#C08A48' }} />
-            أنواع الأنشطة المتاحة ({activityTypes.length})
-          </h3>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {activityTypes.map((t) => (
+      {/* Grid + Controls */}
+      {activeCalendar ? (
+        <div className="space-y-3">
+          <TimelineControls
+            zoom={zoom}
+            setZoom={setZoom}
+            view={view}
+            setView={setView}
+            focusMonth={focusMonth}
+            setFocusMonth={setFocusMonth}
+            showGregorian={showGregorian}
+            setShowGregorian={setShowGregorian}
+            allTypes={activityTypes}
+            selectedTypeIds={selectedTypeIds}
+            setSelectedTypeIds={(ids) =>
+              startTransition(() => setSelectedTypeIds(ids))
+            }
+            selectedStatuses={selectedStatuses}
+            setSelectedStatuses={(s) =>
+              startTransition(() => setSelectedStatuses(s))
+            }
+            onPrint={handlePrint}
+          />
+
+          {activitiesLoading ? (
             <div
-              key={t.id}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold"
-              style={{
-                background: `${t.default_color}18`,
-                border: `1px solid ${t.default_color}55`,
-                color: t.default_color,
-              }}
-              title={`${t.cost_model} — ${t.arabic_name}`}
+              className="rounded-2xl p-8 text-center text-xs"
+              style={{ color: 'var(--text-muted)' }}
             >
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{ background: t.default_color }}
-              />
-              {t.arabic_name}
+              جاري تحميل أنشطة الدفعة...
             </div>
-          ))}
-        </div>
-      </div>
+          ) : (
+            <TimelineGrid
+              hijriYear={activeCalendar.hijri_year}
+              days={calendarDays}
+              activities={filteredActivities}
+              activityTypes={activityTypes}
+              zoom={zoom}
+              view={view}
+              focusMonth={focusMonth}
+              showGregorian={showGregorian}
+              canEdit={canEditCurrentBatch}
+              onDayClick={handleDayClick}
+              onActivityEdit={handleActivityEdit}
+              onActivityMove={handleActivityMove}
+            />
+          )}
 
-      {/* Phase-2 placeholder */}
-      <div
-        className="rounded-2xl p-6 text-center"
-        style={{
-          background: 'rgba(192,138,72,0.04)',
-          border: '1px dashed rgba(192,138,72,0.35)',
-        }}
-      >
-        <Calendar
-          className="w-10 h-10 mx-auto mb-3 opacity-40"
-          style={{ color: '#C08A48' }}
+          <p
+            className="text-[11px] text-center"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {canEditCurrentBatch
+              ? 'اضغط على يوم فارغ لإضافة نشاط • اضغط على نشاط للتعديل • اسحب نشاطاً لتغيير تاريخه'
+              : 'مرّر فوق يوم لعرض التفاصيل'}
+          </p>
+        </div>
+      ) : null}
+
+      {/* Activity edit modal */}
+      {activeCalendar && selectedBatchId != null ? (
+        <ActivityEditModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          activity={editingActivity}
+          onSaved={handleActivitySaved}
+          onDeleted={handleActivityDeleted}
+          activityTypes={activityTypes}
+          daysMap={daysMap}
+          hijriYear={activeCalendar.hijri_year}
+          batchId={selectedBatchId}
+          calendarId={activeCalendar.id}
+          studentCount={currentBatch?.student_count ?? 0}
+          defaultStartIso={defaultStartIso}
+          canEdit={canEditCurrentBatch}
+          userId={userId}
         />
-        <p className="text-sm font-semibold" style={{ color: '#7A4E1E' }}>
-          شبكة التقويم الزمنية قادمة في المرحلة الرابعة
-        </p>
-        <p
-          className="text-xs mt-1"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          {canEditCurrentBatch
-            ? 'ستتمكن من إضافة وتعديل الأنشطة في هذه الشاشة قريباً.'
-            : 'ستتمكن من مطالعة خطة دفعتك بالتفصيل قريباً.'}
-        </p>
-      </div>
+      ) : null}
     </div>
   )
 }
