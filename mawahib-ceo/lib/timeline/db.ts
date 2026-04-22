@@ -42,9 +42,82 @@ export async function getDays(calendarId: string): Promise<TimelineDay[]> {
     .from('timeline_days')
     .select('id,calendar_id,hijri_date,gregorian_date,day_type,notes')
     .eq('calendar_id', calendarId)
-    .order('gregorian_date', { ascending: true })
+    .order('hijri_date', { ascending: true })
   if (error) throw error
   return (data ?? []) as TimelineDay[]
+}
+
+export async function replaceCalendarDays(
+  calendarId: string,
+  days: Array<Omit<TimelineDay, 'id' | 'calendar_id'> & { calendar_id?: string }>,
+): Promise<void> {
+  // Strategy: delete-then-insert inside the same call sequence.
+  // Small N (~355 rows max), so batching isn't needed.
+  const { error: delErr } = await supabase
+    .from('timeline_days')
+    .delete()
+    .eq('calendar_id', calendarId)
+  if (delErr) throw delErr
+
+  if (days.length === 0) return
+  const payload = days.map((d) => ({ ...d, calendar_id: calendarId }))
+  const { error: insErr } = await supabase.from('timeline_days').insert(payload)
+  if (insErr) throw insErr
+}
+
+export async function updateDayType(
+  dayId: string,
+  day_type: TimelineDay['day_type'],
+  notes?: string | null,
+): Promise<void> {
+  const patch: Partial<TimelineDay> = { day_type }
+  if (notes !== undefined) patch.notes = notes
+  const { error } = await supabase.from('timeline_days').update(patch).eq('id', dayId)
+  if (error) throw error
+}
+
+// ─── Calendar mutations ──────────────────────────────────────────────
+export async function createCalendar(
+  c: Pick<TimelineCalendar, 'hijri_year' | 'gregorian_year_start' | 'gregorian_year_end' | 'name'> & {
+    imported_from_file?: string | null
+    created_by?: string | null
+  },
+): Promise<TimelineCalendar> {
+  const { data, error } = await supabase
+    .from('timeline_calendars')
+    .insert({
+      hijri_year: c.hijri_year,
+      gregorian_year_start: c.gregorian_year_start,
+      gregorian_year_end: c.gregorian_year_end,
+      name: c.name,
+      imported_from_file: c.imported_from_file ?? null,
+      created_by: c.created_by ?? null,
+      is_active: false,
+    })
+    .select('id,hijri_year,gregorian_year_start,gregorian_year_end,name,is_active,imported_from_file,created_at,created_by')
+    .single()
+  if (error) throw error
+  return data as TimelineCalendar
+}
+
+export async function deleteCalendar(id: string): Promise<void> {
+  const { error } = await supabase.from('timeline_calendars').delete().eq('id', id)
+  if (error) throw error
+}
+
+/** Activate one calendar (deactivates every other — single-active invariant). */
+export async function setActiveCalendar(id: string): Promise<void> {
+  // Two-step: clear all flags, then set one. RLS already ensures only CEO/records_officer.
+  const { error: e1 } = await supabase
+    .from('timeline_calendars')
+    .update({ is_active: false })
+    .neq('id', id)
+  if (e1) throw e1
+  const { error: e2 } = await supabase
+    .from('timeline_calendars')
+    .update({ is_active: true })
+    .eq('id', id)
+  if (e2) throw e2
 }
 
 // ─── Activity Types ──────────────────────────────────────────────────

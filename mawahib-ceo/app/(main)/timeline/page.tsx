@@ -10,18 +10,33 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { TIMELINE_ENABLED } from '@/lib/timeline/flag'
 import {
   getActivityTypes,
   getBatchesForTimeline,
   getActivities,
+  getActiveCalendar,
   type TimelineBatchRef,
 } from '@/lib/timeline/db'
-import type { TimelineActivityType, TimelineActivity } from '@/types/timeline'
+import type {
+  TimelineActivityType,
+  TimelineActivity,
+  TimelineCalendar,
+} from '@/types/timeline'
 import { useAuth } from '@/contexts/AuthContext'
 import BatchTabs from '@/components/timeline/BatchTabs'
-import { Calendar, Sparkles, ShieldAlert, Lock, Layers } from 'lucide-react'
+import {
+  Calendar,
+  Sparkles,
+  ShieldAlert,
+  Lock,
+  Layers,
+  Upload,
+  AlertTriangle,
+} from 'lucide-react'
 import { toast } from 'sonner'
+import { hijriYearLength } from '@/lib/timeline/hijri'
 
 export default function TimelinePage() {
   const router = useRouter()
@@ -33,6 +48,7 @@ export default function TimelinePage() {
   const [batches, setBatches] = useState<TimelineBatchRef[]>([])
   const [activityTypes, setActivityTypes] = useState<TimelineActivityType[]>([])
   const [activities, setActivities] = useState<TimelineActivity[]>([])
+  const [activeCalendar, setActiveCalendarState] = useState<TimelineCalendar | null>(null)
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -50,7 +66,11 @@ export default function TimelinePage() {
     let alive = true
     ;(async () => {
       try {
-        const [b, t] = await Promise.all([getBatchesForTimeline(), getActivityTypes()])
+        const [b, t, ac] = await Promise.all([
+          getBatchesForTimeline(),
+          getActivityTypes(),
+          getActiveCalendar(),
+        ])
         if (!alive) return
 
         // Filter batches for non-cross-batch roles — UI-level guardrail in
@@ -60,6 +80,7 @@ export default function TimelinePage() {
 
         setBatches(visibleBatches)
         setActivityTypes(t)
+        setActiveCalendarState(ac)
         // Auto-select first batch (or user's own batch if locked).
         const initial =
           !isCrossBatch && myBatchId != null
@@ -191,6 +212,62 @@ export default function TimelinePage() {
           </>
         )}
       </div>
+
+      {/* Active calendar banner */}
+      {activeCalendar ? (
+        <div
+          className="rounded-2xl p-3 flex items-center justify-between gap-3 flex-wrap"
+          style={{
+            background: 'rgba(53,107,110,0.06)',
+            border: '1px solid rgba(53,107,110,0.25)',
+          }}
+        >
+          <div className="flex items-center gap-2 text-xs" style={{ color: '#235052' }}>
+            <Calendar className="w-4 h-4" />
+            <span>
+              التقويم النشط: <b>{activeCalendar.name}</b>{' '}
+              <span className="font-mono opacity-75">
+                ({activeCalendar.hijri_year}هـ — {hijriYearLength(activeCalendar.hijri_year)} يوم)
+              </span>
+            </span>
+          </div>
+          <Link
+            href="/timeline/calendar"
+            className="text-xs font-semibold hover:underline"
+            style={{ color: '#356B6E' }}
+          >
+            إدارة التقاويم ←
+          </Link>
+        </div>
+      ) : (
+        <div
+          className="rounded-2xl p-3 flex items-center justify-between gap-3 flex-wrap"
+          style={{
+            background: 'rgba(192,138,72,0.08)',
+            border: '1px solid rgba(192,138,72,0.35)',
+          }}
+        >
+          <div className="flex items-center gap-2 text-xs" style={{ color: '#7A4E1E' }}>
+            <AlertTriangle className="w-4 h-4" />
+            <span>
+              لا يوجد تقويم نشط — ستحتاج تقويماً أكاديمياً قبل إنشاء الأنشطة.
+            </span>
+          </div>
+          {isCrossBatch && (
+            <Link
+              href="/timeline/calendar/import"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white"
+              style={{
+                background: 'linear-gradient(135deg, #C08A48, #9A6A2E)',
+                boxShadow: '0 2px 8px rgba(192,138,72,0.35)',
+              }}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              استيراد تقويم
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Batch tabs */}
       <BatchTabs
