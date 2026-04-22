@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { getExams, upsertExam, deleteExam as deleteExamDB, getStudents, getSupervisors, upsertJuzProgress, getExamCandidates, upsertExamCandidate, deleteExamCandidate as deleteExamCandidateDB, type DBExam, type DBStudent, type DBSupervisor, type DBExamCandidate } from '@/lib/db'
-import { CalendarCheck, Plus, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Bell, PauseCircle, Pencil, Save, BookOpen, Sparkles, Trash2 } from 'lucide-react'
+import { CalendarCheck, Plus, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Bell, PauseCircle, Pencil, Save, BookOpen, Sparkles, Trash2, Eye, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { getBatchName } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -30,6 +30,13 @@ function todayIso(): string {
   return d.toISOString().split('T')[0]
 }
 
+function tomorrowIso(): string {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().split('T')[0]
+}
+
 function formatDateAr(dateStr: string): string {
   const d = new Date(dateStr)
   return `${DAYS_AR[d.getDay()]} ${d.getDate()} ${MONTHS_AR[d.getMonth()]}`
@@ -52,6 +59,7 @@ export default function ExamsPage() {
   const myBatchId = profile?.batch_id ?? null
 
   const today = todayIso()
+  const tomorrow = tomorrowIso()
 
   const [exams, setExams] = useState<DBExam[]>([])
   const [students, setStudents] = useState<DBStudent[]>([])
@@ -80,6 +88,7 @@ export default function ExamsPage() {
   // ─── قريبو الاختبار (تنبيه مسبق قبل الجدولة الرسمية) ───
   const [candidates, setCandidates] = useState<DBExamCandidate[]>([])
   const [showAddCandidate, setShowAddCandidate] = useState(false)
+  const [showCandidatesView, setShowCandidatesView] = useState(false)
   const [candidateForm, setCandidateForm] = useState({
     studentId: '',
     juzNumber: '1',
@@ -399,23 +408,23 @@ export default function ExamsPage() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>جدول اختبارات الأجزاء</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>تنظيم اختبارات حفظ القرآن الأسبوعية</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           <button
             onClick={() => { setShowAddCandidate(v => !v); if (!showAddCandidate) setShowAdd(false) }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition active:scale-95"
+            className="inline-flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl transition active:scale-95 flex-1 sm:flex-initial"
             style={{ background: 'linear-gradient(135deg, #C08A48, #9A6A2E)', color: '#fff', boxShadow: '0 2px 10px rgba(192,138,72,0.35)' }}
           >
             <Sparkles className="w-4 h-4" />
-            إضافة قريبي الاختبار
+            إضافة قريبي
           </button>
           <button
             onClick={() => { setShowAdd(!showAdd); if (!showAdd) setShowAddCandidate(false) }}
-            className="btn-primary btn-ripple flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white rounded-xl"
+            className="btn-primary btn-ripple flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-white rounded-xl flex-1 sm:flex-initial"
           >
             <Plus className="w-4 h-4" />
             إضافة اختبار
@@ -423,24 +432,79 @@ export default function ExamsPage() {
         </div>
       </div>
 
-      {/* Candidates alert — قائمة القريبين للاختبار */}
-      {candidates.length > 0 && (
-        <div className="rounded-2xl p-4" style={{ background: 'rgba(192,138,72,0.08)', border: '1px solid rgba(192,138,72,0.35)' }}>
-          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <p className="font-bold text-sm flex items-center gap-2" style={{ color: '#7A4E1E' }}>
-              <Sparkles className="w-4 h-4" style={{ color: '#C08A48' }} />
-              تنبيه: طلاب قريبون للاختبار (<span className="font-mono">{candidates.filter(c => isCrossBatch || (myBatchId !== null && c.batch_id === myBatchId)).length}</span>)
+      {/* Unified tomorrow alert — اختبارات وقريبون لغد */}
+      {(() => {
+        const visibleCandidates = candidates.filter(c => isCrossBatch || (myBatchId !== null && c.batch_id === myBatchId))
+        const examsTomorrow = visibleExams.filter(e => e.date === tomorrow && e.status === 'scheduled')
+        const candidatesTomorrow = visibleCandidates.filter(c => c.expected_date === tomorrow)
+        const totalTomorrow = examsTomorrow.length + candidatesTomorrow.length
+        if (totalTomorrow === 0) return null
+        return (
+          <div className="rounded-2xl p-4" style={{ background: 'rgba(185,72,56,0.06)', border: '1px solid rgba(185,72,56,0.30)' }}>
+            <p className="font-bold text-sm flex items-center gap-2 mb-2" style={{ color: '#8B2F23' }}>
+              <Bell className="w-4 h-4" />
+              تنبيه الغد (<span className="font-mono">{tomorrow}</span>) — <span className="font-mono">{totalTomorrow}</span>
             </p>
-            <p className="text-[11px]" style={{ color: '#8A6A3C' }}>يظهر هنا قائمة بالطلاب المتوقَّع جهوزيّتهم للاختبار قريباً.</p>
+            <div className="flex flex-wrap gap-2">
+              {examsTomorrow.map(e => (
+                <div key={e.id} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs" style={{ background: 'rgba(99,102,241,0.10)', border: '1px solid rgba(99,102,241,0.25)' }}>
+                  <CalendarCheck className="w-3 h-3" style={{ color: '#6366f1' }} />
+                  <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{e.student_name}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>—</span>
+                  <span className="font-mono" style={{ color: '#6366f1' }}>ج{e.juz_number}</span>
+                  <span className="font-mono" style={{ color: 'var(--text-muted)' }}>• {e.time}</span>
+                </div>
+              ))}
+              {candidatesTomorrow.map(c => (
+                <div key={c.id} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs" style={{ background: 'rgba(192,138,72,0.12)', border: '1px solid rgba(192,138,72,0.30)' }}>
+                  <Sparkles className="w-3 h-3" style={{ color: '#C08A48' }} />
+                  <span className="font-semibold" style={{ color: '#3a2412' }}>{c.student_name}</span>
+                  <span style={{ color: '#8A6A3C' }}>—</span>
+                  <span className="font-mono" style={{ color: '#7A4E1E' }}>ج{c.juz_number}</span>
+                  {c.remaining_pages != null && <span className="font-mono" style={{ color: '#8A6A3C' }}>• متبقّ {c.remaining_pages}</span>}
+                </div>
+              ))}
+            </div>
           </div>
+        )
+      })()}
+
+      {/* زر استعراض قريبي الاختبار — قابل للطي */}
+      {(() => {
+        const visibleCandidatesCount = candidates.filter(c => isCrossBatch || (myBatchId !== null && c.batch_id === myBatchId)).length
+        if (visibleCandidatesCount === 0) return null
+        return (
+          <button
+            onClick={() => setShowCandidatesView(v => !v)}
+            className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition active:scale-[0.99]"
+            style={{ background: 'rgba(192,138,72,0.08)', border: '1px solid rgba(192,138,72,0.35)', color: '#7A4E1E' }}
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" style={{ color: '#C08A48' }} />
+              <span>استعراض قريبي الاختبار</span>
+              <span className="font-mono px-2 py-0.5 rounded-md text-xs" style={{ background: 'rgba(192,138,72,0.20)', color: '#7A4E1E' }}>
+                {visibleCandidatesCount}
+              </span>
+            </div>
+            {showCandidatesView
+              ? <ChevronUp className="w-4 h-4" />
+              : <ChevronDown className="w-4 h-4" />}
+          </button>
+        )
+      })()}
+
+      {/* قائمة قريبي الاختبار — تظهر فقط عند التوسيع */}
+      {showCandidatesView && candidates.length > 0 && (
+        <div className="rounded-2xl p-4" style={{ background: 'rgba(192,138,72,0.04)', border: '1px solid rgba(192,138,72,0.25)' }}>
           <div className="space-y-2">
             {candidates
               .slice()
+              .filter(c => isCrossBatch || (myBatchId !== null && c.batch_id === myBatchId))
               .sort((a, b) => (a.expected_date || '9999').localeCompare(b.expected_date || '9999'))
               .map(c => {
                 const readOnly = !canEditCandidate(c)
                 const isEditing = editingCandidateId === c.id
-                const expectedSoon = c.expected_date ? (c.expected_date <= today) : false
+                const expectedSoon = c.expected_date ? (c.expected_date <= tomorrow) : false
                 return (
                   <div key={c.id} className="rounded-xl p-3" style={{ background: readOnly ? 'rgba(148,163,184,0.05)' : '#FFFBF3', border: `1px solid ${expectedSoon ? 'rgba(185,72,56,0.35)' : 'rgba(192,138,72,0.22)'}` }}>
                     {!isEditing ? (
