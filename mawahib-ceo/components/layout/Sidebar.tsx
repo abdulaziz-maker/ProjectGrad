@@ -6,12 +6,13 @@ import {
   CalendarCheck, Star, MessageSquare, FileText,
   Wallet, Settings, X, Grid3x3,
   ClipboardCheck, ListChecks, LogOut, ShieldCheck, ChevronLeft, Bell,
-  ClipboardList, Target, BookHeart,
+  ClipboardList, Target, BookHeart, CalendarDays,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { signOut } from '@/lib/auth'
 import { UserRole } from '@/lib/auth'
 import { BrandMark } from '@/components/ui/BrandMark'
+import { TIMELINE_ENABLED } from '@/lib/timeline/flag'
 
 interface NavItem {
   href: string
@@ -49,6 +50,9 @@ const navItems: NavItem[] = [
   { href: '/programs',    icon: Star,            label: 'البرامج التربوية',       badge: 2 },
   { href: '/meetings',    icon: MessageSquare,   label: 'الاجتماعات',             badge: 1 },
   { href: '/admin/bulk-plan', icon: Target,      label: 'إنشاء خطة جماعي',        badge: 0,  roles: ['ceo'] },
+  ...(TIMELINE_ENABLED ? [
+    { href: '/timeline', icon: CalendarDays, label: 'الخطة الزمنية', badge: 0, roles: ['ceo', 'batch_manager', 'records_officer'] as UserRole[] },
+  ] : []),
   // ملاحظة: "تعديل المتون" (/matn/manage) مُدمَجة الآن داخل صفحة "رصد المتون"
   // كزر بارز للمدير التنفيذي، فلا حاجة لبند منفصل.
   { href: '/reminders/saved', icon: BookHeart,   label: 'التذكيرات المحفوظة',    badge: 0 },
