@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Flask (Python)",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["run.py"],
+      "port": 5000
+    },
+    {
+      "name": "Next.js (المواهب الناشئة)",
+      "runtimeExecutable": "/opt/homebrew/bin/node",
+      "runtimeArgs": ["/opt/homebrew/lib/node_modules/serve/build/main.js", "mawahib-ceo/out", "--listen", "3000"],
+      "port": 3000
+    }
+  ]
+}

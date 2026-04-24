@@ -1,0 +1,1308 @@
+'use client'
+import { useState, useEffect } from 'react'
+import { getExams, upsertExam, deleteExam as deleteExamDB, getStudents, getSupervisors, upsertJuzProgress, getExamCandidates, upsertExamCandidate, deleteExamCandidate as deleteExamCandidateDB, type DBExam, type DBStudent, type DBSupervisor, type DBExamCandidate } from '@/lib/db'
+import { CalendarCheck, Plus, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Bell, PauseCircle, Pencil, Save, BookOpen, Sparkles, Trash2, Eye, ChevronDown, ChevronUp } from 'lucide-react'
+import { toast } from 'sonner'
+import { getBatchName } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
+
+const DAYS_AR = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
+
+/** إرجاع أيام أسبوع محدَّد بالإزاحة (0 = الأسبوع الحالي، -1 السابق، 1 التالي). */
+function getWeekDates(weekOffset: number = 0): string[] {
+  const base = new Date()
+  base.setHours(0, 0, 0, 0)
+  const day = base.getDay() // 0=Sun
+  const week: string[] = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(base)
+    d.setDate(base.getDate() - day + i + (weekOffset * 7))
+    week.push(d.toISOString().split('T')[0])
+  }
+  return week
+}
+
+/** تاريخ اليوم بصيغة ISO (YYYY-MM-DD). */
+function todayIso(): string {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString().split('T')[0]
+}
+
+function tomorrowIso(): string {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().split('T')[0]
+}
+
+function formatDateAr(dateStr: string): string {
+  const d = new Date(dateStr)
+  return `${DAYS_AR[d.getDay()]} ${d.getDate()} ${MONTHS_AR[d.getMonth()]}`
+}
+
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  scheduled: { label: 'مجدول', color: 'bg-blue-100 text-blue-700' },
+  passed: { label: 'اجتاز', color: 'bg-green-100 text-green-700' },
+  failed: { label: 'لم يجتز', color: 'bg-red-100 text-red-700' },
+  postponed: { label: 'مؤجل', color: 'bg-gray-100/10 text-gray-400' },
+}
+
+export default function ExamsPage() {
+  const { profile } = useAuth()
+  const role = profile?.role ?? null
+  const isCeo = role === 'ceo'
+  // موظف السجلات: صلاحيات كاملة عبر كل الدفعات (مثل CEO في هذه الصفحة)
+  const isRecordsOfficer = role === 'records_officer'
+  const isCrossBatch = isCeo || isRecordsOfficer
+  const myBatchId = profile?.batch_id ?? null
+
+  const today = todayIso()
+  const tomorrow = tomorrowIso()
+
+  const [exams, setExams] = useState<DBExam[]>([])
+  const [students, setStudents] = useState<DBStudent[]>([])
+  const [supervisors, setSupervisors] = useState<DBSupervisor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showAdd, setShowAdd] = useState(false)
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [selectedDay, setSelectedDay] = useState(today)
+  const [markingExam, setMarkingExam] = useState<string | null>(null)
+  const [score, setScore] = useState('')
+  const [errors, setErrors] = useState('')
+  const [warnings, setWarnings] = useState('')
+  const [hesitations, setHesitations] = useState('')
+  // تعديل تفاصيل اختبار (الجزء/التاريخ/الوقت/المقيّم/الملاحظات)
+  const [editingExamId, setEditingExamId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ juzNumber: '1', date: today, time: '10:00', examiner: '', notes: '', remainingPages: '' })
+  const [form, setForm] = useState({
+    studentId: '',
+    juzNumber: '1',
+    examiner: '',
+    date: today,
+    time: '10:00',
+    notes: '',
+    remainingPages: '',
+  })
+  // ─── قريبو الاختبار (تنبيه مسبق قبل الجدولة الرسمية) ───
+  const [candidates, setCandidates] = useState<DBExamCandidate[]>([])
+  const [showAddCandidate, setShowAddCandidate] = useState(false)
+  const [showCandidatesView, setShowCandidatesView] = useState(false)
+  const [candidateForm, setCandidateForm] = useState({
+    studentId: '',
+    juzNumber: '1',
+    remainingPages: '',
+    postedDate: today,
+    expectedDate: '',
+    notes: '',
+  })
+  const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null)
+  const [candidateEditForm, setCandidateEditForm] = useState({
+    juzNumber: '1',
+    remainingPages: '',
+    postedDate: today,
+    expectedDate: '',
+    notes: '',
+  })
+
+  const weekDates = getWeekDates(weekOffset)
+
+  // كل المسجّلين يرون كل الاختبارات (read-only للدفعات الأخرى في حالة المشرف/مدير الدفعة).
+  const visibleExams = exams
+
+  // هل يستطيع المستخدم تعديل/حذف هذا الاختبار؟
+  const canEditExam = (exam: DBExam): boolean => {
+    if (isCrossBatch) return true // ceo + records_officer
+    if (role === 'batch_manager' || role === 'supervisor' || role === 'teacher') {
+      return myBatchId !== null && exam.batch_id === myBatchId
+    }
+    return false
+  }
+  const isOtherBatch = (exam: DBExam): boolean => !isCrossBatch && myBatchId !== null && exam.batch_id !== myBatchId
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [examsData, studentsData, supervisorsData, candidatesData] = await Promise.all([
+          getExams(),
+          getStudents(),
+          getSupervisors(),
+          getExamCandidates(),
+        ])
+        setExams(examsData)
+        setStudents(studentsData)
+        setSupervisors(supervisorsData)
+        setCandidates(candidatesData)
+      } catch (err) {
+        console.error(err)
+        toast.error('حدث خطأ أثناء تحميل البيانات')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  const dayExams = visibleExams.filter(e => e.date === selectedDay).sort((a, b) => a.time.localeCompare(b.time))
+  const todayExams = visibleExams.filter(e => e.date === today)
+  const scheduledToday = todayExams.filter(e => e.status === 'scheduled').length
+
+  const addExam = async () => {
+    if (!form.studentId || !form.examiner) {
+      toast.error('يرجى تعبئة جميع الحقول المطلوبة')
+      return
+    }
+    const student = students.find(s => s.id === form.studentId)
+    if (!student) return
+    const remainingPagesVal = form.remainingPages.trim() === '' ? null : Number(form.remainingPages)
+    if (remainingPagesVal !== null && (isNaN(remainingPagesVal) || remainingPagesVal < 0 || remainingPagesVal > 604)) {
+      toast.error('عدد الأوجه المتبقية يجب أن يكون رقماً بين 0 و 604')
+      return
+    }
+    const newExam: DBExam = {
+      id: `e${Date.now()}`,
+      student_id: form.studentId,
+      student_name: student.name,
+      batch_id: (!isCrossBatch && myBatchId !== null) ? myBatchId : (students.find(s => s.id === form.studentId)?.batch_id ?? 0),
+      juz_number: Number(form.juzNumber),
+      examiner: form.examiner,
+      date: form.date,
+      time: form.time,
+      status: 'scheduled',
+      score: null,
+      notes: form.notes,
+      remaining_pages: remainingPagesVal,
+    }
+    try {
+      await upsertExam(newExam)
+      setExams(prev => [...prev, newExam])
+      setShowAdd(false)
+      setForm({ studentId: '', juzNumber: '1', examiner: '', date: today, time: '10:00', notes: '', remainingPages: '' })
+      toast.success(`تم جدولة اختبار ${student.name} — الجزء ${form.juzNumber}`)
+    } catch (err) {
+      console.error(err)
+      toast.error('حدث خطأ أثناء حفظ الاختبار')
+    }
+  }
+
+  const resetMarkingForm = () => {
+    setMarkingExam(null)
+    setScore('')
+    setErrors('')
+    setWarnings('')
+    setHesitations('')
+  }
+
+  const openMarkingFor = (exam: DBExam) => {
+    // نبدأ من قيم الاختبار الحالية لو كانت مسجَّلة (تعديل نتيجة سابقة)
+    setMarkingExam(exam.id)
+    setScore(exam.score !== null && exam.score !== undefined ? String(exam.score) : '')
+    setErrors(exam.errors !== null && exam.errors !== undefined ? String(exam.errors) : '')
+    setWarnings(exam.warnings !== null && exam.warnings !== undefined ? String(exam.warnings) : '')
+    setHesitations(exam.hesitations !== null && exam.hesitations !== undefined ? String(exam.hesitations) : '')
+  }
+
+  const markResult = async (examId: string, result: 'passed' | 'failed') => {
+    const exam = exams.find(e => e.id === examId)
+    if (!exam) return
+    const updatedExam: DBExam = {
+      ...exam,
+      status: result,
+      score: score ? Number(score) : null,
+      errors: errors ? Number(errors) : null,
+      warnings: warnings ? Number(warnings) : null,
+      hesitations: hesitations ? Number(hesitations) : null,
+    }
+    try {
+      await upsertExam(updatedExam)
+      // ربط نتيجة الاختبار بخريطة الحفظ:
+      // - اجتاز  → الجزء «محفوظ»
+      // - لم يجتز → يُعاد إلى «قيد الحفظ» (لا نمسح البيانات الأخرى)
+      try {
+        await upsertJuzProgress(
+          exam.student_id,
+          exam.juz_number,
+          result === 'passed' ? 'memorized' : 'in_progress',
+        )
+      } catch (jErr) {
+        console.warn('juz_progress sync failed', jErr)
+        // لا نُفشل الاختبار كاملاً لو فشل تحديث الخريطة — لكن ننبّه.
+        toast.error('تم حفظ الاختبار لكن لم يتم تحديث خريطة الحفظ')
+      }
+      setExams(prev => prev.map(e => e.id === examId ? updatedExam : e))
+      resetMarkingForm()
+      toast.success(
+        result === 'passed'
+          ? '✅ اجتاز — تم تسجيله في خريطة الحفظ'
+          : '❌ لم يجتز — تم إرجاع الجزء إلى «قيد الحفظ»',
+      )
+    } catch (err) {
+      console.error(err)
+      toast.error('حدث خطأ أثناء تسجيل النتيجة')
+    }
+  }
+
+  // ─── تعديل تفاصيل الاختبار (الجزء / التاريخ / الوقت / المقيّم / الملاحظات) ───
+  const openEditFor = (exam: DBExam) => {
+    // نغلق أي نموذج تسجيل نتيجة مفتوح لتجنّب التداخل البصري
+    if (markingExam) resetMarkingForm()
+    setEditingExamId(exam.id)
+    setEditForm({
+      juzNumber: String(exam.juz_number),
+      date: exam.date,
+      time: exam.time,
+      examiner: exam.examiner,
+      notes: exam.notes || '',
+      remainingPages: exam.remaining_pages != null ? String(exam.remaining_pages) : '',
+    })
+  }
+  const cancelEdit = () => { setEditingExamId(null) }
+  const saveEdit = async (examId: string) => {
+    const exam = exams.find(e => e.id === examId)
+    if (!exam) return
+    const newJuz = Number(editForm.juzNumber)
+    if (!newJuz || newJuz < 1 || newJuz > 30) { toast.error('رقم الجزء غير صحيح'); return }
+    if (!editForm.date || !editForm.time) { toast.error('التاريخ والوقت مطلوبان'); return }
+    if (!editForm.examiner.trim()) { toast.error('اسم المقيّم مطلوب'); return }
+    const remainingPagesVal = editForm.remainingPages.trim() === '' ? null : Number(editForm.remainingPages)
+    if (remainingPagesVal !== null && (isNaN(remainingPagesVal) || remainingPagesVal < 0 || remainingPagesVal > 604)) {
+      toast.error('عدد الأوجه المتبقية يجب أن يكون رقماً بين 0 و 604')
+      return
+    }
+    const updated: DBExam = {
+      ...exam,
+      juz_number: newJuz,
+      date: editForm.date,
+      time: editForm.time,
+      examiner: editForm.examiner.trim(),
+      notes: editForm.notes,
+      remaining_pages: remainingPagesVal,
+    }
+    try {
+      await upsertExam(updated)
+      setExams(prev => prev.map(e => e.id === examId ? updated : e))
+      setEditingExamId(null)
+      toast.success('تم حفظ تعديلات الاختبار')
+    } catch (err) {
+      console.error(err)
+      toast.error('حدث خطأ أثناء حفظ التعديلات')
+    }
+  }
+
+  // ─── مرشّحو الاختبار (تنبيهات) ───
+  const canEditCandidate = (c: DBExamCandidate): boolean => {
+    if (isCrossBatch) return true
+    if (role === 'batch_manager' || role === 'supervisor' || role === 'teacher') {
+      return myBatchId !== null && c.batch_id === myBatchId
+    }
+    return false
+  }
+
+  const addCandidate = async () => {
+    if (!candidateForm.studentId) { toast.error('اختر الطالب'); return }
+    const student = students.find(s => s.id === candidateForm.studentId)
+    if (!student) return
+    const remVal = candidateForm.remainingPages.trim() === '' ? null : Number(candidateForm.remainingPages)
+    if (remVal !== null && (isNaN(remVal) || remVal < 0 || remVal > 604)) {
+      toast.error('عدد الأوجه المتبقية يجب أن يكون بين 0 و 604'); return
+    }
+    const juz = Number(candidateForm.juzNumber)
+    if (!juz || juz < 1 || juz > 30) { toast.error('رقم الجزء غير صحيح'); return }
+    const newC: DBExamCandidate = {
+      id: `ec_${Date.now()}`,
+      student_id: student.id,
+      student_name: student.name,
+      batch_id: (!isCrossBatch && myBatchId !== null) ? myBatchId : (student.batch_id ?? 0),
+      juz_number: juz,
+      remaining_pages: remVal,
+      posted_date: candidateForm.postedDate || today,
+      expected_date: candidateForm.expectedDate || null,
+      created_by: profile?.id ?? null,
+      notes: candidateForm.notes || null,
+    }
+    try {
+      await upsertExamCandidate(newC)
+      setCandidates(prev => [...prev, newC])
+      setShowAddCandidate(false)
+      setCandidateForm({ studentId: '', juzNumber: '1', remainingPages: '', postedDate: today, expectedDate: '', notes: '' })
+      toast.success(`تمت إضافة ${student.name} إلى قائمة القريبين للاختبار`)
+    } catch (err) {
+      console.error(err)
+      toast.error('حدث خطأ أثناء الحفظ')
+    }
+  }
+
+  const openEditCandidate = (c: DBExamCandidate) => {
+    setEditingCandidateId(c.id)
+    setCandidateEditForm({
+      juzNumber: String(c.juz_number),
+      remainingPages: c.remaining_pages != null ? String(c.remaining_pages) : '',
+      postedDate: c.posted_date,
+      expectedDate: c.expected_date || '',
+      notes: c.notes || '',
+    })
+  }
+
+  const saveEditCandidate = async (id: string) => {
+    const c = candidates.find(x => x.id === id)
+    if (!c) return
+    const juz = Number(candidateEditForm.juzNumber)
+    if (!juz || juz < 1 || juz > 30) { toast.error('رقم الجزء غير صحيح'); return }
+    const remVal = candidateEditForm.remainingPages.trim() === '' ? null : Number(candidateEditForm.remainingPages)
+    if (remVal !== null && (isNaN(remVal) || remVal < 0 || remVal > 604)) {
+      toast.error('عدد الأوجه المتبقية يجب أن يكون بين 0 و 604'); return
+    }
+    const updated: DBExamCandidate = {
+      ...c,
+      juz_number: juz,
+      remaining_pages: remVal,
+      posted_date: candidateEditForm.postedDate || c.posted_date,
+      expected_date: candidateEditForm.expectedDate || null,
+      notes: candidateEditForm.notes || null,
+    }
+    try {
+      await upsertExamCandidate(updated)
+      setCandidates(prev => prev.map(x => x.id === id ? updated : x))
+      setEditingCandidateId(null)
+      toast.success('تم حفظ التعديلات')
+    } catch (err) {
+      console.error(err)
+      toast.error('حدث خطأ أثناء الحفظ')
+    }
+  }
+
+  const handleDeleteCandidate = async (id: string) => {
+    try {
+      await deleteExamCandidateDB(id)
+      setCandidates(prev => prev.filter(x => x.id !== id))
+      toast.success('تم الحذف')
+    } catch (err) {
+      console.error(err)
+      toast.error('حدث خطأ أثناء الحذف')
+    }
+  }
+
+  const handleDeleteExam = async (examId: string) => {
+    try {
+      await deleteExamDB(examId)
+      setExams(prev => prev.filter(e => e.id !== examId))
+      toast.success('تم حذف الاختبار')
+    } catch (err) {
+      console.error(err)
+      toast.error('حدث خطأ أثناء حذف الاختبار')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>جاري تحميل الاختبارات...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 animate-fade-in-up">
+      {/* Header */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>جدول اختبارات الأجزاء</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>تنظيم اختبارات حفظ القرآن الأسبوعية</p>
+        </div>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => { setShowAddCandidate(v => !v); if (!showAddCandidate) setShowAdd(false) }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition active:scale-95 w-full sm:w-auto whitespace-nowrap"
+            style={{ background: 'linear-gradient(135deg, #C08A48, #9A6A2E)', color: '#fff', boxShadow: '0 2px 10px rgba(192,138,72,0.35)' }}
+          >
+            <Sparkles className="w-4 h-4 shrink-0" />
+            إضافة قريبي الاختبار
+          </button>
+          <button
+            onClick={() => { setShowAdd(!showAdd); if (!showAdd) setShowAddCandidate(false) }}
+            className="btn-primary btn-ripple flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white rounded-xl w-full sm:w-auto whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4 shrink-0" />
+            إضافة اختبار
+          </button>
+        </div>
+      </div>
+
+      {/* Unified tomorrow alert — اختبارات وقريبون لغد */}
+      {(() => {
+        const visibleCandidates = candidates.filter(c => isCrossBatch || (myBatchId !== null && c.batch_id === myBatchId))
+        const examsTomorrow = visibleExams.filter(e => e.date === tomorrow && e.status === 'scheduled')
+        const candidatesTomorrow = visibleCandidates.filter(c => c.expected_date === tomorrow)
+        const totalTomorrow = examsTomorrow.length + candidatesTomorrow.length
+        if (totalTomorrow === 0) return null
+        return (
+          <div className="rounded-2xl p-4" style={{ background: 'rgba(185,72,56,0.06)', border: '1px solid rgba(185,72,56,0.30)' }}>
+            <p className="font-bold text-sm flex items-center gap-2 mb-2" style={{ color: '#8B2F23' }}>
+              <Bell className="w-4 h-4" />
+              تنبيه الغد (<span className="font-mono">{tomorrow}</span>) — <span className="font-mono">{totalTomorrow}</span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {examsTomorrow.map(e => (
+                <div key={e.id} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs" style={{ background: 'rgba(53,107,110,0.10)', border: '1px solid rgba(53,107,110,0.25)' }}>
+                  <CalendarCheck className="w-3 h-3" style={{ color: 'var(--accent-teal)' }} />
+                  <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{e.student_name}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>—</span>
+                  <span className="font-mono" style={{ color: 'var(--accent-teal)' }}>ج{e.juz_number}</span>
+                  <span className="font-mono" style={{ color: 'var(--text-muted)' }}>• {e.time}</span>
+                </div>
+              ))}
+              {candidatesTomorrow.map(c => (
+                <div key={c.id} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs" style={{ background: 'rgba(192,138,72,0.12)', border: '1px solid rgba(192,138,72,0.30)' }}>
+                  <Sparkles className="w-3 h-3" style={{ color: '#C08A48' }} />
+                  <span className="font-semibold" style={{ color: '#3a2412' }}>{c.student_name}</span>
+                  <span style={{ color: '#8A6A3C' }}>—</span>
+                  <span className="font-mono" style={{ color: '#7A4E1E' }}>ج{c.juz_number}</span>
+                  {c.remaining_pages != null && <span className="font-mono" style={{ color: '#8A6A3C' }}>• متبقّ {c.remaining_pages}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* زر استعراض قريبي الاختبار — قابل للطي */}
+      {(() => {
+        const visibleCandidatesCount = candidates.filter(c => isCrossBatch || (myBatchId !== null && c.batch_id === myBatchId)).length
+        if (visibleCandidatesCount === 0) return null
+        return (
+          <button
+            onClick={() => setShowCandidatesView(v => !v)}
+            className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition active:scale-[0.99]"
+            style={{ background: 'rgba(192,138,72,0.08)', border: '1px solid rgba(192,138,72,0.35)', color: '#7A4E1E' }}
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" style={{ color: '#C08A48' }} />
+              <span>استعراض قريبي الاختبار</span>
+              <span className="font-mono px-2 py-0.5 rounded-md text-xs" style={{ background: 'rgba(192,138,72,0.20)', color: '#7A4E1E' }}>
+                {visibleCandidatesCount}
+              </span>
+            </div>
+            {showCandidatesView
+              ? <ChevronUp className="w-4 h-4" />
+              : <ChevronDown className="w-4 h-4" />}
+          </button>
+        )
+      })()}
+
+      {/* قائمة قريبي الاختبار — تظهر فقط عند التوسيع */}
+      {showCandidatesView && candidates.length > 0 && (
+        <div className="rounded-2xl p-4" style={{ background: 'rgba(192,138,72,0.04)', border: '1px solid rgba(192,138,72,0.25)' }}>
+          <div className="space-y-2">
+            {candidates
+              .slice()
+              .filter(c => isCrossBatch || (myBatchId !== null && c.batch_id === myBatchId))
+              .sort((a, b) => (a.expected_date || '9999').localeCompare(b.expected_date || '9999'))
+              .map(c => {
+                const readOnly = !canEditCandidate(c)
+                const isEditing = editingCandidateId === c.id
+                const expectedSoon = c.expected_date ? (c.expected_date <= tomorrow) : false
+                return (
+                  <div key={c.id} className="rounded-xl p-3" style={{ background: readOnly ? 'rgba(148,163,184,0.05)' : '#FFFBF3', border: `1px solid ${expectedSoon ? 'rgba(185,72,56,0.35)' : 'rgba(192,138,72,0.22)'}` }}>
+                    {!isEditing ? (
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm" style={{ color: readOnly ? 'var(--text-muted)' : '#3a2412' }}>{c.student_name}</span>
+                          {!isCrossBatch ? null : <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(53,107,110,0.10)', color: '#235052' }}>دفعة {c.batch_id}</span>}
+                          <span className="text-[11px] px-2 py-0.5 rounded-md font-bold font-mono" style={{ background: 'rgba(192,138,72,0.15)', color: '#7A4E1E' }}>الجزء {c.juz_number}</span>
+                          {c.remaining_pages != null && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-md font-bold font-mono" style={{ background: 'rgba(53,107,110,0.10)', color: '#235052', border: '1px solid rgba(53,107,110,0.25)' }}>
+                              متبقّ {c.remaining_pages} وجه
+                            </span>
+                          )}
+                          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            نُشر: <span className="font-mono">{c.posted_date}</span>
+                          </span>
+                          {c.expected_date && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-md font-bold" style={{ background: expectedSoon ? 'rgba(185,72,56,0.10)' : 'rgba(192,138,72,0.10)', color: expectedSoon ? '#8B2F23' : '#7A4E1E' }}>
+                              متوقَّع: <span className="font-mono">{c.expected_date}</span>
+                            </span>
+                          )}
+                          {c.notes && <span className="text-[11px] italic" style={{ color: 'var(--text-muted)' }}>— {c.notes}</span>}
+                        </div>
+                        {!readOnly && (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => openEditCandidate(c)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition active:scale-95"
+                              style={{ background: 'rgba(53,107,110,0.10)', color: '#235052', border: '1px solid rgba(53,107,110,0.25)' }}
+                            >
+                              <Pencil className="w-3 h-3" /> تعديل
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCandidate(c.id)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition active:scale-95"
+                              style={{ background: 'rgba(185,72,56,0.08)', color: '#8B2F23', border: '1px solid rgba(185,72,56,0.25)' }}
+                            >
+                              <Trash2 className="w-3 h-3" /> حذف
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="font-bold text-sm" style={{ color: '#3a2412' }}>تعديل: {c.student_name}</p>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                          <div>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>الجزء</label>
+                            <select
+                              value={candidateEditForm.juzNumber}
+                              onChange={e => setCandidateEditForm({ ...candidateEditForm, juzNumber: e.target.value })}
+                              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none"
+                              style={{ background: '#fff', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
+                            >
+                              {Array.from({ length: 30 }, (_, i) => <option key={i + 1} value={i + 1}>الجزء {i + 1}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>الأوجه المتبقية</label>
+                            <input
+                              type="number" min={0} max={604} inputMode="numeric"
+                              value={candidateEditForm.remainingPages}
+                              onChange={e => setCandidateEditForm({ ...candidateEditForm, remainingPages: e.target.value })}
+                              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none font-mono"
+                              style={{ background: '#fff', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>تاريخ النشر</label>
+                            <input
+                              type="date"
+                              value={candidateEditForm.postedDate}
+                              onChange={e => setCandidateEditForm({ ...candidateEditForm, postedDate: e.target.value })}
+                              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none"
+                              style={{ background: '#fff', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>التاريخ المتوقَّع</label>
+                            <input
+                              type="date"
+                              value={candidateEditForm.expectedDate}
+                              onChange={e => setCandidateEditForm({ ...candidateEditForm, expectedDate: e.target.value })}
+                              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none"
+                              style={{ background: '#fff', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>ملاحظات</label>
+                            <input
+                              value={candidateEditForm.notes}
+                              onChange={e => setCandidateEditForm({ ...candidateEditForm, notes: e.target.value })}
+                              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none"
+                              style={{ background: '#fff', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={() => saveEditCandidate(c.id)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white"
+                            style={{ background: 'linear-gradient(135deg, #356B6E, #244A4C)' }}
+                          >
+                            <Save className="w-3.5 h-3.5" /> حفظ
+                          </button>
+                          <button
+                            onClick={() => setEditingCandidateId(null)}
+                            className="text-xs px-3 py-1.5 rounded-lg border"
+                            style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                          >
+                            إلغاء
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Add candidate form */}
+      {showAddCandidate && (
+        <div className="card-static p-5 space-y-4" style={{ borderColor: 'rgba(192,138,72,0.35)' }}>
+          <h2 className="font-bold flex items-center gap-2" style={{ color: '#7A4E1E' }}>
+            <Sparkles className="w-4 h-4" style={{ color: '#C08A48' }} />
+            إضافة قريبي للاختبار
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>الطالب *</label>
+              <select
+                value={candidateForm.studentId}
+                onChange={e => setCandidateForm({ ...candidateForm, studentId: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
+              >
+                <option value="">اختر الطالب</option>
+                {(() => {
+                  const opts = (!isCrossBatch && myBatchId !== null)
+                    ? students.filter(s => s.batch_id === myBatchId)
+                    : students
+                  return [...new Set(opts.map(s => s.batch_id))].sort().map(batch => (
+                    <optgroup key={batch} label={`دفعة ${batch}`}>
+                      {opts.filter(s => s.batch_id === batch).map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </optgroup>
+                  ))
+                })()}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>الجزء *</label>
+              <select
+                value={candidateForm.juzNumber}
+                onChange={e => setCandidateForm({ ...candidateForm, juzNumber: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
+              >
+                {Array.from({ length: 30 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>الجزء {i + 1}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>الأوجه المتبقية</label>
+              <input
+                type="number" min={0} max={604} inputMode="numeric"
+                value={candidateForm.remainingPages}
+                onChange={e => setCandidateForm({ ...candidateForm, remainingPages: e.target.value })}
+                placeholder="مثال: 5"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>تاريخ النشر *</label>
+              <input
+                type="date"
+                value={candidateForm.postedDate}
+                onChange={e => setCandidateForm({ ...candidateForm, postedDate: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>التاريخ المتوقَّع للاختبار</label>
+              <input
+                type="date"
+                value={candidateForm.expectedDate}
+                onChange={e => setCandidateForm({ ...candidateForm, expectedDate: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
+              />
+            </div>
+            <div className="col-span-2 md:col-span-3">
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>ملاحظات</label>
+              <input
+                value={candidateForm.notes}
+                onChange={e => setCandidateForm({ ...candidateForm, notes: e.target.value })}
+                placeholder="اختياري"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
+              />
+            </div>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={addCandidate}
+              className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition active:scale-95"
+              style={{ background: 'linear-gradient(135deg, #C08A48, #9A6A2E)', boxShadow: '0 2px 10px rgba(192,138,72,0.35)' }}
+            >
+              حفظ
+            </button>
+            <button onClick={() => setShowAddCandidate(false)} className="px-5 py-2.5 text-sm border border-white/10 rounded-xl" style={{ color: 'var(--text-muted)' }}>
+              إلغاء
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Today summary */}
+      {todayExams.length > 0 && (
+        <div style={{ background: 'rgba(192,138,72,0.06)' }} className="border border-indigo-500/20 rounded-2xl p-4">
+          <p className="font-semibold text-sm mb-2 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <CalendarCheck className="w-4 h-4" />
+            اختبارات اليوم ({today}) — <span className="font-mono">{scheduledToday}</span> مجدول
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {todayExams.map(e => (
+              <div key={e.id} className="border border-white/10 rounded-xl px-3 py-2 text-sm" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{e.student_name}</span>
+                <span style={{ color: 'var(--text-muted)' }} className="mx-1">•</span>
+                <span style={{ color: '#C08A48' }}>الجزء <span className="font-mono">{e.juz_number}</span></span>
+                <span style={{ color: 'var(--text-muted)' }} className="mx-1">•</span>
+                <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{e.time}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Add exam form */}
+      {showAdd && (
+        <div className="card-static p-5 space-y-4">
+          <h2 className="font-bold" style={{ color: 'var(--text-primary)' }}>إضافة اختبار جديد</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>الطالب *</label>
+              <select
+                value={form.studentId}
+                onChange={e => setForm({ ...form, studentId: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-green-400"
+              >
+                <option value="">اختر الطالب</option>
+                {(() => {
+                  const studentOptions = (!isCeo && myBatchId !== null)
+                    ? students.filter(s => s.batch_id === myBatchId)
+                    : students
+                  return [...new Set(studentOptions.map(s => s.batch_id))].sort().map(batch => (
+                    <optgroup key={batch} label={`دفعة ${batch}`}>
+                      {studentOptions.filter(s => s.batch_id === batch).map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </optgroup>
+                  ))
+                })()}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>رقم الجزء *</label>
+              <select
+                value={form.juzNumber}
+                onChange={e => setForm({ ...form, juzNumber: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-green-400"
+              >
+                {Array.from({ length: 30 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>الجزء {i + 1}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>المقيّم *</label>
+              <input
+                value={form.examiner}
+                onChange={e => setForm({ ...form, examiner: e.target.value })}
+                list="examiners-list"
+                placeholder="اسم المقيّم"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-green-400"
+              />
+              <datalist id="examiners-list">
+                {supervisors.map(s => <option key={s.id} value={s.name} />)}
+              </datalist>
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>التاريخ *</label>
+              <input
+                type="date"
+                value={form.date}
+                onChange={e => setForm({ ...form, date: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-green-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>الوقت *</label>
+              <input
+                type="time"
+                value={form.time}
+                onChange={e => setForm({ ...form, time: e.target.value })}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-green-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>الأوجه المتبقية لنهاية الجزء</label>
+              <input
+                type="number" min={0} max={604} inputMode="numeric"
+                value={form.remainingPages}
+                onChange={e => setForm({ ...form, remainingPages: e.target.value })}
+                placeholder="مثال: 7"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-green-400"
+              />
+            </div>
+            <div className="col-span-2 md:col-span-3">
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>ملاحظات</label>
+              <input
+                value={form.notes}
+                onChange={e => setForm({ ...form, notes: e.target.value })}
+                placeholder="ملاحظات اختيارية"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-green-400"
+              />
+            </div>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button onClick={addExam} className="btn-primary btn-ripple px-5 py-2.5 text-sm font-medium text-white rounded-xl">
+              حفظ الاختبار
+            </button>
+            <button onClick={() => setShowAdd(false)} className="px-5 py-2.5 text-sm border border-white/10 rounded-xl" style={{ color: 'var(--text-muted)' }}>
+              إلغاء
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Weekly calendar */}
+      <div className="card-static overflow-hidden">
+        {/* Week navigation */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5" style={{ background: 'rgba(192,138,72,0.04)' }}>
+          <button
+            onClick={() => { setWeekOffset(w => w - 1); setSelectedDay(getWeekDates(weekOffset - 1)[0]) }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:bg-white/5"
+            style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+            الأسبوع السابق
+          </button>
+
+          <div className="text-center">
+            <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+              {weekOffset === 0 ? 'الأسبوع الحالي' : weekOffset === 1 ? 'الأسبوع التالي' : weekOffset === -1 ? 'الأسبوع السابق' : weekOffset > 0 ? `بعد ${weekOffset} أسابيع` : `قبل ${-weekOffset} أسابيع`}
+            </p>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              {formatDateAr(weekDates[0])} — {formatDateAr(weekDates[5])}
+            </p>
+            {weekOffset !== 0 && (
+              <button
+                onClick={() => { setWeekOffset(0); setSelectedDay(today) }}
+                className="mt-1 text-[11px] px-2 py-0.5 rounded font-medium"
+                style={{ color: '#C08A48', background: 'rgba(192,138,72,0.1)' }}
+              >
+                ← العودة للأسبوع الحالي
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() => { setWeekOffset(w => w + 1); setSelectedDay(getWeekDates(weekOffset + 1)[0]) }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:bg-white/5"
+            style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+          >
+            الأسبوع التالي
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Day selector */}
+        <div className="flex overflow-x-auto border-b border-white/5">
+          {weekDates.slice(0, 6).map(date => {
+            const d = new Date(date)
+            const dayName = DAYS_AR[d.getDay()]
+            const dayExamCount = visibleExams.filter(e => e.date === date).length
+            const isToday = date === today
+            const isSelected = date === selectedDay
+            return (
+              <button
+                key={date}
+                onClick={() => setSelectedDay(date)}
+                className="flex-1 min-w-20 px-3 py-3 text-center transition-colors border-b-2"
+                style={isSelected
+                  ? { background: 'rgba(192,138,72,0.08)', borderBottomColor: 'var(--accent-warm)' }
+                  : { borderBottomColor: 'transparent' }}
+              >
+                <p className="text-xs font-semibold" style={{ color: isSelected ? 'var(--accent-warm)' : isToday ? 'var(--accent-teal)' : 'var(--text-secondary)' }}>{dayName}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{d.getDate()} أبريل</p>
+                {dayExamCount > 0 && (
+                  <span className="inline-block mt-1 w-5 h-5 rounded-full text-[10px] font-bold font-mono text-white" style={{ backgroundColor: isSelected ? 'var(--accent-warm)' : 'var(--text-muted)' }}>
+                    {dayExamCount}
+                  </span>
+                )}
+                {isToday && !isSelected && <span className="block text-[9px] font-medium mt-0.5" style={{ color: 'var(--accent-teal)' }}>اليوم</span>}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Day exams */}
+        <div className="p-5">
+          {dayExams.length === 0 ? (
+            <div className="text-center py-8" style={{ color: 'var(--text-muted)' }}>
+              <CalendarCheck className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">لا توجد اختبارات مجدولة ليوم {formatDateAr(selectedDay)}</p>
+              <button onClick={() => { setShowAdd(true); setForm(f => ({ ...f, date: selectedDay })) }} className="mt-3 text-xs hover:underline" style={{ color: '#C08A48' }}>
+                + إضافة اختبار لهذا اليوم
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs font-medium mb-3" style={{ color: 'var(--text-muted)' }}>{formatDateAr(selectedDay)} — <span className="font-mono">{dayExams.length}</span> اختبار</p>
+              {dayExams.map(exam => {
+                const readOnly = isOtherBatch(exam)
+                const bgColor = readOnly
+                  ? 'rgba(148,163,184,0.08)'
+                  : exam.status === 'scheduled' ? 'rgba(192,138,72,0.06)'
+                  : exam.status === 'passed' ? 'rgba(111,163,146,0.06)'
+                  : exam.status === 'failed' ? 'rgba(185,72,56,0.06)' : 'transparent'
+                const borderCls = readOnly
+                  ? 'border-slate-400/30'
+                  : exam.status === 'scheduled' ? 'border-indigo-500/20'
+                  : exam.status === 'passed' ? 'border-green-500/20'
+                  : exam.status === 'failed' ? 'border-red-500/20' : 'border-white/10'
+                const isMarking = markingExam === exam.id
+                const hasResult = exam.status === 'passed' || exam.status === 'failed'
+                return (
+                <div key={exam.id} className={`rounded-xl border ${borderCls}`} style={{ background: bgColor, opacity: readOnly ? 0.75 : 1 }}>
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 p-4">
+                    {/* Time */}
+                    <div className="text-center min-w-12">
+                      <p className="font-bold text-sm font-mono" style={{ color: 'var(--text-primary)' }}>{exam.time}</p>
+                      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>الوقت</p>
+                    </div>
+
+                    {/* Juz badge */}
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm font-mono flex-shrink-0" style={{ backgroundColor: '#C08A48' }}>
+                      {exam.juz_number}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-[180px]">
+                      <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{exam.student_name}</p>
+                      <div className="flex items-center gap-3 text-xs mt-0.5 flex-wrap" style={{ color: 'var(--text-muted)' }}>
+                        <span>{getBatchName(exam.batch_id)}</span>
+                        <span>•</span>
+                        <span>المقيّم: {exam.examiner}</span>
+                        {exam.score !== null && exam.score !== undefined && (
+                          <span style={{ color: '#C08A48' }} className="font-medium font-mono">الدرجة: {exam.score}/100</span>
+                        )}
+                      </div>
+                      {/* شارة التفاصيل: الجزء + الأوجه المتبقّية + التاريخ — إدخال يدوي من المسجّل */}
+                      <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold font-mono" style={{ background: 'rgba(192,138,72,0.12)', color: '#8B5A1E', border: '1px solid rgba(192,138,72,0.30)' }}>
+                          الجزء {exam.juz_number}
+                        </span>
+                        {exam.remaining_pages != null && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold font-mono" style={{ background: 'rgba(53,107,110,0.10)', color: '#235052', border: '1px solid rgba(53,107,110,0.30)' }}>
+                            <BookOpen className="w-3 h-3" />
+                            متبقّ {exam.remaining_pages} وجه
+                          </span>
+                        )}
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-medium font-mono" style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-soft)' }}>
+                          {formatDateAr(exam.date)} · {exam.time}
+                        </span>
+                      </div>
+                      {/* Counter pills — Errors / Warnings / Hesitations */}
+                      {(exam.errors || exam.warnings || exam.hesitations) && (
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          {exam.errors ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold font-mono" style={{ background: '#fef2f2', color: '#B94838', border: '1px solid rgba(185,72,56,0.2)' }}>
+                              <X className="w-3 h-3" /> أخطاء: {exam.errors}
+                            </span>
+                          ) : null}
+                          {exam.warnings ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold font-mono" style={{ background: '#fefce8', color: '#854d0e', border: '1px solid rgba(234,179,8,0.25)' }}>
+                              <Bell className="w-3 h-3" /> تنبيهات: {exam.warnings}
+                            </span>
+                          ) : null}
+                          {exam.hesitations ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold font-mono" style={{ background: '#f5f3ff', color: '#5B21B6', border: '1px solid rgba(91,33,182,0.18)' }}>
+                              <PauseCircle className="w-3 h-3" /> ترددات: {exam.hesitations}
+                            </span>
+                          ) : null}
+                        </div>
+                      )}
+                      {exam.notes && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{exam.notes}</p>}
+                    </div>
+
+                    {/* Status + top-level actions */}
+                    <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto sm:flex-shrink-0 mt-2 sm:mt-0">
+                      {readOnly && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(148,163,184,0.2)', color: '#64748b' }}>
+                          قراءة فقط
+                        </span>
+                      )}
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${(STATUS_CONFIG[exam.status] || STATUS_CONFIG.scheduled).color}`}>
+                        {(STATUS_CONFIG[exam.status] || STATUS_CONFIG.scheduled).label}
+                      </span>
+                      {!readOnly && !isMarking && exam.status === 'scheduled' && (
+                        <button
+                          onClick={() => openMarkingFor(exam)}
+                          className="text-xs font-semibold border px-3 py-2 rounded-lg hover:bg-white/5 transition active:scale-95"
+                          style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-soft)', minHeight: '36px' }}
+                        >
+                          تسجيل النتيجة
+                        </button>
+                      )}
+                      {!readOnly && !isMarking && hasResult && (
+                        <button
+                          onClick={() => openMarkingFor(exam)}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg hover:opacity-90 transition active:scale-95"
+                          style={{ background: 'rgba(192,138,72,0.15)', color: '#8B5A1E', border: '1px solid rgba(192,138,72,0.4)', minHeight: '36px' }}
+                          title="تعديل النتيجة — قد يُعيد حالة الجزء في خريطة الحفظ"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          تعديل
+                        </button>
+                      )}
+                      {canEditExam(exam) && !isMarking && editingExamId !== exam.id && (
+                        <button
+                          onClick={() => openEditFor(exam)}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg transition active:scale-95"
+                          style={{ background: 'rgba(53,107,110,0.10)', color: '#235052', border: '1px solid rgba(53,107,110,0.35)', minHeight: '36px' }}
+                          title="تعديل الجزء والتاريخ والوقت"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          تعديل التفاصيل
+                        </button>
+                      )}
+                      {canEditExam(exam) && !isMarking && (
+                        <button
+                          onClick={() => handleDeleteExam(exam.id)}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg transition active:scale-95"
+                          style={{ background: 'rgba(185,72,56,0.10)', color: '#B94838', border: '1px solid rgba(185,72,56,0.35)', minHeight: '36px' }}
+                          title="حذف الاختبار"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          حذف
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Edit details form — expanded row with 5 inputs */}
+                  {canEditExam(exam) && editingExamId === exam.id && (
+                    <div
+                      className="px-4 pb-4 pt-0 border-t mt-2"
+                      style={{ borderColor: 'rgba(53,107,110,0.25)' }}
+                    >
+                      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mt-3">
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>الجزء</label>
+                          <select
+                            value={editForm.juzNumber}
+                            onChange={e => setEditForm({ ...editForm, juzNumber: e.target.value })}
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          >
+                            {Array.from({ length: 30 }, (_, i) => (
+                              <option key={i + 1} value={i + 1}>الجزء {i + 1}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>التاريخ</label>
+                          <input
+                            type="date"
+                            value={editForm.date}
+                            onChange={e => setEditForm({ ...editForm, date: e.target.value })}
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>الوقت</label>
+                          <input
+                            type="time"
+                            value={editForm.time}
+                            onChange={e => setEditForm({ ...editForm, time: e.target.value })}
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>المقيّم</label>
+                          <input
+                            value={editForm.examiner}
+                            onChange={e => setEditForm({ ...editForm, examiner: e.target.value })}
+                            list="examiners-list-edit"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          />
+                          <datalist id="examiners-list-edit">
+                            {supervisors.map(s => <option key={s.id} value={s.name} />)}
+                          </datalist>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block flex items-center gap-1" style={{ color: '#8B5A1E' }}>
+                            <BookOpen className="w-3 h-3" /> أوجه متبقّية
+                          </label>
+                          <input
+                            type="number" min={0} max={604} inputMode="numeric"
+                            value={editForm.remainingPages}
+                            onChange={e => setEditForm({ ...editForm, remainingPages: e.target.value })}
+                            placeholder="مثال: 7"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none font-mono"
+                            style={{ background: 'rgba(192,138,72,0.06)', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
+                          />
+                        </div>
+                        <div className="col-span-2 md:col-span-1">
+                          <label className="text-[11px] font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>ملاحظات</label>
+                          <input
+                            value={editForm.notes}
+                            onChange={e => setEditForm({ ...editForm, notes: e.target.value })}
+                            placeholder="اختياري"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-end gap-2 mt-3 flex-wrap">
+                        <button
+                          onClick={() => saveEdit(exam.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition active:scale-95"
+                          style={{ background: 'linear-gradient(135deg, #356B6E, #244A4C)', boxShadow: '0 2px 8px rgba(53,107,110,0.3)' }}
+                        >
+                          <Save className="w-3.5 h-3.5" /> حفظ التعديلات
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="text-xs px-3 py-1.5 rounded-lg border transition hover:bg-white/5"
+                          style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                        >
+                          إلغاء
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Marking form — expanded row with 4 inputs */}
+                  {!readOnly && isMarking && (
+                    <div
+                      className="px-4 pb-4 pt-0 border-t mt-2"
+                      style={{ borderColor: 'rgba(192,138,72,0.20)' }}
+                    >
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+                            الدرجة <span className="text-[10px] opacity-60">/ 100</span>
+                          </label>
+                          <input
+                            type="number" min={0} max={100}
+                            value={score}
+                            onChange={e => setScore(e.target.value)}
+                            placeholder="—"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 flex items-center gap-1" style={{ color: '#B94838' }}>
+                            <X className="w-3 h-3" /> الأخطاء
+                          </label>
+                          <input
+                            type="number" min={0}
+                            value={errors}
+                            onChange={e => setErrors(e.target.value)}
+                            placeholder="0"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: '#fef2f2', border: '1px solid rgba(185,72,56,0.25)', color: '#791F1F' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 flex items-center gap-1" style={{ color: '#854d0e' }}>
+                            <Bell className="w-3 h-3" /> التنبيهات
+                          </label>
+                          <input
+                            type="number" min={0}
+                            value={warnings}
+                            onChange={e => setWarnings(e.target.value)}
+                            placeholder="0"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: '#fefce8', border: '1px solid rgba(234,179,8,0.3)', color: '#713F12' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 flex items-center gap-1" style={{ color: '#5B21B6' }}>
+                            <PauseCircle className="w-3 h-3" /> الترددات
+                          </label>
+                          <input
+                            type="number" min={0}
+                            value={hesitations}
+                            onChange={e => setHesitations(e.target.value)}
+                            placeholder="0"
+                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
+                            style={{ background: '#f5f3ff', border: '1px solid rgba(91,33,182,0.2)', color: '#3B0764' }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+                        <p className="text-[11px] flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                          <AlertTriangle className="w-3.5 h-3.5" style={{ color: '#C08A48' }} />
+                          عند اعتماد «اجتاز» — سيُسجَّل الجزء {exam.juz_number} كـ <span className="font-bold" style={{ color: '#5A8F67' }}>محفوظ</span> في خريطة الطالب.
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => markResult(exam.id, 'passed')}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition active:scale-95"
+                            style={{ background: 'linear-gradient(135deg, #6FA392, #2F6F56)', boxShadow: '0 2px 8px rgba(111,163,146,0.3)' }}
+                          >
+                            <Check className="w-3.5 h-3.5" /> اجتاز
+                          </button>
+                          <button
+                            onClick={() => markResult(exam.id, 'failed')}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition active:scale-95"
+                            style={{ background: 'linear-gradient(135deg, #B94838, #8B2F23)', boxShadow: '0 2px 8px rgba(185,72,56,0.3)' }}
+                          >
+                            <X className="w-3.5 h-3.5" /> لم يجتز
+                          </button>
+                          <button
+                            onClick={resetMarkingForm}
+                            className="text-xs px-3 py-1.5 rounded-lg border transition hover:bg-white/5"
+                            style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                          >
+                            إلغاء
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )})}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* All upcoming exams */}
+      <div className="card-static overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/5">
+          <h2 className="font-bold" style={{ color: 'var(--text-primary)' }}>جميع الاختبارات القادمة</h2>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ background: 'rgba(255,255,255,0.02)' }} className="border-b border-white/5">
+              <th className="text-right px-4 py-2.5 font-semibold" style={{ color: 'var(--text-secondary)' }}>الطالب</th>
+              <th className="text-right px-4 py-2.5 font-semibold" style={{ color: 'var(--text-secondary)' }}>الجزء</th>
+              <th className="text-right px-4 py-2.5 font-semibold" style={{ color: 'var(--text-secondary)' }}>الأوجه المتبقية</th>
+              <th className="text-right px-4 py-2.5 font-semibold" style={{ color: 'var(--text-secondary)' }}>المقيّم</th>
+              <th className="text-right px-4 py-2.5 font-semibold" style={{ color: 'var(--text-secondary)' }}>التاريخ</th>
+              <th className="text-right px-4 py-2.5 font-semibold" style={{ color: 'var(--text-secondary)' }}>الوقت</th>
+              <th className="text-right px-4 py-2.5 font-semibold" style={{ color: 'var(--text-secondary)' }}>الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleExams
+              .filter(e => e.date >= today)
+              .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+              .map(exam => (
+                <tr key={exam.id} className="border-b border-white/5">
+                  <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--text-primary)' }}>{exam.student_name}</td>
+                  <td className="px-4 py-2.5">
+                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-white text-xs font-bold font-mono" style={{ backgroundColor: '#C08A48' }}>
+                      {exam.juz_number}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 font-mono" style={{ color: 'var(--text-secondary)' }}>
+                    {exam.remaining_pages != null ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold" style={{ background: 'rgba(53,107,110,0.10)', color: '#235052', border: '1px solid rgba(53,107,110,0.30)' }}>
+                        {exam.remaining_pages} وجه
+                      </span>
+                    ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                  </td>
+                  <td className="px-4 py-2.5" style={{ color: 'var(--text-secondary)' }}>{exam.examiner}</td>
+                  <td className="px-4 py-2.5" style={{ color: 'var(--text-secondary)' }}>{formatDateAr(exam.date)}</td>
+                  <td className="px-4 py-2.5 font-mono" style={{ color: 'var(--text-secondary)' }}>{exam.time}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${(STATUS_CONFIG[exam.status] || STATUS_CONFIG.scheduled).color}`}>
+                      {(STATUS_CONFIG[exam.status] || STATUS_CONFIG.scheduled).label}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
