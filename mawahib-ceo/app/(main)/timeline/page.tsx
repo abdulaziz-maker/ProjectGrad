@@ -336,9 +336,9 @@ export default function TimelinePage() {
                 href="/timeline/master"
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition hover:bg-white/5"
                 style={{
-                  borderColor: 'rgba(99,102,241,0.45)',
+                  borderColor: 'rgba(192,138,72,0.45)',
                   color: '#4F46E5',
-                  background: 'rgba(99,102,241,0.04)',
+                  background: 'rgba(192,138,72,0.04)',
                 }}
               >
                 <Layers className="w-3.5 h-3.5" />

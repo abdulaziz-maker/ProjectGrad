@@ -91,11 +91,11 @@ function SupervisorCard({
 
         <button
           onClick={() => setExpanded(v => !v)}
-          className="mt-4 w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-colors font-medium text-sm" style={{ background: 'rgba(99,102,241,0.06)', color: '#C08A48' }}
+          className="mt-4 w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-colors font-medium text-sm" style={{ background: 'rgba(192,138,72,0.06)', color: '#C08A48' }}
         >
           <span>متابعة الطلاب هذا الأسبوع</span>
           <div className="flex items-center gap-2">
-            <span className="text-xs rounded-full px-2 py-0.5" style={{ background: 'rgba(99,102,241,0.1)', color: '#C08A48' }}>
+            <span className="text-xs rounded-full px-2 py-0.5" style={{ background: 'rgba(192,138,72,0.1)', color: '#C08A48' }}>
               تابع {followedCount} من {assignedStudents.length}
             </span>
             {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -301,7 +301,7 @@ export default function SupervisorsPage() {
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="h-px flex-1 bg-gray-200" />
-              <h2 className="text-sm font-bold px-4 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#C08A48', background: 'rgba(99,102,241,0.1)' }}>مشرفو دفعة 46</h2>
+              <h2 className="text-sm font-bold px-4 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#C08A48', background: 'rgba(192,138,72,0.1)' }}>مشرفو دفعة 46</h2>
               <div className="h-px flex-1 bg-gray-200" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children">
@@ -313,7 +313,7 @@ export default function SupervisorsPage() {
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="h-px flex-1 bg-gray-200" />
-              <h2 className="text-sm font-bold px-4 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#C08A48', background: 'rgba(99,102,241,0.1)' }}>مشرفو دفعة 48</h2>
+              <h2 className="text-sm font-bold px-4 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#C08A48', background: 'rgba(192,138,72,0.1)' }}>مشرفو دفعة 48</h2>
               <div className="h-px flex-1 bg-gray-200" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children">

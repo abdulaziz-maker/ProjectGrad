@@ -719,11 +719,11 @@ export default function FollowupsPage() {
                     <div className="w-px bg-gray-200" />
                     {/* الفجوة */}
                     <div className="flex-1 py-3 text-center" style={{
-                      background: gapVal === null ? '#fafafa' : gapVal >= 0 ? '#f0fdf4' : '#fef2f2',
+                      background: gapVal === null ? '#FAF7F1' : gapVal >= 0 ? 'rgba(111,163,146,0.10)' : 'rgba(185,72,56,0.08)',
                     }}>
                       <p className="text-[10px] text-gray-400 mb-0.5">الفجوة</p>
                       <span className="text-xl font-mono font-bold" style={{
-                        color: gapVal === null ? '#d1d5db' : gapVal >= 0 ? '#16a34a' : '#dc2626',
+                        color: gapVal === null ? '#d1d5db' : gapVal >= 0 ? '#2F6F56' : '#B94838',
                       }}>
                         {gapVal !== null ? (gapVal > 0 ? `+${gapVal}` : gapVal) : '—'}
                       </span>

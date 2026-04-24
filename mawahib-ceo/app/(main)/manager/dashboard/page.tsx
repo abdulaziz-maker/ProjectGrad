@@ -320,7 +320,7 @@ export default function ManagerDashboardPage() {
             return (
               <div key={sup.id} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg-body)' }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.1)' }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(192,138,72,0.1)' }}>
                     <span className="text-sm font-bold" style={{ color: '#C08A48' }}>{sup.name.charAt(0)}</span>
                   </div>
                   <div>
@@ -345,13 +345,13 @@ export default function ManagerDashboardPage() {
 
       {/* Students at Risk */}
       {stats.struggling > 0 && (
-        <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid rgba(239,68,68,0.3)' }}>
+        <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid rgba(185,72,56,0.3)' }}>
           <h2 className="font-bold text-lg mb-4 flex items-center gap-2" style={{ color: '#B94838' }}>
             <AlertTriangle size={18} /> طلاب يحتاجون تدخل
           </h2>
           <div className="space-y-2">
             {students.filter(s => (s.completion_percentage || 0) < 40).map(s => (
-              <Link key={s.id} href={`/students/${s.id}`} className="flex items-center justify-between p-3 rounded-lg hover:opacity-80" style={{ background: 'rgba(239,68,68,0.06)' }}>
+              <Link key={s.id} href={`/students/${s.id}`} className="flex items-center justify-between p-3 rounded-lg hover:opacity-80" style={{ background: 'rgba(185,72,56,0.06)' }}>
                 <div>
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>مشرف: {s.supervisor_name}</p>

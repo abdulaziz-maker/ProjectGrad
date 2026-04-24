@@ -353,17 +353,17 @@ export default function DashboardPage() {
                 <TrendingUp className="w-4 h-4" style={{ color: '#C08A48' }} />
                 الأجزاء المحفوظة لكل دفعة
               </h2>
-              <span className="text-xs px-2 py-1 rounded-md font-mono" style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8' }}>
+              <span className="text-xs px-2 py-1 rounded-md font-mono" style={{ background: 'rgba(192,138,72,0.12)', color: '#8B5A1E', border: '1px solid rgba(192,138,72,0.28)' }}>
                 هذا الأسبوع: {juzThisWeek} جزء
               </span>
             </div>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#8b90a5' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: '#8b90a5' }} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-faint)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                 <Tooltip
-                  contentStyle={{ borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'var(--bg-elevated)', color: '#e8eaf0' }}
+                  contentStyle={{ borderRadius: 12, border: '1px solid var(--border-soft)', background: 'var(--bg-card)', color: 'var(--text-primary)', boxShadow: 'var(--shadow-card-hover)' }}
                   formatter={(v) => [`${v} جزء`, '']}
                 />
                 <Bar dataKey="محفوظ" radius={[4, 4, 0, 0]}>
@@ -381,7 +381,7 @@ export default function DashboardPage() {
             {/* Top performers */}
             <div className="card-static p-4">
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                <Star className="w-4 h-4 text-yellow-500" />
+                <Star className="w-4 h-4" style={{ color: 'var(--accent-warm)' }} />
                 أبرز الطلاب
               </h3>
               <div className="space-y-2">
@@ -396,7 +396,7 @@ export default function DashboardPage() {
                         <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                         <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>دفعة {s.batch_id}</p>
                       </div>
-                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md" style={{ background: 'rgba(34,197,94,0.1)', color: '#5A8F67' }}>
+                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full" style={{ background: 'rgba(90,143,103,0.14)', color: 'var(--semantic-success)', border: '1px solid rgba(90,143,103,0.28)' }}>
                         {s.mem} ج
                       </span>
                     </div>
@@ -408,19 +408,19 @@ export default function DashboardPage() {
             {/* Needs attention */}
             <div className="card-static p-4">
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                <AlertCircle className="w-4 h-4 text-red-500" />
+                <AlertCircle className="w-4 h-4" style={{ color: 'var(--semantic-danger)' }} />
                 يحتاجون تدخلاً
               </h3>
               <div className="space-y-2">
                 {bottomStudents.length === 0
-                  ? <p className="text-xs text-center py-4" style={{ color: '#5A8F67' }}>جميع الطلاب في المسار ✓</p>
+                  ? <p className="text-xs text-center py-4" style={{ color: 'var(--semantic-success)' }}>جميع الطلاب في المسار ✓</p>
                   : bottomStudents.map(s => (
                     <div key={s.id} className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                         <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{s.supervisor_name || 'دفعة ' + s.batch_id}</p>
                       </div>
-                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md" style={{ background: 'rgba(239,68,68,0.1)', color: '#B94838' }}>
+                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full" style={{ background: 'rgba(185,72,56,0.12)', color: 'var(--semantic-danger)', border: '1px solid rgba(185,72,56,0.28)' }}>
                         {s.mem} ج
                       </span>
                     </div>
@@ -447,7 +447,7 @@ export default function DashboardPage() {
                   const pct = sup.studentCount > 0 ? Math.round((sup.avgMem / 30) * 100) : 0
                   const color = pct >= 60 ? '#5A8F67' : pct >= 30 ? '#C9972C' : '#B94838'
                   return (
-                    <div key={sup.id} className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div key={sup.id} className="rounded-xl p-3 text-center" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}>
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mx-auto mb-1.5 text-white"
                         style={{ background: color }}>
                         {sup.name.charAt(0)}
@@ -496,8 +496,8 @@ export default function DashboardPage() {
                     <span>إنجاز المشروع</span>
                     <span className="font-mono">{totalActiveStudents > 0 ? Math.round((totalMemorized / (totalActiveStudents * 30)) * 100) : 0}%</span>
                   </div>
-                  <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${totalActiveStudents > 0 ? Math.round((totalMemorized / (totalActiveStudents * 30)) * 100) : 0}%`, background: 'linear-gradient(90deg, #C08A48, #356B6E)' }} />
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--progress-track)' }}>
+                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${totalActiveStudents > 0 ? Math.round((totalMemorized / (totalActiveStudents * 30)) * 100) : 0}%`, background: 'linear-gradient(90deg, var(--accent-warm), var(--accent-teal))' }} />
                   </div>
                 </div>
               </div>
@@ -514,14 +514,14 @@ export default function DashboardPage() {
               {alerts.length === 0
                 ? <p className="text-center text-xs py-3" style={{ color: 'var(--text-muted)' }}>لا توجد تنبيهات</p>
                 : alerts.map(a => (
-                  <Link key={a.id} href={a.link} className="flex items-start gap-2.5 p-2.5 rounded-lg border transition-all hover:opacity-90 block"
+                  <Link key={a.id} href={a.link} className="flex items-start gap-2.5 p-2.5 rounded-xl border transition-all hover:opacity-90 block"
                     style={{
-                      background: a.type === 'danger' ? 'rgba(239,68,68,0.06)' : a.type === 'warning' ? 'rgba(245,158,11,0.06)' : 'rgba(99,102,241,0.06)',
-                      borderColor: a.type === 'danger' ? 'rgba(239,68,68,0.15)' : a.type === 'warning' ? 'rgba(245,158,11,0.15)' : 'rgba(99,102,241,0.15)',
+                      background: a.type === 'danger' ? 'rgba(185,72,56,0.08)' : a.type === 'warning' ? 'rgba(201,151,44,0.10)' : 'rgba(53,107,110,0.08)',
+                      borderColor: a.type === 'danger' ? 'rgba(185,72,56,0.24)' : a.type === 'warning' ? 'rgba(201,151,44,0.28)' : 'rgba(53,107,110,0.24)',
                     }}>
                     <AlertIcon type={a.type} />
                     <div>
-                      <p className="text-xs font-medium" style={{ color: a.type === 'danger' ? '#f87171' : a.type === 'warning' ? '#fbbf24' : '#818cf8' }}>{a.title}</p>
+                      <p className="text-xs font-semibold" style={{ color: a.type === 'danger' ? 'var(--semantic-danger)' : a.type === 'warning' ? 'var(--semantic-warning)' : 'var(--accent-teal)' }}>{a.title}</p>
                       <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{a.desc}</p>
                     </div>
                   </Link>
@@ -540,7 +540,9 @@ export default function DashboardPage() {
               {weekEvents.length === 0
                 ? <p className="text-center text-xs py-3" style={{ color: 'var(--text-muted)' }}>لا توجد أحداث</p>
                 : weekEvents.slice(0, 6).map((item, i) => (
-                  <Link key={i} href={item.link} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-white/[0.02] transition-all block">
+                  <Link key={i} href={item.link} className="flex items-center gap-2.5 p-2 rounded-xl transition-all block" style={{ background: 'transparent' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--hover-bg)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <div className="w-1 h-7 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs truncate" style={{ color: 'var(--text-primary)' }}>{item.event}</p>

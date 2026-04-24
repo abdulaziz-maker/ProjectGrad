@@ -133,7 +133,7 @@ function UnitTimeline({ units, selectedUnit, onSelect, recitations, studentCount
               minWidth: '44px',
               minHeight: '44px',
               background: isSelected
-                ? 'rgba(99,102,241,0.15)'
+                ? 'rgba(192,138,72,0.15)'
                 : allDone
                   ? 'rgba(39,80,10,0.1)'
                   : 'rgba(255,255,255,0.03)',
@@ -552,7 +552,7 @@ export default function MatnPage() {
               className="rounded-xl p-2.5 text-center transition-all"
               style={{
                 minHeight: '44px',
-                background: isActive ? 'rgba(99,102,241,0.12)' : 'var(--bg-card)',
+                background: isActive ? 'rgba(192,138,72,0.12)' : 'var(--bg-card)',
                 border: `1.5px solid ${isActive ? '#C08A48' : 'var(--border-color)'}`,
               }}>
               <p className="text-xs font-bold" style={{

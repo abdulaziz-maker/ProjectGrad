@@ -20,8 +20,8 @@ import {
 import type { TimelineDay, TimelineDayType } from '@/types/timeline'
 
 const DAY_TYPE_COLORS: Record<TimelineDayType, { bg: string; border: string; label: string }> = {
-  study:   { bg: 'rgba(99,102,241,0.35)', border: 'rgba(99,102,241,0.55)', label: 'دراسة' },
-  holiday: { bg: 'rgba(34,197,94,0.35)',  border: 'rgba(34,197,94,0.55)',  label: 'إجازة' },
+  study:   { bg: 'rgba(53,107,110,0.35)', border: 'rgba(53,107,110,0.55)', label: 'دراسة' },
+  holiday: { bg: 'rgba(111,163,146,0.35)',  border: 'rgba(111,163,146,0.55)',  label: 'إجازة' },
   exam:    { bg: 'rgba(185,72,56,0.42)',  border: 'rgba(185,72,56,0.65)',  label: 'اختبار' },
   weekend: { bg: 'rgba(148,163,184,0.28)',border: 'rgba(148,163,184,0.45)',label: 'نهاية أسبوع' },
 }

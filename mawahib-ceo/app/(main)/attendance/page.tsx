@@ -15,7 +15,7 @@ type AttendanceStatus = 'present' | 'absent' | 'excused'
 type BatchId = '46' | '48'
 
 const STATUS_META: Record<AttendanceStatus, { label: string; bg: string; bgSoft: string; text: string; textSoft: string; icon: typeof Check }> = {
-  present: { label: 'حاضر',      bg: '#16a34a', bgSoft: '#f0fdf4', text: '#ffffff', textSoft: '#15803d', icon: Check },
+  present: { label: 'حاضر',      bg: '#6FA392', bgSoft: '#f0fdf4', text: '#ffffff', textSoft: '#2F6F56', icon: Check },
   absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', text: '#ffffff', textSoft: '#b91c1c', icon: X },
   excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', text: '#ffffff', textSoft: '#854d0e', icon: AlertCircle },
 }
@@ -370,7 +370,7 @@ export default function AttendancePage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-xs border-b" style={{ background: 'rgba(99,102,241,0.06)', color: 'var(--text-muted)', borderColor: 'var(--border-color)' }}>
+                    <tr className="text-xs border-b" style={{ background: 'rgba(192,138,72,0.06)', color: 'var(--text-muted)', borderColor: 'var(--border-color)' }}>
                       <th className="text-right px-5 py-3 font-medium">#</th>
                       <th className="text-right px-5 py-3 font-medium">اسم الطالب</th>
                       <th className="text-right px-5 py-3 font-medium">الأيام المسجّلة</th>

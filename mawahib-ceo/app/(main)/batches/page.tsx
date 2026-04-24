@@ -263,7 +263,7 @@ export default function BatchesPage() {
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="card-static p-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(34,197,94,0.12)' }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(111,163,146,0.12)' }}>
             <Award className="w-4 h-4" style={{ color: '#5A8F67' }} />
           </div>
           <div>
@@ -281,7 +281,7 @@ export default function BatchesPage() {
           </div>
         </div>
         <div className="card-static p-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)' }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(185,72,56,0.12)' }}>
             <TrendingUp className="w-4 h-4 text-red-500" />
           </div>
           <div>

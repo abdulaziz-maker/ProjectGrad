@@ -323,7 +323,7 @@ export default function StudentsPage() {
             /* المستخدمون المقيَّدون بدفعة: عرض اسم دفعتهم فقط بلا خيار تبديل */
             <div
               className="flex items-center border rounded-xl px-3 py-2 text-sm font-semibold"
-              style={{ borderColor: 'var(--border-color)', color: '#C08A48', background: 'rgba(99,102,241,0.08)' }}
+              style={{ borderColor: 'var(--border-color)', color: '#C08A48', background: 'rgba(192,138,72,0.08)' }}
             >
               دفعة {myBatchId}
             </div>
@@ -367,7 +367,7 @@ export default function StudentsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-right" style={{ background: 'rgba(99,102,241,0.06)', color: '#818cf8' }}>
+              <tr className="text-right" style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>
                 <th className="px-4 py-3 font-semibold">#</th>
                 <th className="px-4 py-3 font-semibold">الاسم</th>
                 <th className="px-4 py-3 font-semibold">الدفعة</th>
@@ -410,12 +410,12 @@ export default function StudentsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        className={`badge ${
                           s.status === 'active'
-                            ? 'bg-emerald-50 text-emerald-700'
+                            ? 'badge-mint'
                             : s.status === 'suspended'
-                            ? 'bg-red-50 text-red-600'
-                            : 'bg-blue-50 text-blue-600'
+                            ? 'badge-rose'
+                            : 'badge-teal'
                         }`}
                       >
                         {s.status === 'active' ? 'نشط' : s.status === 'suspended' ? 'متعثر' : 'متخرج'}
@@ -425,13 +425,13 @@ export default function StudentsPage() {
                       <div className="flex items-center justify-center gap-2">
                         <Link
                           href={`/students/${s.id}`}
-                          className="text-xs px-3 py-1 rounded-lg font-medium transition-colors" style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}
+                          className="text-xs px-3 py-1 rounded-full font-semibold transition-colors" style={{ background: 'rgba(192,138,72,0.14)', color: '#8B5A1E', border: '1px solid rgba(192,138,72,0.34)' }}
                         >
                           عرض
                         </Link>
                         <button
                           onClick={() => openEdit(s)}
-                          className="text-xs px-3 py-1 rounded-lg font-medium transition-colors" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
+                          className="text-xs px-3 py-1 rounded-full font-semibold transition-colors" style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-soft)' }}
                         >
                           تعديل
                         </button>
@@ -517,7 +517,7 @@ export default function StudentsPage() {
                   /* المستخدمون المقيَّدون بدفعة: تثبيت الدفعة على دفعتهم */
                   <div
                     className="w-full border rounded-xl px-3 py-2 text-sm"
-                    style={{ borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'rgba(99,102,241,0.04)' }}
+                    style={{ borderColor: 'var(--border-color)', color: 'var(--text-primary)', background: 'rgba(192,138,72,0.04)' }}
                   >
                     دفعة {myBatchId}
                   </div>

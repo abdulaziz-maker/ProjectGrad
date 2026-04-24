@@ -12,10 +12,10 @@ import {
 
 // ── Constants ──────────────────────────────────────────────────────────
 const SEVERITY_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  error:   { bg: 'rgba(239,68,68,0.08)',   text: '#B94838', dot: '#B94838' },
-  warning: { bg: 'rgba(245,158,11,0.08)',  text: '#C9972C', dot: '#C9972C' },
-  success: { bg: 'rgba(34,197,94,0.08)',   text: '#5A8F67', dot: '#5A8F67' },
-  info:    { bg: 'rgba(99,102,241,0.08)',  text: '#C08A48', dot: '#C08A48' },
+  error:   { bg: 'rgba(185,72,56,0.08)',   text: '#B94838', dot: '#B94838' },
+  warning: { bg: 'rgba(192,138,72,0.08)',  text: '#C9972C', dot: '#C9972C' },
+  success: { bg: 'rgba(111,163,146,0.08)',   text: '#5A8F67', dot: '#5A8F67' },
+  info:    { bg: 'rgba(53,107,110,0.08)',  text: '#C08A48', dot: '#C08A48' },
 }
 
 const TYPE_META: Record<string, { icon: React.ReactNode; label: string }> = {
@@ -185,7 +185,7 @@ export default function NotificationsPage() {
               {count > 0 && (
                 <span
                   className="text-xs rounded-full px-1.5 py-0.5"
-                  style={{ backgroundColor: active ? 'rgba(99,102,241,0.12)' : 'var(--bg-card)', color: active ? '#C08A48' : 'var(--text-muted)', minWidth: '20px', textAlign: 'center' }}
+                  style={{ backgroundColor: active ? 'rgba(192,138,72,0.12)' : 'var(--bg-card)', color: active ? '#C08A48' : 'var(--text-muted)', minWidth: '20px', textAlign: 'center' }}
                 >
                   {count}
                 </span>
@@ -266,7 +266,7 @@ export default function NotificationsPage() {
                         onClick={e => { e.stopPropagation(); handleDelete(n.id) }}
                         className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100"
                         style={{ color: 'var(--text-muted)', transition: 'color 150ms, background-color 150ms' }}
-                        onMouseEnter={e => { e.currentTarget.style.color = '#B94838'; e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)' }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#B94838'; e.currentTarget.style.backgroundColor = 'rgba(185,72,56,0.08)' }}
                         onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.backgroundColor = 'transparent' }}
                       >
                         <Trash2 size={14} />

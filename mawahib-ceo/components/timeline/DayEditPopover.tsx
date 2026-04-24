@@ -13,10 +13,10 @@ import { updateDayType } from '@/lib/timeline/db'
 import HijriDate from './HijriDate'
 
 const TYPES: { value: TimelineDayType; label: string; color: string }[] = [
-  { value: 'study',   label: 'دراسة',        color: '#6366f1' },
-  { value: 'holiday', label: 'إجازة',        color: '#22c55e' },
+  { value: 'study',   label: 'دراسة',        color: '#356B6E' },
+  { value: 'holiday', label: 'إجازة',        color: '#6FA392' },
   { value: 'exam',    label: 'اختبار',       color: '#B94838' },
-  { value: 'weekend', label: 'نهاية أسبوع',  color: '#94a3b8' },
+  { value: 'weekend', label: 'نهاية أسبوع',  color: '#5D4256' },
 ]
 
 interface Props {

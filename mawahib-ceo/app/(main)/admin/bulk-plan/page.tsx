@@ -107,19 +107,19 @@ export default function BulkPlanPage() {
 
       <div className="card-static p-5 space-y-4">
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="p-3 rounded-lg" style={{ background: 'rgba(99,102,241,0.08)' }}>
+          <div className="p-3 rounded-lg" style={{ background: 'rgba(192,138,72,0.08)' }}>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>الدفعة</p>
             <p className="font-bold font-mono" style={{ color: '#C08A48' }}>{toAr(BATCH_ID)}</p>
           </div>
-          <div className="p-3 rounded-lg" style={{ background: 'rgba(34,197,94,0.08)' }}>
+          <div className="p-3 rounded-lg" style={{ background: 'rgba(111,163,146,0.08)' }}>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>المفترض اليوم</p>
             <p className="font-bold font-mono" style={{ color: '#5A8F67' }}>وجه {toAr(TARGET_POSITION)}</p>
           </div>
-          <div className="p-3 rounded-lg" style={{ background: 'rgba(245,158,11,0.08)' }}>
+          <div className="p-3 rounded-lg" style={{ background: 'rgba(192,138,72,0.08)' }}>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>المعدل اليومي</p>
             <p className="font-bold font-mono" style={{ color: '#C9972C' }}>{toAr(DAILY_RATE)} وجه/يوم</p>
           </div>
-          <div className="p-3 rounded-lg" style={{ background: 'rgba(239,68,68,0.08)' }}>
+          <div className="p-3 rounded-lg" style={{ background: 'rgba(185,72,56,0.08)' }}>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>الفعلي</p>
             <p className="font-bold" style={{ color: '#B94838' }}>فارغ (بدون رصد)</p>
           </div>

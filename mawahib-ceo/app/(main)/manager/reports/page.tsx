@@ -241,11 +241,11 @@ export default function ManagerReportsPage() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-xs">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md" style={{ background: 'rgba(34,197,94,0.15)', color: '#16a34a' }}>
-                <span className="w-2 h-2 rounded-full" style={{ background: '#16a34a' }} />
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md" style={{ background: 'rgba(111,163,146,0.15)', color: '#2F6F56' }}>
+                <span className="w-2 h-2 rounded-full" style={{ background: '#6FA392' }} />
                 تمت: {report.followedCount}
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md" style={{ background: 'rgba(239,68,68,0.15)', color: '#dc2626' }}>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md" style={{ background: 'rgba(185,72,56,0.15)', color: '#dc2626' }}>
                 <span className="w-2 h-2 rounded-full" style={{ background: '#dc2626' }} />
                 لم تتم: {report.unfollowedCount}
               </span>
@@ -254,7 +254,7 @@ export default function ManagerReportsPage() {
               onClick={() => setShowUnfollowedOnly(v => !v)}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
               style={{
-                background: showUnfollowedOnly ? 'rgba(239,68,68,0.1)' : 'transparent',
+                background: showUnfollowedOnly ? 'rgba(185,72,56,0.1)' : 'transparent',
                 borderColor: showUnfollowedOnly ? '#B94838' : 'var(--border-color)',
                 color: showUnfollowedOnly ? '#dc2626' : 'var(--text-muted)',
               }}
@@ -276,14 +276,14 @@ export default function ManagerReportsPage() {
               return (
                 <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: 'var(--bg-body)' }}>
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: done ? '#16a34a' : '#B94838' }} />
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: done ? '#6FA392' : '#B94838' }} />
                     <span className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</span>
                   </div>
                   <span
                     className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
                     style={{
-                      background: done ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                      color: done ? '#16a34a' : '#dc2626',
+                      background: done ? 'rgba(111,163,146,0.15)' : 'rgba(185,72,56,0.15)',
+                      color: done ? '#2F6F56' : '#dc2626',
                     }}
                   >
                     {done ? <ClipboardCheck className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
@@ -304,7 +304,7 @@ export default function ManagerReportsPage() {
       {/* Top & Bottom Students */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Top 5 */}
-        <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid rgba(34,197,94,0.3)' }}>
+        <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid rgba(111,163,146,0.3)' }}>
           <h2 className="font-bold mb-4 flex items-center gap-2" style={{ color: '#5A8F67' }}>
             🏆 أفضل ٥ طلاب
           </h2>
@@ -322,7 +322,7 @@ export default function ManagerReportsPage() {
         </div>
 
         {/* Bottom 5 */}
-        <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid rgba(239,68,68,0.3)' }}>
+        <div className="card rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid rgba(185,72,56,0.3)' }}>
           <h2 className="font-bold mb-4 flex items-center gap-2" style={{ color: '#B94838' }}>
             ⚠️ أضعف ٥ طلاب
           </h2>

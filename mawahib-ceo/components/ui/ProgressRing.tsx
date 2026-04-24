@@ -15,8 +15,8 @@ export default function ProgressRing({
   value,
   size = 80,
   strokeWidth = 5,
-  color = '#6366f1',
-  glowColor = 'rgba(99,102,241,0.4)',
+  color = 'var(--accent-warm)',
+  glowColor = 'rgba(192,138,72,0.45)',
   label,
   className = '',
 }: ProgressRingProps) {
@@ -78,7 +78,7 @@ export default function ProgressRing({
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="font-mono font-semibold text-sm" style={{ color }}>{animatedValue}%</span>
-        {label && <span className="text-[9px] mt-0.5" style={{ color: '#555b75' }}>{label}</span>}
+        {label && <span className="text-[9px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{label}</span>}
       </div>
     </div>
   )

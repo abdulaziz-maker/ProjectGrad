@@ -171,7 +171,7 @@ export default function SettingsPage() {
           </div>
           <button onClick={() => setShowAddBatch(!showAddBatch)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-            style={showAddBatch ? { color: '#dc2626', backgroundColor: '#fef2f2' } : { color: '#C08A48', backgroundColor: 'rgba(99,102,241,0.06)' }}>
+            style={showAddBatch ? { color: '#dc2626', backgroundColor: '#fef2f2' } : { color: '#C08A48', backgroundColor: 'rgba(192,138,72,0.06)' }}>
             {showAddBatch ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
             {showAddBatch ? 'إلغاء' : 'إضافة دفعة'}
           </button>
@@ -179,7 +179,7 @@ export default function SettingsPage() {
 
         {/* Add batch form */}
         {showAddBatch && (
-          <div className="px-5 py-4 border-b border-gray-100" style={{ background: 'rgba(99,102,241,0.04)' }}>
+          <div className="px-5 py-4 border-b border-gray-100" style={{ background: 'rgba(192,138,72,0.04)' }}>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>رقم الدفعة *</label>

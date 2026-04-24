@@ -175,7 +175,7 @@ function TextModal({ initial, onSave, onClose, saving, saveError }: {
                   className="py-2 px-1 rounded-xl text-[11px] font-medium text-center transition-all"
                   style={{
                     minHeight: '44px',
-                    background: form.type === t ? 'rgba(99,102,241,0.15)' : 'var(--bg-subtle)',
+                    background: form.type === t ? 'rgba(192,138,72,0.15)' : 'var(--bg-subtle)',
                     border: `1.5px solid ${form.type === t ? '#C08A48' : 'var(--border-color)'}`,
                     color: form.type === t ? '#C08A48' : 'var(--text-muted)',
                   }}>
@@ -205,9 +205,9 @@ function TextModal({ initial, onSave, onClose, saving, saveError }: {
           {/* معاينة عدد المقررات */}
           {units > 0 && (
             <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
-              style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
-              <Hash size={14} style={{ color: '#C08A48' }} />
-              <span className="text-xs" style={{ color: '#818cf8' }}>
+              style={{ background: 'rgba(192,138,72,0.10)', border: '1px solid rgba(192,138,72,0.28)' }}>
+              <Hash size={14} style={{ color: 'var(--accent-warm)' }} />
+              <span className="text-xs" style={{ color: '#8B5A1E' }}>
                 سيتم توليد <strong>{units}</strong> مقرر أسبوعي تلقائياً
               </span>
             </div>
@@ -361,7 +361,7 @@ function TextRow({ text, unitCount, rank, isFirst, isLast, onEdit, onDelete, onM
             <button onClick={onEdit}
               data-tooltip="تعديل المتن" data-tooltip-position="top"
               className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
-              style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
+              style={{ background: 'rgba(192,138,72,0.1)', border: '1px solid rgba(192,138,72,0.2)' }}>
               <Pencil size={14} style={{ color: '#C08A48' }} />
             </button>
             <button onClick={() => setConfirmDelete(true)}
@@ -614,7 +614,7 @@ export default function ManageTextsPage() {
                 className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-medium transition-all"
                 style={{
                   minHeight: '44px',
-                  background: isActive ? 'rgba(99,102,241,0.15)' : 'var(--bg-card)',
+                  background: isActive ? 'rgba(192,138,72,0.15)' : 'var(--bg-card)',
                   border: `1.5px solid ${isActive ? '#C08A48' : 'var(--border-color)'}`,
                   color: isActive ? '#C08A48' : 'var(--text-muted)',
                 }}>
@@ -627,9 +627,9 @@ export default function ManageTextsPage() {
       {/* ── تلميح الترتيب ── */}
       {!search && (
         <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
-          style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}>
-          <GripVertical size={14} style={{ color: '#818cf8' }} />
-          <span className="text-xs" style={{ color: '#818cf8' }}>
+          style={{ background: 'rgba(53,107,110,0.08)', border: '1px solid rgba(53,107,110,0.22)' }}>
+          <GripVertical size={14} style={{ color: 'var(--accent-teal)' }} />
+          <span className="text-xs" style={{ color: 'var(--accent-teal)' }}>
             استخدم أزرار ↑↓ لترتيب أولويات المتون — المتن الأول هو الأعلى أولوية
           </span>
         </div>
@@ -652,7 +652,7 @@ export default function ManageTextsPage() {
                 {/* عنوان المستوى */}
                 <div className="flex items-center gap-2 mb-2">
                   <div className="px-3 py-1 rounded-lg text-xs font-bold"
-                    style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>
+                    style={{ background: 'rgba(192,138,72,0.12)', color: '#8B5A1E', border: '1px solid rgba(192,138,72,0.28)' }}>
                     المستوى {LEVEL_LABELS[lvl]}
                   </div>
                   <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>

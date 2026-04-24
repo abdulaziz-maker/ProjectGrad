@@ -278,7 +278,7 @@ export default function AdminUsersPage() {
 
         {/* ── My Account ── */}
         <div className="card-static overflow-hidden">
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100" style={{ background: 'rgba(99,102,241,0.06)' }}>
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100" style={{ background: 'rgba(192,138,72,0.06)' }}>
             <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#C08A48' }}>
               <User className="w-4.5 h-4.5 text-white" />
             </div>
@@ -343,7 +343,7 @@ export default function AdminUsersPage() {
 
           {/* Add User Form */}
           {showAdd && (
-            <div className="px-5 py-4 border-b border-gray-100" style={{ background: 'rgba(99,102,241,0.04)' }}>
+            <div className="px-5 py-4 border-b border-gray-100" style={{ background: 'rgba(192,138,72,0.04)' }}>
               <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>حساب جديد</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>

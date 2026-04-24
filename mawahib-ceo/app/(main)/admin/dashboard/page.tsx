@@ -438,7 +438,7 @@ export default function AdminDashboardPage() {
             <Target size={14} style={{ color: '#C08A48' }} />
             خريطة تقدم الحفظ الأسبوعية
           </h2>
-          <span className="text-xs px-2 py-1 rounded-md font-mono" style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8' }}>
+          <span className="text-xs px-2 py-1 rounded-full font-mono" style={{ background: 'rgba(192,138,72,0.12)', color: '#8B5A1E', border: '1px solid rgba(192,138,72,0.28)' }}>
             الأسبوع {currentWeek} / {TOTAL_WEEKS}
           </span>
         </div>
@@ -450,12 +450,12 @@ export default function AdminDashboardPage() {
             { label: 'جيد', color: '#97C459' },
             { label: 'متوسط', color: '#EF9F27' },
             { label: 'ضعيف', color: '#E24B4A' },
-            { label: 'لا نشاط', color: 'rgba(255,255,255,0.05)', border: true },
+            { label: 'لا نشاط', color: 'var(--bg-subtle)', border: true },
           ].map(l => (
             <div key={l.label} className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
               <span
                 className="w-3 h-3 rounded-sm inline-block flex-shrink-0"
-                style={{ background: l.color, border: l.border ? '1px solid rgba(255,255,255,0.1)' : 'none' }}
+                style={{ background: l.color, border: l.border ? '1px solid var(--border-soft)' : 'none' }}
               />
               {l.label}
             </div>
@@ -468,7 +468,7 @@ export default function AdminDashboardPage() {
             <div
               key={i}
               className="flex-1 text-center text-[9px] font-mono"
-              style={{ color: i + 1 === currentWeek ? '#818cf8' : 'var(--text-muted)', fontWeight: i + 1 === currentWeek ? 700 : 400 }}
+              style={{ color: i + 1 === currentWeek ? 'var(--accent-warm)' : 'var(--text-muted)', fontWeight: i + 1 === currentWeek ? 700 : 400 }}
             >
               أ{i + 1}
             </div>
@@ -487,17 +487,18 @@ export default function AdminDashboardPage() {
                 const intensity = maxCount > 0 ? count / maxCount : 0
                 const pct = Math.round(intensity * 100)
                 const cellColor = count === 0
-                  ? 'rgba(255,255,255,0.04)'
+                  ? 'var(--bg-subtle)'
                   : pct >= 80 ? '#27500A' : pct >= 60 ? '#97C459' : pct >= 40 ? '#EF9F27' : '#E24B4A'
                 return (
                   <div
                     key={wi}
-                    className="flex-1 h-7 rounded-sm flex items-center justify-center text-[9px] font-mono"
+                    className="flex-1 h-7 rounded-md flex items-center justify-center text-[9px] font-mono"
                     title={`أسبوع ${wi + 1}: ${count} جزء`}
                     style={{
                       background: cellColor,
-                      border: isCurrent ? '1px solid rgba(255,255,255,0.25)' : '1px solid transparent',
-                      color: count > 0 ? 'rgba(255,255,255,0.75)' : 'transparent',
+                      border: isCurrent ? '1.5px solid var(--accent-warm)' : '1px solid transparent',
+                      color: count > 0 ? '#FFFFFF' : 'transparent',
+                      boxShadow: isCurrent ? '0 0 0 2px rgba(192,138,72,0.18)' : 'none',
                     }}
                   >
                     {count > 0 ? count : ''}
@@ -527,13 +528,14 @@ export default function AdminDashboardPage() {
         </div>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={lineChartData} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-            <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#8b90a5' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: '#8b90a5' }} axisLine={false} tickLine={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-faint)" vertical={false} />
+            <XAxis dataKey="week" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
             <Tooltip
               contentStyle={{
-                borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)',
-                background: 'var(--bg-elevated)', color: '#e8eaf0',
+                borderRadius: 12, border: '1px solid var(--border-soft)',
+                background: 'var(--bg-card)', color: 'var(--text-primary)',
+                boxShadow: 'var(--shadow-card-hover)',
               }}
             />
             {BATCH_IDS.map(id => (
@@ -587,7 +589,7 @@ export default function AdminDashboardPage() {
                       {sup.name.split(' ').slice(0, 2).join(' ')}
                     </p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                      <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--progress-track)' }}>
                         <div className="h-full rounded-full" style={{ width: `${sup.pct}%`, background: scoreColor(sup.pct) }} />
                       </div>
                       <span className="text-[10px] font-mono flex-shrink-0" style={{ color: scoreColor(sup.pct) }}>
@@ -654,7 +656,7 @@ export default function AdminDashboardPage() {
                 <div
                   key={s.id}
                   className="flex items-center gap-2 p-2 rounded-lg"
-                  style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.1)' }}
+                  style={{ background: 'rgba(192,138,72,0.05)', border: '1px solid rgba(192,138,72,0.1)' }}
                 >
                   <span className="text-sm flex-shrink-0">
                     {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '⭐'}
@@ -665,7 +667,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <span
                     className="text-[11px] font-bold font-mono px-1.5 py-0.5 rounded flex-shrink-0"
-                    style={{ background: 'rgba(245,158,11,0.1)', color: '#C9972C' }}
+                    style={{ background: 'rgba(192,138,72,0.1)', color: '#C9972C' }}
                   >
                     {s.mem} ج
                   </span>
@@ -679,7 +681,7 @@ export default function AdminDashboardPage() {
       {/* ── Timeline ── */}
       <div className="card-static p-5">
         <h2 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-          <Clock size={14} style={{ color: '#8b90a5' }} />
+          <Clock size={14} style={{ color: 'var(--text-muted)' }} />
           آخر الأحداث
         </h2>
         {timeline.length === 0
@@ -688,7 +690,7 @@ export default function AdminDashboardPage() {
             <div className="relative">
               <div
                 className="absolute top-2 bottom-2 w-px"
-                style={{ right: 5, background: 'rgba(255,255,255,0.07)' }}
+                style={{ right: 5, background: 'var(--border-soft)' }}
               />
               <div className="space-y-3">
                 {timeline.map((ev, i) => (

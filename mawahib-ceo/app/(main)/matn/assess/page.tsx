@@ -60,7 +60,7 @@ function GradeGroup({ label, desc, icon: Icon, value, onChange }: {
       <div className="px-4 py-3 flex items-center gap-3"
         style={{ borderBottom: '1px solid var(--border-color)' }}>
         <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: 'rgba(99,102,241,0.1)' }}>
+          style={{ background: 'rgba(192,138,72,0.1)' }}>
           <Icon size={16} style={{ color: '#C08A48' }} />
         </div>
         <div>
@@ -266,7 +266,7 @@ function AssessContent() {
       <p className="text-sm" style={{ color: 'var(--text-muted)' }}>لم يتم العثور على البيانات</p>
       <button onClick={() => router.push('/matn')}
         className="mt-4 text-sm px-4 py-2 rounded-xl"
-        style={{ background: 'rgba(99,102,241,0.1)', color: '#C08A48' }}>
+        style={{ background: 'rgba(192,138,72,0.1)', color: '#C08A48' }}>
         العودة للمتون
       </button>
     </div>
@@ -300,7 +300,7 @@ function AssessContent() {
       <div className="rounded-2xl p-4 flex items-center gap-3"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
         <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold"
-          style={{ background: 'rgba(99,102,241,0.12)', color: '#C08A48' }}>
+          style={{ background: 'rgba(192,138,72,0.12)', color: '#C08A48' }}>
           {currentStudent.name.charAt(0)}
         </div>
         <div className="flex-1 min-w-0">
@@ -479,7 +479,7 @@ function AssessContent() {
                 className="flex flex-col items-center gap-1 p-1.5 rounded-lg flex-shrink-0 transition-all"
                 style={{
                   minWidth: '44px',
-                  background: isActive ? 'rgba(99,102,241,0.12)' : 'transparent',
+                  background: isActive ? 'rgba(192,138,72,0.12)' : 'transparent',
                   border: `1.5px solid ${isActive ? '#C08A48' : 'transparent'}`,
                 }}>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"

@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext'
 
 type ProgAttStatus = 'present' | 'absent' | 'excused'
 const PROG_ATT_META: Record<ProgAttStatus, { label: string; bg: string; bgSoft: string; textSoft: string; icon: typeof Check }> = {
-  present: { label: 'حاضر',      bg: '#16a34a', bgSoft: '#f0fdf4', textSoft: '#15803d', icon: Check },
+  present: { label: 'حاضر',      bg: '#6FA392', bgSoft: '#f0fdf4', textSoft: '#2F6F56', icon: Check },
   absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', textSoft: '#b91c1c', icon: X },
   excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', textSoft: '#854d0e', icon: AlertCircle },
 }
@@ -464,7 +464,7 @@ export default function ProgramsPage() {
                       )}
                     </div>
                     {program.report && (
-                      <div className="mt-3 border border-indigo-500/20 rounded-xl px-4 py-3" style={{ background: 'rgba(99,102,241,0.06)' }}>
+                      <div className="mt-3 border border-indigo-500/20 rounded-xl px-4 py-3" style={{ background: 'rgba(192,138,72,0.06)' }}>
                         <span className="text-xs font-semibold" style={{ color: '#C08A48' }}>تقرير البرنامج: </span>
                         <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{program.report}</span>
                       </div>

@@ -18,7 +18,7 @@ function scoreColor(pct: number) {
 
 type SupAttStatus = 'present' | 'absent' | 'excused'
 const SUP_STATUS_META: Record<SupAttStatus, { label: string; bg: string; bgSoft: string; textSoft: string }> = {
-  present: { label: 'حاضر',      bg: '#16a34a', bgSoft: '#f0fdf4', textSoft: '#15803d' },
+  present: { label: 'حاضر',      bg: '#6FA392', bgSoft: '#f0fdf4', textSoft: '#2F6F56' },
   absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', textSoft: '#b91c1c' },
   excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', textSoft: '#854d0e' },
 }
@@ -151,7 +151,7 @@ export default function ManagerSupervisorsPage() {
         </div>
 
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => markAllSup('present')} className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ background: '#16a34a', color: '#fff' }}>
+          <button onClick={() => markAllSup('present')} className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ background: '#6FA392', color: '#fff' }}>
             <CheckCheck className="w-3.5 h-3.5" /> تحضير الكل
           </button>
           <button onClick={() => markAllSup('absent')} className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ background: '#B94838', color: '#fff' }}>
@@ -176,7 +176,7 @@ export default function ManagerSupervisorsPage() {
               return (
                 <div key={sup.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: 'var(--bg-body)' }}>
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(99,102,241,0.1)', color: '#C08A48' }}>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(192,138,72,0.1)', color: '#C08A48' }}>
                       {sup.name.charAt(0)}
                     </div>
                     <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{sup.name}</p>
@@ -232,13 +232,13 @@ export default function ManagerSupervisorsPage() {
                 onClick={() => setSelectedSup(isSelected ? null : sup.id)}
                 className="w-full text-right p-4 rounded-xl transition-all"
                 style={{
-                  background: isSelected ? 'rgba(99,102,241,0.08)' : 'var(--bg-card)',
-                  border: `1px solid ${isSelected ? 'rgba(99,102,241,0.4)' : 'var(--border-color)'}`,
+                  background: isSelected ? 'rgba(192,138,72,0.08)' : 'var(--bg-card)',
+                  border: `1px solid ${isSelected ? 'rgba(192,138,72,0.4)' : 'var(--border-color)'}`,
                 }}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.1)' }}>
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(192,138,72,0.1)' }}>
                       <UserCheck size={18} style={{ color: '#C08A48' }} />
                     </div>
                     <div>
@@ -281,7 +281,7 @@ export default function ManagerSupervisorsPage() {
                     .map(st => (
                     <Link key={st.id} href={`/students/${st.id}`} className="flex items-center justify-between p-3 rounded-lg hover:opacity-80" style={{ background: 'var(--bg-body)' }}>
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(99,102,241,0.1)', color: '#C08A48' }}>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(192,138,72,0.1)', color: '#C08A48' }}>
                           {st.name.charAt(0)}
                         </div>
                         <div>

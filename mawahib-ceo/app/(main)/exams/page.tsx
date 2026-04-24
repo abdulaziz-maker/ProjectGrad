@@ -447,11 +447,11 @@ export default function ExamsPage() {
             </p>
             <div className="flex flex-wrap gap-2">
               {examsTomorrow.map(e => (
-                <div key={e.id} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs" style={{ background: 'rgba(99,102,241,0.10)', border: '1px solid rgba(99,102,241,0.25)' }}>
-                  <CalendarCheck className="w-3 h-3" style={{ color: '#6366f1' }} />
+                <div key={e.id} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs" style={{ background: 'rgba(53,107,110,0.10)', border: '1px solid rgba(53,107,110,0.25)' }}>
+                  <CalendarCheck className="w-3 h-3" style={{ color: 'var(--accent-teal)' }} />
                   <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{e.student_name}</span>
                   <span style={{ color: 'var(--text-muted)' }}>—</span>
-                  <span className="font-mono" style={{ color: '#6366f1' }}>ج{e.juz_number}</span>
+                  <span className="font-mono" style={{ color: 'var(--accent-teal)' }}>ج{e.juz_number}</span>
                   <span className="font-mono" style={{ color: 'var(--text-muted)' }}>• {e.time}</span>
                 </div>
               ))}
@@ -724,7 +724,7 @@ export default function ExamsPage() {
 
       {/* Today summary */}
       {todayExams.length > 0 && (
-        <div style={{ background: 'rgba(99,102,241,0.06)' }} className="border border-indigo-500/20 rounded-2xl p-4">
+        <div style={{ background: 'rgba(192,138,72,0.06)' }} className="border border-indigo-500/20 rounded-2xl p-4">
           <p className="font-semibold text-sm mb-2 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
             <CalendarCheck className="w-4 h-4" />
             اختبارات اليوم ({today}) — <span className="font-mono">{scheduledToday}</span> مجدول
@@ -847,7 +847,7 @@ export default function ExamsPage() {
       {/* Weekly calendar */}
       <div className="card-static overflow-hidden">
         {/* Week navigation */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5" style={{ background: 'rgba(99,102,241,0.04)' }}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5" style={{ background: 'rgba(192,138,72,0.04)' }}>
           <button
             onClick={() => { setWeekOffset(w => w - 1); setSelectedDay(getWeekDates(weekOffset - 1)[0]) }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:bg-white/5"
@@ -868,7 +868,7 @@ export default function ExamsPage() {
               <button
                 onClick={() => { setWeekOffset(0); setSelectedDay(today) }}
                 className="mt-1 text-[11px] px-2 py-0.5 rounded font-medium"
-                style={{ color: '#C08A48', background: 'rgba(99,102,241,0.1)' }}
+                style={{ color: '#C08A48', background: 'rgba(192,138,72,0.1)' }}
               >
                 ← العودة للأسبوع الحالي
               </button>
@@ -897,17 +897,19 @@ export default function ExamsPage() {
               <button
                 key={date}
                 onClick={() => setSelectedDay(date)}
-                className={`flex-1 min-w-20 px-3 py-3 text-center transition-colors border-b-2 ${isSelected ? 'border-indigo-500' : 'border-transparent'}`}
-                style={isSelected ? { background: 'rgba(99,102,241,0.06)' } : {}}
+                className="flex-1 min-w-20 px-3 py-3 text-center transition-colors border-b-2"
+                style={isSelected
+                  ? { background: 'rgba(192,138,72,0.08)', borderBottomColor: 'var(--accent-warm)' }
+                  : { borderBottomColor: 'transparent' }}
               >
-                <p className="text-xs font-semibold" style={{ color: isSelected ? '#C08A48' : isToday ? '#818cf8' : 'var(--text-secondary)' }}>{dayName}</p>
+                <p className="text-xs font-semibold" style={{ color: isSelected ? 'var(--accent-warm)' : isToday ? 'var(--accent-teal)' : 'var(--text-secondary)' }}>{dayName}</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{d.getDate()} أبريل</p>
                 {dayExamCount > 0 && (
-                  <span className="inline-block mt-1 w-5 h-5 rounded-full text-[10px] font-bold font-mono text-white" style={{ backgroundColor: isSelected ? '#C08A48' : 'var(--text-muted)' }}>
+                  <span className="inline-block mt-1 w-5 h-5 rounded-full text-[10px] font-bold font-mono text-white" style={{ backgroundColor: isSelected ? 'var(--accent-warm)' : 'var(--text-muted)' }}>
                     {dayExamCount}
                   </span>
                 )}
-                {isToday && !isSelected && <span className="block text-[9px] font-medium mt-0.5" style={{ color: '#818cf8' }}>اليوم</span>}
+                {isToday && !isSelected && <span className="block text-[9px] font-medium mt-0.5" style={{ color: 'var(--accent-teal)' }}>اليوم</span>}
               </button>
             )
           })}
@@ -930,9 +932,9 @@ export default function ExamsPage() {
                 const readOnly = isOtherBatch(exam)
                 const bgColor = readOnly
                   ? 'rgba(148,163,184,0.08)'
-                  : exam.status === 'scheduled' ? 'rgba(99,102,241,0.06)'
-                  : exam.status === 'passed' ? 'rgba(34,197,94,0.06)'
-                  : exam.status === 'failed' ? 'rgba(239,68,68,0.06)' : 'transparent'
+                  : exam.status === 'scheduled' ? 'rgba(192,138,72,0.06)'
+                  : exam.status === 'passed' ? 'rgba(111,163,146,0.06)'
+                  : exam.status === 'failed' ? 'rgba(185,72,56,0.06)' : 'transparent'
                 const borderCls = readOnly
                   ? 'border-slate-400/30'
                   : exam.status === 'scheduled' ? 'border-indigo-500/20'
@@ -1223,7 +1225,7 @@ export default function ExamsPage() {
                           <button
                             onClick={() => markResult(exam.id, 'passed')}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition active:scale-95"
-                            style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', boxShadow: '0 2px 8px rgba(22,163,74,0.3)' }}
+                            style={{ background: 'linear-gradient(135deg, #6FA392, #2F6F56)', boxShadow: '0 2px 8px rgba(111,163,146,0.3)' }}
                           >
                             <Check className="w-3.5 h-3.5" /> اجتاز
                           </button>

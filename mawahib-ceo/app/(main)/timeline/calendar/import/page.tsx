@@ -58,10 +58,10 @@ const DAY_TYPE_LABELS: Record<string, string> = {
 }
 
 const DAY_TYPE_COLORS: Record<string, string> = {
-  study:   '#6366f1',
-  holiday: '#22c55e',
+  study:   '#356B6E',
+  holiday: '#6FA392',
   exam:    '#B94838',
-  weekend: '#94a3b8',
+  weekend: '#5D4256',
 }
 
 export default function CalendarImportPage() {
@@ -362,7 +362,7 @@ export default function CalendarImportPage() {
           {typeCounts && result.rows.length > 0 && (
             <div className="card-static p-4 space-y-2">
               <h3 className="font-bold text-sm flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                <CheckCircle2 className="w-4 h-4" style={{ color: '#16a34a' }} />
+                <CheckCircle2 className="w-4 h-4" style={{ color: 'var(--accent-mint)' }} />
                 ملخّص الاستيراد ({result.rows.length} يوم)
               </h3>
               <div className="flex flex-wrap gap-2">

@@ -29,7 +29,7 @@ function DraggableStudent({ student, isOverlay }: { student: DBStudent; isOverla
         style={{
           background: 'var(--bg-card)',
           borderColor: '#C08A48',
-          boxShadow: '0 8px 32px rgba(99,102,241,0.25)',
+          boxShadow: '0 8px 32px rgba(192,138,72,0.25)',
           width: 220,
         }}
       >
@@ -132,7 +132,7 @@ function ConfirmDialog({
     <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
       <div className="card-static p-6 max-w-sm w-full mx-4 space-y-4" dir="rtl">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245,158,11,0.12)' }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(192,138,72,0.12)' }}>
             <ArrowLeftRight size={18} style={{ color: '#C9972C' }} />
           </div>
           <h3 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>تأكيد النقل</h3>
@@ -388,7 +388,7 @@ export default function AssignmentsPage() {
             onClick={() => setShowHistory(v => !v)}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
             style={{
-              background: showHistory ? 'rgba(99,102,241,0.1)' : 'var(--bg-elevated)',
+              background: showHistory ? 'rgba(192,138,72,0.1)' : 'var(--bg-elevated)',
               color: showHistory ? '#C08A48' : 'var(--text-secondary)',
               border: '1px solid var(--border-color)',
             }}
@@ -402,7 +402,7 @@ export default function AssignmentsPage() {
       {/* Stats Bar */}
       <div className="grid grid-cols-3 gap-3">
         <div className="card-static px-4 py-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.1)' }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(192,138,72,0.1)' }}>
             <Users size={17} style={{ color: '#C08A48' }} />
           </div>
           <div>
@@ -411,7 +411,7 @@ export default function AssignmentsPage() {
           </div>
         </div>
         <div className="card-static px-4 py-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: unassignedStudents.length > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)' }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: unassignedStudents.length > 0 ? 'rgba(185,72,56,0.1)' : 'rgba(111,163,146,0.1)' }}>
             {unassignedStudents.length > 0
               ? <AlertCircle size={17} style={{ color: '#B94838' }} />
               : <CheckCircle2 size={17} style={{ color: '#5A8F67' }} />}
@@ -424,7 +424,7 @@ export default function AssignmentsPage() {
           </div>
         </div>
         <div className="card-static px-4 py-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(6,182,212,0.1)' }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(53,107,110,0.1)' }}>
             <UserCheck size={17} style={{ color: '#356B6E' }} />
           </div>
           <div>
@@ -506,7 +506,7 @@ export default function AssignmentsPage() {
           <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
             <History size={16} style={{ color: '#C08A48' }} />
             <h2 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>سجل التغييرات</h2>
-            <span className="text-xs rounded-full px-2 py-0.5" style={{ background: 'rgba(99,102,241,0.1)', color: '#C08A48' }}>
+            <span className="text-xs rounded-full px-2 py-0.5" style={{ background: 'rgba(192,138,72,0.1)', color: '#C08A48' }}>
               {history.length}
             </span>
           </div>
