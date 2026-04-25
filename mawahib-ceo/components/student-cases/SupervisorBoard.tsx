@@ -20,7 +20,7 @@ import {
   Phone, ShieldAlert, BookOpenCheck, ChevronDown, ChevronUp,
   Search, Filter, History,
 } from 'lucide-react'
-import { getStudents, type DBStudent } from '@/lib/db'
+import { getStudents, getSupervisors, type DBStudent } from '@/lib/db'
 import {
   getCurrentWeekReviews,
   upsertWeeklyReview,
@@ -60,6 +60,8 @@ export default function SupervisorBoard({ profile }: Props) {
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [escalateOpen, setEscalateOpen] = useState<DBStudent | null>(null)
+  // ID المشرف من جدول supervisors (نص مثل sup_rakan) — يختلف عن profile.id (UUID)
+  const [mySupervisorTableId, setMySupervisorTableId] = useState<string | null>(null)
 
   const weekStart = useMemo(() => weekStartSunday(), [])
   const weekLabel = useMemo(() => hijriWeekLabel(weekStart), [weekStart])
@@ -70,12 +72,18 @@ export default function SupervisorBoard({ profile }: Props) {
     ;(async () => {
       try {
         // All supervisor's students + this-week's reviews (RLS scopes automatically)
-        const [all, weekReviews] = await Promise.all([
+        // students.supervisor_id يخزّن supervisors.id (نص مثل sup_rakan)
+        // فلازم نجيب صف المشرف أولاً عن طريق user_id ثم نفلتر
+        const [all, weekReviews, sups] = await Promise.all([
           getStudents(),
           getCurrentWeekReviews(weekStart),
+          getSupervisors(),
         ])
         if (!alive) return
-        const mine = all.filter((s) => s.supervisor_id === profile.id)
+        const mySupRow = sups.find((sv) => sv.user_id === profile.id)
+        const mySupId = mySupRow?.id ?? null
+        setMySupervisorTableId(mySupId)
+        const mine = mySupId ? all.filter((s) => s.supervisor_id === mySupId) : []
         setStudents(mine)
         setReviews(weekReviews)
 
@@ -135,7 +143,7 @@ export default function SupervisorBoard({ profile }: Props) {
         const row = await upsertWeeklyReview({
           student_id: student.id,
           batch_id: student.batch_id,
-          supervisor_id: profile.id,
+          supervisor_id: mySupervisorTableId ?? student.supervisor_id,
           week_start_date: weekStart,
           status: (patch.status ?? reviewsByStudent.get(student.id)?.status ?? 'not_reviewed') as WeeklyReviewStatus,
           notes: patch.notes ?? reviewsByStudent.get(student.id)?.notes ?? null,
@@ -155,7 +163,7 @@ export default function SupervisorBoard({ profile }: Props) {
         toast.error('فشل حفظ المتابعة')
       }
     },
-    [profile.id, reviewsByStudent, weekStart]
+    [mySupervisorTableId, reviewsByStudent, weekStart]
   )
 
   const onQuickStatus = useCallback(
