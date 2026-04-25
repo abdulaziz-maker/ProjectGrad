@@ -429,6 +429,23 @@ function StudentReviewCard({
         </button>
       </div>
 
+      {/* تصعيد سريع — يظهر تلقائياً عند تأخر كبير ولا توجد حالة مفتوحة في مرحلة أعلى */}
+      {(status === 'severe_delay' || status === 'slight_delay') &&
+       (!activeCase || activeCase.current_stage === 'stage_1_supervisor') && (
+        <button
+          type="button"
+          onClick={onEscalate}
+          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-white transition active:scale-95"
+          style={{
+            background: 'linear-gradient(135deg, #B94838, #8B2F23)',
+            boxShadow: '0 2px 10px rgba(185,72,56,0.30)',
+          }}
+        >
+          <ShieldAlert className="size-4" />
+          {activeCase ? 'تصعيد لمدير الدفعة الآن' : 'فتح حالة + تصعيد لمدير الدفعة'}
+        </button>
+      )}
+
       {/* Expanded body */}
       {isOpen && (
         <div className="space-y-3 pt-3 border-t border-[var(--border-card)]">

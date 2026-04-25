@@ -36,7 +36,7 @@ import type {
   WeeklyReview,
 } from '@/lib/student-cases/types'
 import {
-  STAGE_LABEL, STAGE_SHORT_LABEL, STAGE_COLOR, STAGE_ORDER,
+  STAGE_SHORT_LABEL, STAGE_COLOR,
   CASE_STATUS_LABEL, CASE_STATUS_COLOR,
   TRANSITION_LABEL,
   ACTION_LABEL,
@@ -44,6 +44,7 @@ import {
   timeAgoArabic,
 } from '@/lib/student-cases/format'
 import CloseCaseModal from '@/components/student-cases/CloseCaseModal'
+import CaseStageStepper from '@/components/student-cases/CaseStageStepper'
 
 export default function CaseDetailPage({
   params,
@@ -288,8 +289,16 @@ export default function CaseDetailPage({
           </div>
         </div>
 
-        {/* Stage progress bar */}
-        <StageProgress stage={caseData.current_stage} />
+        {/* Hungerstation-style stage stepper */}
+        <div className="mt-5">
+          <CaseStageStepper
+            currentStage={caseData.current_stage}
+            status={caseData.status}
+            startedAt={caseData.started_at}
+            transitions={caseData.transitions}
+            closedAt={caseData.closed_at}
+          />
+        </div>
 
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 text-sm">
           <div>
@@ -427,50 +436,7 @@ export default function CaseDetailPage({
 // ═══════════════════════════════════════════════════════════════════
 // Sub-components
 // ═══════════════════════════════════════════════════════════════════
-function StageProgress({ stage }: { stage: CaseWithHistory['current_stage'] }) {
-  const rank = STAGE_ORDER[stage]
-  const isActive = rank < 10
-  const steps = [
-    { label: 'المشرف', rank: 1 },
-    { label: 'مدير الدفعة', rank: 2 },
-    { label: 'المدير التنفيذي', rank: 3 },
-  ]
-  return (
-    <div className="mt-5 rounded-xl bg-[var(--bg-pattern)] p-4">
-      <div className="flex items-center">
-        {steps.map((s, i) => {
-          const reached = rank >= s.rank
-          const isCurrent = rank === s.rank && isActive
-          return (
-            <div key={s.rank} className="flex-1 flex items-center">
-              <div className="flex flex-col items-center gap-1 flex-1">
-                <div className={`size-8 rounded-full grid place-content-center text-xs font-bold ${
-                  reached
-                    ? isCurrent ? 'bg-[var(--accent-warm)] text-white ring-4 ring-[var(--accent-warm)]/20'
-                                : 'bg-emerald-500 text-white'
-                    : 'bg-slate-200 text-slate-500'
-                }`}>
-                  {reached ? (isCurrent ? s.rank : <CheckCircle2 className="size-4" />) : s.rank}
-                </div>
-                <span className={`text-[11px] ${reached ? 'font-semibold text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
-                  {s.label}
-                </span>
-              </div>
-              {i < steps.length - 1 && (
-                <div className={`h-0.5 flex-1 ${rank > s.rank ? 'bg-emerald-500' : 'bg-slate-200'}`} />
-              )}
-            </div>
-          )
-        })}
-      </div>
-      {!isActive && (
-        <p className="text-center text-xs text-emerald-700 mt-3 font-medium">
-          {stage === 'resolved' ? '✓ الحالة منتهية بنجاح' : '🔒 الحالة مُغلقة نهائياً'}
-        </p>
-      )}
-    </div>
-  )
-}
+// StageProgress was replaced by CaseStageStepper (Hungerstation-style)
 
 function AddActionForm({
   onSubmit,

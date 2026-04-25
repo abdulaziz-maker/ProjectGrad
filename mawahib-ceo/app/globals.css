@@ -753,6 +753,13 @@ textarea:focus {
   50%      { transform: translateY(-6px); }
 }
 
+/* نبضة ناعمة للـCaseStageStepper (المرحلة الحالية) */
+@keyframes pulse-soft {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.06); opacity: 0.92; }
+}
+.animate-pulse-soft { animation: pulse-soft 2.2s ease-in-out infinite; }
+
 .loader-text {
   background: linear-gradient(90deg, var(--brand-from) 0%, var(--accent-warm) 30%, var(--accent-teal) 50%, var(--accent-warm) 70%, var(--brand-from) 100%);
   background-size: 200% auto;
