@@ -435,6 +435,7 @@ export default function FollowupsPage() {
         }
         singleSupervisor={isSupervisor}
         alertsOnly
+        collapsible
       />
 
       {/* ── Header ── */}

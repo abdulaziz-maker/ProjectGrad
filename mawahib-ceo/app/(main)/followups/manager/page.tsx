@@ -209,6 +209,7 @@ export default function ManagerFollowupPage() {
         statuses={supervisorStatuses}
         title="المتابعة الأسبوعية — مشرفو الدفعة"
         alertsOnly
+        collapsible
       />
 
       {/* Header */}

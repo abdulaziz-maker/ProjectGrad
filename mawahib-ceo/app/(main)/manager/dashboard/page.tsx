@@ -162,6 +162,7 @@ export default function ManagerDashboardPage() {
         statuses={supervisorStatuses}
         title="المتابعة الأسبوعية لمشرفي الدفعة"
         alertsOnly
+        collapsible
       />
 
       {/* KPI Cards */}

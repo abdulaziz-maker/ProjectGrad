@@ -57,8 +57,10 @@ export default function DashboardPage() {
 
   const { profile } = useAuth()
   const isCeo = profile?.role === 'ceo'
-  // مقيَّد بالدفعة: يشمل مدير الدفعة كذلك (ليس فقط المشرف/المعلم)
+  // ⚠️ NOTE: المتغيّر اسمه isSupervisor لكنه يشمل مدير الدفعة كذلك — يُستخدم لتقييد البيانات بنطاق الدفعة
   const isSupervisor = profile?.role === 'supervisor' || profile?.role === 'teacher' || profile?.role === 'batch_manager'
+  // فقط الـCEO و مدير الدفعة يرون بطاقة "متابعة المشرفين" (تعرض حالات مشرفين آخرين)
+  const canSeeSupervisorTracking = profile?.role === 'ceo' || profile?.role === 'batch_manager'
   const myBatchId = profile?.batch_id ?? null
   // ⚠️ SECURITY: إذا لم يُحمَّل الملف بعد، نعتبر المستخدم مقيَّد ولا نُظهر بيانات
   // خارج نطاقه. هذا يمنع السباق الذي كان يُظهر طلاب دفعة ٤٦ لمدير دفعة ٤٨
@@ -280,12 +282,15 @@ export default function DashboardPage() {
       {/* ── Wisdom reminder ── */}
       <WisdomCard />
 
-      {/* ── المتابعة الأسبوعية للمشرفين — يظهر تلقائياً عند وجود تأخر ── */}
-      <SupervisorTrackingAlert
-        statuses={supervisorStatuses}
-        title={isCeo ? 'المتابعة الأسبوعية للمشرفين' : 'المتابعة الأسبوعية لمشرفي دفعتي'}
-        alertsOnly
-      />
+      {/* ── المتابعة الأسبوعية للمشرفين — للـCEO ومدير الدفعة فقط ── */}
+      {canSeeSupervisorTracking && (
+        <SupervisorTrackingAlert
+          statuses={supervisorStatuses}
+          title={isCeo ? 'المتابعة الأسبوعية للمشرفين' : 'المتابعة الأسبوعية لمشرفي دفعتي'}
+          alertsOnly
+          collapsible
+        />
+      )}
 
       {/* ── Hero KPIs ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
