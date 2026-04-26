@@ -67,6 +67,8 @@ export interface StudentCase {
   current_responsible_id: string | null
   trigger_reason: string
   root_cause: string | null
+  /** الخطة العلاجية التي طبّقها المشرف قبل التصعيد — إلزامية ≥30 حرف */
+  initial_remedial_plan: string | null
   status: CaseStatus
   outcome: string | null
   closed_at: string | null

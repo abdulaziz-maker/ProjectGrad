@@ -129,7 +129,7 @@ export async function getBatchRecentReviews(
 // ════════════════════════════════════════════════════════════════════
 
 const CASE_COLS =
-  'id,student_id,batch_id,current_stage,started_at,stage_entered_at,current_responsible_id,trigger_reason,root_cause,status,outcome,closed_at,closed_by,created_at,updated_at'
+  'id,student_id,batch_id,current_stage,started_at,stage_entered_at,current_responsible_id,trigger_reason,root_cause,initial_remedial_plan,status,outcome,closed_at,closed_by,created_at,updated_at'
 
 const CASE_COLS_JOINED = `${CASE_COLS}, student:students(id,name,supervisor_id,juz_completed), batch:batches(id,name)`
 
@@ -156,6 +156,22 @@ export async function getCases(
   const { data, error } = await q
   if (error) throw error
   return (data ?? []).map(rowToCaseWithStudent)
+}
+
+/**
+ * عدد الحالات النشطة في "صندوق الوارد" للمستخدم الحالي حسب دوره.
+ * يعتمد على RLS لفلترة النتائج تلقائياً (لا حاجة لتمرير IDs).
+ *
+ * @param stage مرحلة الـinbox للمستخدم (stage_1_supervisor للمشرف، stage_2 لمدير الدفعة، stage_3 للCEO)
+ */
+export async function getInboxCount(stage: CaseStage): Promise<number> {
+  const { count, error } = await supabase
+    .from('student_cases')
+    .select('id', { count: 'exact', head: true })
+    .eq('current_stage', stage)
+    .eq('status', 'active')
+  if (error) return 0
+  return count ?? 0
 }
 
 /** Find the current active case for a student (0 or 1 row). */
@@ -200,6 +216,8 @@ export interface CreateCaseInput {
   student_id: string
   batch_id: number
   trigger_reason: string
+  /** الخطة العلاجية التي طبّقها المشرف قبل التصعيد (≥30 حرف من جانب التطبيق) */
+  initial_remedial_plan: string
   current_responsible_id?: string | null
   root_cause?: string | null
 }
@@ -217,6 +235,7 @@ export async function createCase(input: CreateCaseInput): Promise<StudentCase> {
       batch_id: input.batch_id,
       current_stage: 'stage_1_supervisor',
       trigger_reason: input.trigger_reason,
+      initial_remedial_plan: input.initial_remedial_plan,
       root_cause: input.root_cause ?? null,
       current_responsible_id: input.current_responsible_id ?? null,
       status: 'active',
@@ -406,6 +425,7 @@ function rowToCaseWithStudent(row: any): CaseWithStudent {
     current_responsible_id: row.current_responsible_id,
     trigger_reason: row.trigger_reason,
     root_cause: row.root_cause,
+    initial_remedial_plan: row.initial_remedial_plan ?? null,
     status: row.status,
     outcome: row.outcome,
     closed_at: row.closed_at,

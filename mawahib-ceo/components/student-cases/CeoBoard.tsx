@@ -169,11 +169,23 @@ export default function CeoBoard({ profile, readOnly }: Props) {
               عرض شامل لكل الحالات النشطة عبر جميع الدفعات. الحالات عند مكتبك مُظلَّلة أعلى الصفحة.
             </p>
           </div>
-          {readOnly && (
-            <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs border border-slate-200 inline-flex items-center gap-1">
-              <Lock className="size-3.5" /> للعرض فقط
-            </span>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href="/student-cases/timeline"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl"
+              style={{
+                background: 'rgba(192,138,72,0.14)', color: '#8B5A1E',
+                border: '1px solid rgba(192,138,72,0.30)',
+              }}
+            >
+              🕐 متابعة التصعيدات
+            </Link>
+            {readOnly && (
+              <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs border border-slate-200 inline-flex items-center gap-1">
+                <Lock className="size-3.5" /> للعرض فقط
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="mt-5 grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">

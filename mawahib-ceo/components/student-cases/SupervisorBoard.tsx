@@ -174,21 +174,23 @@ export default function SupervisorBoard({ profile }: Props) {
   )
 
   const onEscalate = useCallback(
-    async (student: DBStudent, reason: string, rootCause: string) => {
+    async (student: DBStudent, remedialPlan: string, reason: string, rootCause: string) => {
       try {
         const existing = activeCases[student.id]
         let caseRow: StudentCase
+        const escalationReason = reason.trim() || remedialPlan.slice(0, 80)
         if (!existing) {
           // Create case at stage 1, then escalate to stage 2
           caseRow = await createCase({
             student_id: student.id,
             batch_id: student.batch_id,
-            trigger_reason: reason,
+            trigger_reason: escalationReason,
+            initial_remedial_plan: remedialPlan,
             root_cause: rootCause || null,
           })
-          caseRow = await escalateCase(caseRow.id, 'stage_2_batch_manager', reason)
+          caseRow = await escalateCase(caseRow.id, 'stage_2_batch_manager', escalationReason)
         } else if (existing.current_stage === 'stage_1_supervisor') {
-          caseRow = await escalateCase(existing.id, 'stage_2_batch_manager', reason)
+          caseRow = await escalateCase(existing.id, 'stage_2_batch_manager', escalationReason)
         } else {
           toast.error('الحالة بالفعل في مرحلة أعلى — راجع مدير الدفعة')
           return
@@ -197,7 +199,7 @@ export default function SupervisorBoard({ profile }: Props) {
         // Auto-save a severe_delay review so the board reflects escalation
         await saveReview(student, {
           status: 'severe_delay',
-          action_taken: `تصعيد إلى مدير الدفعة: ${reason}`,
+          action_taken: `تصعيد إلى مدير الدفعة. الخطة العلاجية: ${remedialPlan}`,
         })
         setEscalateOpen(null)
         toast.success('تم تصعيد الحالة إلى مدير الدفعة')
@@ -221,17 +223,29 @@ export default function SupervisorBoard({ profile }: Props) {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-              الحالات الطلابية — متابعتي الأسبوعية
+              المتابعة الأسبوعية لطلابي
             </h1>
             <p className="text-sm text-[var(--text-muted)]">
               {weekLabel} · يبدأ الأحد {weekStart}
             </p>
           </div>
-          <div className="grid grid-cols-4 gap-2 text-center text-xs">
-            <KpiPill label="سير طبيعي"  count={counts.on_track}     color="emerald" />
-            <KpiPill label="تأخر بسيط"  count={counts.slight_delay} color="amber" />
-            <KpiPill label="تأخر كبير"  count={counts.severe_delay} color="rose" />
-            <KpiPill label="لم يُراجع"  count={counts.not_reviewed} color="slate" />
+          <div className="flex items-start gap-3 flex-wrap">
+            <Link
+              href="/student-cases/timeline"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl flex-shrink-0"
+              style={{
+                background: 'rgba(192,138,72,0.14)', color: '#8B5A1E',
+                border: '1px solid rgba(192,138,72,0.30)',
+              }}
+            >
+              🕐 متابعة تصعيداتي
+            </Link>
+            <div className="grid grid-cols-4 gap-2 text-center text-xs">
+              <KpiPill label="سير طبيعي"  count={counts.on_track}     color="emerald" />
+              <KpiPill label="تأخر بسيط"  count={counts.slight_delay} color="amber" />
+              <KpiPill label="تأخر كبير"  count={counts.severe_delay} color="rose" />
+              <KpiPill label="لم يُراجع"  count={counts.not_reviewed} color="slate" />
+            </div>
           </div>
         </div>
       </header>
@@ -290,7 +304,7 @@ export default function SupervisorBoard({ profile }: Props) {
           student={escalateOpen}
           existingCase={activeCases[escalateOpen.id] ?? null}
           onClose={() => setEscalateOpen(null)}
-          onConfirm={(reason, rootCause) => onEscalate(escalateOpen, reason, rootCause)}
+          onConfirm={(remedialPlan, reason, rootCause) => onEscalate(escalateOpen, remedialPlan, reason, rootCause)}
         />
       )}
     </div>
@@ -548,22 +562,27 @@ function EscalateModal({
   student: DBStudent
   existingCase: StudentCase | null
   onClose: () => void
-  onConfirm: (reason: string, rootCause: string) => void
+  onConfirm: (remedialPlan: string, reason: string, rootCause: string) => void
 }) {
+  const [remedialPlan, setRemedialPlan] = useState('')
   const [reason, setReason] = useState('')
   const [rootCause, setRootCause] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  const MIN_PLAN_LENGTH = 30
+  const planLen = remedialPlan.trim().length
+  const planValid = planLen >= MIN_PLAN_LENGTH
+
   const alreadyAbove = existingCase && existingCase.current_stage !== 'stage_1_supervisor'
 
   const submit = async () => {
-    if (!reason.trim()) {
-      toast.error('اذكر سبب التصعيد')
+    if (!planValid) {
+      toast.error(`الخطة العلاجية يجب ألا تقل عن ${MIN_PLAN_LENGTH} حرف`)
       return
     }
     setSubmitting(true)
     try {
-      await onConfirm(reason.trim(), rootCause.trim())
+      await onConfirm(remedialPlan.trim(), reason.trim(), rootCause.trim())
     } finally {
       setSubmitting(false)
     }
@@ -575,71 +594,157 @@ function EscalateModal({
       onClick={onClose}
     >
       <div
-        className="card-static max-w-md w-full p-6 space-y-4"
+        className="card-static max-w-lg w-full p-0 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <header>
-          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <ShieldAlert className="size-5 text-rose-600" />
-            تصعيد حالة {student.name}
-          </h2>
-          <p className="text-xs text-[var(--text-muted)] mt-1">
-            سيتم إبلاغ مدير الدفعة ليتابع الحالة مباشرةً.
-          </p>
-        </header>
-
-        {alreadyAbove ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 text-amber-800 p-3 text-sm">
-            هذه الحالة انتقلت بالفعل إلى مرحلة أعلى — تواصل مع مدير الدفعة.
-          </div>
-        ) : (
-          <>
-            <label className="block">
-              <span className="text-sm font-medium text-[var(--text-primary)] block mb-1">
-                سبب التصعيد <span className="text-rose-500">*</span>
-              </span>
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                rows={3}
-                placeholder="مثل: تأخر 4 أسابيع متتالية، عدم استجابة ولي الأمر…"
-                className="w-full rounded-xl border border-[var(--border-card)] bg-[var(--bg-input)] p-2 text-sm"
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-[var(--text-primary)] block mb-1">
-                السبب الجذري (اختياري)
-              </span>
-              <textarea
-                value={rootCause}
-                onChange={(e) => setRootCause(e.target.value)}
-                rows={2}
-                placeholder="تقييمك لأصل المشكلة (صحي، أسري، إلخ)"
-                className="w-full rounded-xl border border-[var(--border-card)] bg-[var(--bg-input)] p-2 text-sm"
-              />
-            </label>
-          </>
-        )}
-
-        <footer className="flex justify-end gap-2 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm border border-[var(--border-card)] hover:bg-[var(--bg-hover)]"
+        {/* Header — gradient + brand */}
+        <div
+          className="relative px-6 py-5 overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, #B94838 0%, #8B2F23 100%)' }}
+        >
+          <svg
+            style={{ position: 'absolute', inset: 0, opacity: 0.18, pointerEvents: 'none' }}
+            preserveAspectRatio="none" viewBox="0 0 800 200"
           >
-            إلغاء
-          </button>
-          {!alreadyAbove && (
+            <g stroke="#fff" strokeWidth="0.8" fill="none">
+              <ellipse cx="700" cy="170" rx="80" ry="50" />
+              <ellipse cx="700" cy="170" rx="130" ry="80" />
+              <path d="M-50 50 Q 100 70 200 40 T 450 90 T 850 60" />
+            </g>
+          </svg>
+          <div className="relative flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[10px] font-bold tracking-wider uppercase mb-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                قبل التصعيد
+              </div>
+              <h2 className="text-lg font-bold flex items-center gap-2 text-white" style={{ fontFamily: 'var(--font-noto-kufi), serif' }}>
+                <ShieldAlert className="size-5" />
+                وثّق الخطة العلاجية لـ {student.name}
+              </h2>
+              <p className="text-[12px] mt-2" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                اكتب الخطة العلاجية التي طبّقتها أو تنوي تطبيقها مع الطالب قبل رفع التصعيد.
+                هذه الخطة ستكون متاحة لمدير الدفعة عند مراجعته للحالة.
+              </p>
+            </div>
             <button
               type="button"
-              onClick={submit}
-              disabled={submitting || !reason.trim()}
-              className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50"
+              onClick={onClose}
+              className="flex-shrink-0 w-8 h-8 rounded-lg text-white inline-flex items-center justify-center"
+              style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.30)' }}
             >
-              {submitting ? 'جارٍ التصعيد…' : 'تصعيد الحالة'}
+              ×
             </button>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {alreadyAbove ? (
+            <div className="rounded-xl p-3 text-sm"
+              style={{ background: 'rgba(192,138,72,0.10)', border: '1px solid rgba(192,138,72,0.30)', color: '#7A4E1E' }}>
+              هذه الحالة انتقلت بالفعل إلى مرحلة أعلى — تواصل مع مدير الدفعة.
+            </div>
+          ) : (
+            <>
+              {/* الخطة العلاجية — إلزامي */}
+              <label className="block">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                    الخطة العلاجية المُطبَّقة <span style={{ color: '#B94838' }}>*</span>
+                  </span>
+                  <span
+                    className="text-[11px] font-mono font-semibold"
+                    style={{
+                      color: planValid ? '#3F6E4B' : planLen > 0 ? '#8B5A1E' : 'var(--text-muted)',
+                    }}
+                  >
+                    {planLen} / {MIN_PLAN_LENGTH} حرف
+                  </span>
+                </div>
+                <textarea
+                  value={remedialPlan}
+                  onChange={(e) => setRemedialPlan(e.target.value)}
+                  rows={4}
+                  placeholder="مثلاً: تواصلت مع الطالب لمدة أسبوعين، خصصت له جلسة فردية يوم السبت، تابعت الحفظ يومياً، تواصلت مع ولي الأمر مرتين..."
+                  className="w-full rounded-xl p-3 text-sm outline-none transition-colors"
+                  style={{
+                    background: 'var(--bg-subtle)',
+                    border: `1.5px solid ${planValid ? 'rgba(90,143,103,0.50)' : planLen > 0 ? 'rgba(192,138,72,0.50)' : 'var(--border-soft)'}`,
+                    color: 'var(--text-primary)',
+                    minHeight: 100,
+                  }}
+                />
+                {!planValid && planLen > 0 && (
+                  <p className="text-[11px] mt-1" style={{ color: '#8B5A1E' }}>
+                    تحتاج {MIN_PLAN_LENGTH - planLen} حرف إضافي
+                  </p>
+                )}
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium block mb-1.5" style={{ color: 'var(--text-primary)' }}>
+                  سبب التصعيد المختصر <span className="text-[10px] font-normal" style={{ color: 'var(--text-muted)' }}>(اختياري)</span>
+                </span>
+                <input
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="مثل: تأخر ٤ أسابيع متتالية"
+                  className="w-full rounded-xl p-2.5 text-sm outline-none"
+                  style={{
+                    background: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-soft)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium block mb-1.5" style={{ color: 'var(--text-primary)' }}>
+                  السبب الجذري <span className="text-[10px] font-normal" style={{ color: 'var(--text-muted)' }}>(اختياري — تقييمك لأصل المشكلة)</span>
+                </span>
+                <textarea
+                  value={rootCause}
+                  onChange={(e) => setRootCause(e.target.value)}
+                  rows={2}
+                  placeholder="مثل: ظروف صحية، انشغال أسري، فقدان دافعية..."
+                  className="w-full rounded-xl p-2.5 text-sm outline-none"
+                  style={{
+                    background: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-soft)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+              </label>
+            </>
           )}
-        </footer>
+
+          <footer className="flex justify-end gap-2 pt-2 border-t" style={{ borderColor: 'var(--border-soft)' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl text-sm font-semibold"
+              style={{ border: '1px solid var(--border-soft)', color: 'var(--text-muted)' }}
+            >
+              إلغاء
+            </button>
+            {!alreadyAbove && (
+              <button
+                type="button"
+                onClick={submit}
+                disabled={submitting || !planValid}
+                className="px-5 py-2 rounded-xl text-sm font-bold text-white inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  background: planValid
+                    ? 'linear-gradient(135deg, #B94838, #8B2F23)'
+                    : 'var(--bg-subtle)',
+                  boxShadow: planValid ? '0 2px 10px rgba(185,72,56,0.30)' : 'none',
+                }}
+              >
+                <ShieldAlert className="w-4 h-4" />
+                {submitting ? 'جارٍ التصعيد…' : 'رفع التصعيد'}
+              </button>
+            )}
+          </footer>
+        </div>
       </div>
     </div>
   )

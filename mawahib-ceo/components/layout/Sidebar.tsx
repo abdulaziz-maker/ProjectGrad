@@ -1,4 +1,5 @@
 'use client'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -14,6 +15,8 @@ import { UserRole } from '@/lib/auth'
 import { BrandMark } from '@/components/ui/BrandMark'
 import { TIMELINE_ENABLED } from '@/lib/timeline/flag'
 import { STUDENT_CASES_ENABLED } from '@/lib/student-cases/flag'
+import { getInboxCount } from '@/lib/student-cases/db'
+import type { CaseStage } from '@/lib/student-cases/types'
 
 interface NavItem {
   href: string
@@ -55,7 +58,7 @@ const navItems: NavItem[] = [
     { href: '/timeline', icon: CalendarDays, label: 'الخطة الزمنية', badge: 0, roles: ['ceo', 'batch_manager', 'records_officer'] as UserRole[] },
   ] : []),
   ...(STUDENT_CASES_ENABLED ? [
-    { href: '/student-cases', icon: ShieldAlert, label: 'الحالات الطلابية', badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher', 'records_officer'] as UserRole[] },
+    { href: '/student-cases', icon: ShieldAlert, label: 'التصعيدات الواردة لي', badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher', 'records_officer'] as UserRole[] },
   ] : []),
   // ملاحظة: تقرير إنجاز الطلاب الديناميكي (/reports/performance) متاح كزر بارز
   // داخل صفحة /reports — تجنّب ازدحام الـsidebar.
@@ -85,9 +88,33 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
   // موظف السجلات: يرى فقط ٣ صفحات (خريطة الحفظ + الاختبارات + الطلاب)
   const RECORDS_OFFICER_PATHS = new Set(['/batches', '/exams', '/students'])
 
+  // ─── Badge عدد التصعيدات الواردة (يجلب RLS-filtered) ───
+  const [inboxCount, setInboxCount] = useState<number>(0)
+  useEffect(() => {
+    if (!STUDENT_CASES_ENABLED || !profile) return
+    // المرحلة المتوقعة لكل دور
+    const stage: CaseStage | null =
+      role === 'supervisor' || role === 'teacher' ? 'stage_1_supervisor'
+      : role === 'batch_manager'                  ? 'stage_2_batch_manager'
+      : role === 'ceo'                             ? 'stage_3_ceo'
+      : null
+    if (!stage) return
+    let alive = true
+    getInboxCount(stage)
+      .then(n => { if (alive) setInboxCount(n) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [profile, role])
+
   const visibleItems = navItems.filter(item => {
     if (role === 'records_officer') return RECORDS_OFFICER_PATHS.has(item.href)
     return !item.roles || item.roles.includes(role)
+  }).map(item => {
+    // إضافة badge ديناميكي لـ /student-cases
+    if (item.href === '/student-cases' && inboxCount > 0) {
+      return { ...item, badge: inboxCount }
+    }
+    return item
   })
 
   // ⚡️ نتنقّل أولاً ثم نستدعي signOut في الخلفية — على الجوال تبدو العملية

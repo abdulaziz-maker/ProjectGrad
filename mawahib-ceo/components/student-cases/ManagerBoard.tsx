@@ -142,12 +142,26 @@ export default function ManagerBoard({ profile }: Props) {
     <div className="space-y-6">
       {/* Header */}
       <header className="card-static p-6">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-          الحالات الطلابية — لوحة مدير الدفعة
-        </h1>
-        <p className="text-sm text-[var(--text-muted)]">
-          تتابع الحالات المصعّدة من المشرفين وتقرر: تصعيد للمدير التنفيذي، إعادة للمشرف، أو إغلاق نهائي.
-        </p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+              التصعيدات الواردة لي — لوحة مدير الدفعة
+            </h1>
+            <p className="text-sm text-[var(--text-muted)]">
+              تتابع الحالات المصعّدة من المشرفين وتقرر: تصعيد للمدير التنفيذي، إعادة للمشرف، أو إغلاق نهائي.
+            </p>
+          </div>
+          <Link
+            href="/student-cases/timeline"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl"
+            style={{
+              background: 'rgba(192,138,72,0.14)', color: '#8B5A1E',
+              border: '1px solid rgba(192,138,72,0.30)',
+            }}
+          >
+            🕐 متابعة التصعيدات
+          </Link>
+        </div>
 
         <div className="mt-5 grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
           <StageKPI label="عند المشرف"  count={countsByStage.stage_1_supervisor}    color="sky"     icon={<UserCheck  className="size-4" />} onClick={() => setFilter('stage_1_supervisor')} active={filter === 'stage_1_supervisor'} />
@@ -185,12 +199,16 @@ export default function ManagerBoard({ profile }: Props) {
       {escalating && (
         <ReasonModal
           title={`تصعيد "${escalating.student_name}" إلى المدير التنفيذي`}
-          description="سينتقل الملف إلى المدير التنفيذي لاتخاذ قرار تنفيذي."
-          confirmLabel="تصعيد للمدير التنفيذي"
-          confirmClass="bg-rose-600 hover:bg-rose-700 text-white"
+          description="ما الإجراءات التي طبّقتها قبل التصعيد للمدير التنفيذي؟"
+          confirmLabel="رفع التصعيد"
+          confirmClass="text-white"
           icon={<ShieldAlert className="size-5 text-rose-600" />}
           onClose={() => setEscalating(null)}
           onConfirm={(reason) => onEscalateToCeo(escalating, reason)}
+          minLength={30}
+          fieldLabel="الإجراءات المُتَّخذة من قِبلك"
+          contextNote="الخطة العلاجية التي وثّقها المشرف عند بدء التصعيد"
+          contextValue={escalating.initial_remedial_plan}
         />
       )}
       {demoting && (
@@ -353,6 +371,8 @@ function RecentReviewsPanel({ reviews }: { reviews: WeeklyReviewWithStudent[] })
 
 function ReasonModal({
   title, description, confirmLabel, confirmClass, icon, onClose, onConfirm,
+  minLength = 0, fieldLabel = 'السبب',
+  contextNote, contextValue,
 }: {
   title: string
   description: string
@@ -361,13 +381,22 @@ function ReasonModal({
   icon: React.ReactNode
   onClose: () => void
   onConfirm: (reason: string) => void
+  /** الحد الأدنى لعدد الأحرف (٣٠ مثلاً للتصعيد) */
+  minLength?: number
+  fieldLabel?: string
+  /** سياق إضافي يُعرض في صندوق رمادي */
+  contextNote?: string
+  contextValue?: string | null
 }) {
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  const len = reason.trim().length
+  const valid = minLength === 0 ? len > 0 : len >= minLength
+
   const submit = async () => {
-    if (!reason.trim()) {
-      toast.error('اكتب السبب')
+    if (!valid) {
+      toast.error(minLength > 0 ? `يجب ألا يقل النص عن ${minLength} حرف` : 'اكتب السبب')
       return
     }
     setSubmitting(true)
@@ -384,7 +413,7 @@ function ReasonModal({
       onClick={onClose}
     >
       <div
-        className="card-static max-w-md w-full p-6 space-y-4"
+        className="card-static max-w-lg w-full p-6 space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
         <header>
@@ -394,31 +423,65 @@ function ReasonModal({
           </h2>
           <p className="text-xs text-[var(--text-muted)] mt-1">{description}</p>
         </header>
+
+        {contextValue && (
+          <div className="rounded-xl p-3 text-[12.5px] space-y-1"
+            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)' }}>
+            <div className="text-[10px] font-bold tracking-wider"
+              style={{ color: 'var(--text-muted)' }}>
+              {contextNote ?? 'سياق'}
+            </div>
+            <p className="leading-relaxed" style={{ color: 'var(--text-primary)' }}>{contextValue}</p>
+          </div>
+        )}
+
         <label className="block">
-          <span className="text-sm font-medium text-[var(--text-primary)] block mb-1">
-            السبب <span className="text-rose-500">*</span>
-          </span>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+              {fieldLabel} <span style={{ color: '#B94838' }}>*</span>
+            </span>
+            {minLength > 0 && (
+              <span className="text-[11px] font-mono font-semibold"
+                style={{ color: valid ? '#3F6E4B' : len > 0 ? '#8B5A1E' : 'var(--text-muted)' }}>
+                {len} / {minLength} حرف
+              </span>
+            )}
+          </div>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            rows={3}
-            placeholder="اكتب سبباً واضحاً يُعين المسؤول التالي على اتخاذ القرار."
-            className="w-full rounded-xl border border-[var(--border-card)] bg-[var(--bg-input)] p-2 text-sm"
+            rows={4}
+            placeholder={minLength > 0
+              ? 'اكتب الإجراءات التي طبقتها قبل التصعيد بشكل مفصّل...'
+              : 'اكتب سبباً واضحاً يُعين المسؤول التالي على اتخاذ القرار.'}
+            className="w-full rounded-xl p-3 text-sm outline-none transition-colors"
+            style={{
+              background: 'var(--bg-subtle)',
+              border: `1.5px solid ${valid ? 'rgba(90,143,103,0.40)' : len > 0 ? 'rgba(192,138,72,0.50)' : 'var(--border-soft)'}`,
+              color: 'var(--text-primary)',
+            }}
           />
+          {minLength > 0 && !valid && len > 0 && (
+            <p className="text-[11px] mt-1" style={{ color: '#8B5A1E' }}>
+              تحتاج {minLength - len} حرف إضافي
+            </p>
+          )}
         </label>
-        <footer className="flex justify-end gap-2 pt-2">
+
+        <footer className="flex justify-end gap-2 pt-2 border-t" style={{ borderColor: 'var(--border-soft)' }}>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm border border-[var(--border-card)] hover:bg-[var(--bg-hover)]"
+            className="px-4 py-2 rounded-xl text-sm border"
+            style={{ borderColor: 'var(--border-soft)', color: 'var(--text-muted)' }}
           >
             إلغاء
           </button>
           <button
             type="button"
             onClick={submit}
-            disabled={submitting || !reason.trim()}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 ${confirmClass}`}
+            disabled={submitting || !valid}
+            className={`px-5 py-2 rounded-xl text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed ${confirmClass}`}
           >
             {submitting ? 'جارٍ التنفيذ…' : confirmLabel}
           </button>
