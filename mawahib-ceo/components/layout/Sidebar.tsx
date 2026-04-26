@@ -106,13 +106,26 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
     return () => { alive = false }
   }, [profile, role])
 
+  // تسمية بند "الحالات" تختلف حسب الدور لتعكس وظيفتها الفعلية:
+  //   - المشرف/المعلم: صفحة المتابعة الأسبوعية (يرصد ويصعّد)
+  //   - مدير الدفعة: inbox للتصعيدات الواردة
+  //   - CEO/records: نظرة عامة لكل الحالات
+  const studentCasesLabel: string =
+    role === 'supervisor' || role === 'teacher' ? 'متابعتي الأسبوعية والتصعيد'
+    : role === 'batch_manager'                  ? 'التصعيدات الواردة لي'
+    : 'الحالات الطلابية'
+
   const visibleItems = navItems.filter(item => {
     if (role === 'records_officer') return RECORDS_OFFICER_PATHS.has(item.href)
     return !item.roles || item.roles.includes(role)
   }).map(item => {
-    // إضافة badge ديناميكي لـ /student-cases
-    if (item.href === '/student-cases' && inboxCount > 0) {
-      return { ...item, badge: inboxCount }
+    if (item.href === '/student-cases') {
+      // تسمية ديناميكية + badge عدد الوارد
+      return {
+        ...item,
+        label: studentCasesLabel,
+        badge: inboxCount > 0 ? inboxCount : 0,
+      }
     }
     return item
   })

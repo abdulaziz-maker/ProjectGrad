@@ -1,5 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import { type DBTask, getTasks, saveTasks as dbSaveTasks, upsertTask, deleteTask as dbDeleteTask, getCustomCategories, saveCustomCategories as dbSaveCustomCategories, deleteCustomCategory } from '@/lib/db'
 import { CheckSquare, Square, Plus, RefreshCw, Calendar, Trash2, Users, Wallet, CreditCard, UserCheck, FolderPlus, X, Pencil, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -86,6 +88,18 @@ function defaultTasks(): LocalTask[] {
 }
 
 export default function TasksPage() {
+  const router = useRouter()
+  const { profile, loading: authLoading } = useAuth()
+  // ⚠️ صفحة المهام مخصّصة للمدير التنفيذي فقط — تعرض مهام متابعة مدراء الدفعات،
+  // المشرفين، العهدة، والرسوم. لا يجب أن يصلها المشرف ولا مدير الدفعة.
+  useEffect(() => {
+    if (authLoading) return
+    if (!profile) return
+    if (profile.role !== 'ceo') {
+      router.replace('/dashboard')
+    }
+  }, [profile, authLoading, router])
+
   const [tasks, setTasks] = useState<LocalTask[]>([])
   const [customCats, setCustomCats] = useState<{ id: string; label: string; color: string }[]>([])
   const [loading, setLoading] = useState(true)
@@ -242,13 +256,15 @@ export default function TasksPage() {
   const doneTasks = tasks.filter(isDoneToday).length
   const completionPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
       </div>
     )
   }
+  // إخفاء المحتوى عن غير الـCEO حتى يكتمل الـredirect
+  if (profile && profile.role !== 'ceo') return null
 
   return (
     <div className="space-y-6 max-w-3xl animate-fade-in-up">
