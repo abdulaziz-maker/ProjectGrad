@@ -1,58 +1,93 @@
 'use client'
 /**
- * الجدول الرئيسي لتقارير الأداء — تصميم محسّن.
+ * الجدول الرئيسي — مبني على CSS Grid (لا يستخدم <table>) لأداء الـsticky.
  *
- * الـheader = 4 صفوف منفصلة (مش nested grid):
- *   ١) المسارات (تربوي / علمي)
- *   ٢) المساقات (القرآن، السنة، ...)
- *   ٣) الأعمدة الفرعية (الحفظ / المراجعة / حضور / ...)
- *   ٤) أنواع القيم (المفترض / الفعلي / نسبة الإنجاز)
+ * الترتيب من اليمين لليسار:
+ *   ┌──────────┬──────────────────────────────┬──────────┐
+ *   │ الطالب   │ مساق ١ │ مساق ٢ │ ... │ Σ مسار │ نسبة     │
+ *   │ (sticky) │                              │ الإنجاز  │
+ *   └──────────┴──────────────────────────────┴──────────┘
  *
- * البيانات: إدخال inline قابل للتعديل + ألوان حسب النسبة.
+ * كل "مساق" في الـgrid يساوي عمود واحد. المساقات الـdual تنقسم
+ * إلى عمودين منفصلين (حفظ + مراجعة) — أبسط بصرياً من نesting.
+ *
+ * Track aggregate column في نهاية كل مسار يعرض نسبة المسار.
+ * Overall column في النهاية (sticky) يعرض ProgressRing.
  */
 import { useMemo } from 'react'
-import { EyeOff, X } from 'lucide-react'
 import type { DBStudent } from '@/lib/db'
 import type {
   ReportSubject, SubjectExclusion, PerformanceEntry, EntryColumnKey,
 } from '@/lib/performance/types'
 import { cellKey } from '@/lib/performance/types'
-import {
-  TRACK_LABEL, columnsForKind, calcPercent, paletteForPercent, averagePercent,
-} from '@/lib/performance/format'
-import PerformanceCell from './PerformanceCell'
+import { columnsForKind, calcPercent, averagePercent } from '@/lib/performance/format'
+import PerfCell from './PerformanceCell'
+import PctBadge, { type Thresholds } from './PctBadge'
+import ProgressRing from './ProgressRing'
+
+interface FlatColumn {
+  /** key مركب: subjectId:columnKey — للـcrud */
+  id: string
+  subject: ReportSubject
+  columnKey: EntryColumnKey
+  /** التسمية: "حفظ" / "مراجعة" / single_label / "الحضور" */
+  label: string
+}
 
 interface Props {
   students: DBStudent[]
-  subjects: ReportSubject[]
+  subjects: ReportSubject[]   // مرتّبة (تربوي → علمي)
   entries: PerformanceEntry[]
   exclusions: SubjectExclusion[]
   hiddenSubjectIds: Set<string>
+  thresholds: Thresholds
+  density: 'compact' | 'medium' | 'cozy'
   readOnly?: boolean
-  canManageExclusions?: boolean
+  editPlannedMode?: boolean
   onCellSave: (
-    student_id: string,
-    subject_id: string,
-    column_key: EntryColumnKey,
-    field: 'expected' | 'actual',
-    value: number | null
+    student_id: string, subject_id: string, column_key: EntryColumnKey,
+    field: 'expected' | 'actual', value: number | null
   ) => Promise<void>
-  onToggleHidden: (subjectId: string) => void
-  onToggleExclusion: (subjectId: string, studentId: string, currentlyExcluded: boolean) => void
+  onOpenStudent?: (studentId: string) => void
 }
 
-// تسمية العمود الفرعي (الحفظ/المراجعة/الحضور/...)
-function subColumnLabel(s: ReportSubject, col: EntryColumnKey): string {
-  if (col === 'memorization') return 'الحفظ'
-  if (col === 'revision') return 'المراجعة'
-  if (col === 'single') return s.single_label ?? s.name
-  return s.single_label ?? 'الحضور'
+const TRACK_COLOR = {
+  educational: '#5D4256',  // plum
+  academic:    '#356B6E',  // teal
+} as const
+
+const TRACK_LABEL = {
+  educational: 'المسار التربوي',
+  academic:    'المسار العلمي',
+} as const
+
+function flattenColumns(subjects: ReportSubject[], hidden: Set<string>): FlatColumn[] {
+  const out: FlatColumn[] = []
+  for (const s of subjects) {
+    if (hidden.has(s.id)) continue
+    const cols = columnsForKind(s.columns_kind)
+    for (const col of cols) {
+      let label = ''
+      if (col === 'memorization') label = `${s.name} · حفظ`
+      else if (col === 'revision') label = `${s.name} · مراجعة`
+      else if (col === 'single')   label = s.single_label || s.name
+      else                         label = s.name
+      out.push({
+        id: `${s.id}:${col}`,
+        subject: s,
+        columnKey: col,
+        label,
+      })
+    }
+  }
+  return out
 }
 
 export default function PerformanceTable({
   students, subjects, entries, exclusions,
-  hiddenSubjectIds, readOnly, canManageExclusions,
-  onCellSave, onToggleHidden, onToggleExclusion,
+  hiddenSubjectIds, thresholds, density,
+  readOnly, editPlannedMode,
+  onCellSave, onOpenStudent,
 }: Props) {
   const entriesMap = useMemo(() => {
     const m = new Map<string, PerformanceEntry>()
@@ -66,413 +101,506 @@ export default function PerformanceTable({
     return s
   }, [exclusions])
 
-  const visibleSubjects = useMemo(
-    () => subjects.filter(s => !hiddenSubjectIds.has(s.id)),
-    [subjects, hiddenSubjectIds]
-  )
-  const academicSubs    = useMemo(() => visibleSubjects.filter(s => s.track === 'academic'),    [visibleSubjects])
-  const educationalSubs = useMemo(() => visibleSubjects.filter(s => s.track === 'educational'), [visibleSubjects])
+  // المسارات بترتيب: تربوي أولاً ثم علمي (حسب التصميم)
+  const eduSubs = useMemo(() => subjects.filter(s => s.track === 'educational'), [subjects])
+  const acaSubs = useMemo(() => subjects.filter(s => s.track === 'academic'),    [subjects])
 
-  // عدد الأعمدة الفرعية لكل مساق (حفظ ومراجعة = 2، single/attendance = 1)
-  const subSubCount  = (s: ReportSubject) => columnsForKind(s.columns_kind).length
-  const subjectCells = (s: ReportSubject) => subSubCount(s) * 3 // x3: مفترض/فعلي/نسبة
-
-  const trackTotalCells = (subs: ReportSubject[]) =>
-    subs.reduce((acc, s) => acc + subjectCells(s), 0) + (subs.length > 0 ? 1 : 0) // +1 لـنسبة المساق
+  const eduCols = useMemo(() => flattenColumns(eduSubs, hiddenSubjectIds), [eduSubs, hiddenSubjectIds])
+  const acaCols = useMemo(() => flattenColumns(acaSubs, hiddenSubjectIds), [acaSubs, hiddenSubjectIds])
 
   // ─── حسابات النسب ─────────────────────
-  const studentSubjectPct = (studentId: string, subj: ReportSubject): number | null => {
-    if (exclusionSet.has(`${subj.id}:${studentId}`)) return null
-    const cols = columnsForKind(subj.columns_kind)
-    const pcts = cols.map(c => {
-      const e = entriesMap.get(cellKey(studentId, subj.id, c))
-      return calcPercent(e?.expected, e?.actual)
-    })
-    return averagePercent(pcts)
+  const colPct = (studentId: string, c: FlatColumn): number | null => {
+    if (exclusionSet.has(`${c.subject.id}:${studentId}`)) return null
+    const e = entriesMap.get(cellKey(studentId, c.subject.id, c.columnKey))
+    return calcPercent(e?.expected, e?.actual)
   }
-  const studentTrackPct = (studentId: string, subs: ReportSubject[]): number | null =>
-    averagePercent(subs.map(s => studentSubjectPct(studentId, s)))
-  const studentTotalPct = (studentId: string): number | null =>
-    averagePercent([studentTrackPct(studentId, academicSubs), studentTrackPct(studentId, educationalSubs)])
+  const trackPct = (studentId: string, cols: FlatColumn[]): number | null =>
+    averagePercent(cols.map(c => colPct(studentId, c)))
+  const overallPct = (studentId: string): number | null =>
+    averagePercent([trackPct(studentId, eduCols), trackPct(studentId, acaCols)])
+
+  // ─── أبعاد ─────────────────────
+  const rowH = density === 'compact' ? 56 : density === 'medium' ? 72 : 90
+  const cellW = density === 'compact' ? 86 : density === 'medium' ? 100 : 116
+  const aggregateW = 80
+  const studentColW = 220
+  const overallColW = 110
 
   if (students.length === 0) {
     return <div className="card-static p-8 text-center text-[var(--text-muted)]">لا يوجد طلاب لعرضهم.</div>
   }
-  if (visibleSubjects.length === 0) {
-    return <div className="card-static p-8 text-center text-[var(--text-muted)]">لا توجد مساقات مفعّلة.</div>
+  if (eduCols.length === 0 && acaCols.length === 0) {
+    return <div className="card-static p-8 text-center text-[var(--text-muted)]">لا توجد مساقات مفعّلة. اضغط "إدارة المساقات".</div>
   }
 
-  // ── الترتيب: التربوي ثم العلمي (بنفس ترتيب الصورة الأصلية) ─
-  const orderedSubs = [...educationalSubs, ...academicSubs]
-
-  // ─── ألوان موحّدة ─────────────────────
-  const headerBgTrack       = (t: 'academic' | 'educational') =>
-    t === 'academic' ? '#356B6E' : '#5D4256'
-  const headerBgSubject     = (t: 'academic' | 'educational') =>
-    t === 'academic' ? 'rgba(53,107,110,0.10)' : 'rgba(93,66,86,0.10)'
-  const headerBgSubColumn   = 'var(--bg-subtle)'
-  const headerBgValueType   = 'var(--bg-elevated)'
+  // إنشاء grid-template-columns:
+  // [الطالب] [أعمدة التربوي] [Σ تربوي] [أعمدة العلمي] [Σ علمي] [نسبة الإنجاز]
+  const gridTemplate = [
+    `${studentColW}px`,
+    ...eduCols.map(() => `${cellW}px`),
+    eduCols.length > 0 ? `${aggregateW}px` : '',
+    ...acaCols.map(() => `${cellW}px`),
+    acaCols.length > 0 ? `${aggregateW}px` : '',
+    `${overallColW}px`,
+  ].filter(Boolean).join(' ')
 
   return (
-    <div className="overflow-x-auto rounded-2xl border" style={{ borderColor: 'var(--border-color)' }}>
-      <table className="border-collapse text-xs" style={{ width: '100%', direction: 'rtl', tableLayout: 'auto' }}>
-        {/* ════════════ HEADER (4 صفوف) ════════════ */}
-        <thead>
-          {/* ── صف ١: المسارات ── */}
-          <tr>
-            <th
-              rowSpan={4}
-              className="sticky right-0 z-30 px-3 py-2 font-bold border"
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{
+        background: 'var(--bg-card, #fff)',
+        border: '1px solid var(--border-color)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+      }}
+    >
+      <div style={{ position: 'relative', overflowX: 'auto', direction: 'rtl' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: gridTemplate,
+            minWidth: studentColW + overallColW + (eduCols.length + acaCols.length) * cellW + (eduCols.length > 0 ? aggregateW : 0) + (acaCols.length > 0 ? aggregateW : 0),
+          }}
+        >
+          {/* ══════════ HEADER ROW 1 — track groups ══════════ */}
+          {/* الطالب — span across rows 1+2 */}
+          <div
+            style={{
+              position: 'sticky', right: 0, zIndex: 20,
+              background: 'var(--bg-subtle)',
+              borderBottom: '1px solid var(--border-color)',
+              borderLeft: '1px solid var(--border-color)',
+              padding: '14px 16px',
+              display: 'flex', alignItems: 'center',
+              gridRow: 'span 2',
+              fontFamily: 'var(--font-noto-kufi), sans-serif',
+              fontSize: 12, fontWeight: 700,
+              color: 'var(--text-muted)', letterSpacing: '0.06em',
+            }}
+          >
+            الطالب
+          </div>
+
+          {/* المسار التربوي header */}
+          {eduCols.length > 0 && (
+            <div
               style={{
-                background: 'var(--accent-warm)',
-                color: '#fff',
-                borderColor: 'var(--border-color)',
-                minWidth: 180,
-                boxShadow: '2px 0 4px rgba(0,0,0,0.06)',
+                gridColumn: `span ${eduCols.length + 1}`,
+                background: `linear-gradient(180deg, ${TRACK_COLOR.educational}18, ${TRACK_COLOR.educational}05)`,
+                borderBottom: '1px solid var(--border-color)',
+                borderLeft: '1px solid var(--border-color)',
+                padding: '14px 12px 8px',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: 4,
               }}
             >
-              الطالب
-            </th>
-            {educationalSubs.length > 0 && (
-              <th
-                colSpan={trackTotalCells(educationalSubs)}
-                className="px-2 py-2 font-bold border text-center text-[13px]"
-                style={{ background: headerBgTrack('educational'), color: '#fff', borderColor: 'var(--border-color)' }}
-              >
+              <div style={{
+                fontFamily: 'var(--font-noto-kufi), sans-serif',
+                fontSize: 14, fontWeight: 700,
+                color: TRACK_COLOR.educational, letterSpacing: '-0.01em',
+              }}>
                 {TRACK_LABEL.educational}
-              </th>
-            )}
-            {academicSubs.length > 0 && (
-              <th
-                colSpan={trackTotalCells(academicSubs)}
-                className="px-2 py-2 font-bold border text-center text-[13px]"
-                style={{ background: headerBgTrack('academic'), color: '#fff', borderColor: 'var(--border-color)' }}
-              >
-                {TRACK_LABEL.academic}
-              </th>
-            )}
-            <th
-              rowSpan={4}
-              className="px-3 py-2 font-bold border text-center"
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>
+                {eduCols.length} مساق
+              </div>
+            </div>
+          )}
+
+          {/* المسار العلمي header */}
+          {acaCols.length > 0 && (
+            <div
               style={{
-                background: '#FFE7D6', color: '#8B2F23',
-                borderColor: 'var(--border-color)', minWidth: 90,
+                gridColumn: `span ${acaCols.length + 1}`,
+                background: `linear-gradient(180deg, ${TRACK_COLOR.academic}18, ${TRACK_COLOR.academic}05)`,
+                borderBottom: '1px solid var(--border-color)',
+                borderLeft: '1px solid var(--border-color)',
+                padding: '14px 12px 8px',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: 4,
               }}
             >
-              نسبة إنجاز الطالب
-            </th>
-          </tr>
+              <div style={{
+                fontFamily: 'var(--font-noto-kufi), sans-serif',
+                fontSize: 14, fontWeight: 700,
+                color: TRACK_COLOR.academic, letterSpacing: '-0.01em',
+              }}>
+                {TRACK_LABEL.academic}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>
+                {acaCols.length} مساق
+              </div>
+            </div>
+          )}
 
-          {/* ── صف ٢: المساقات ── */}
-          <tr>
-            {orderedSubs.map(s => (
-              <th
-                key={s.id}
-                colSpan={subjectCells(s)}
-                className="px-2 py-1.5 border text-center font-bold relative group"
-                style={{
-                  background: headerBgSubject(s.track),
-                  color: 'var(--text-primary)',
-                  borderColor: 'var(--border-color)',
-                }}
-              >
-                <span className="inline-flex items-center gap-1.5 justify-center">
-                  <span>{s.name}</span>
-                  {s.unit && (
-                    <span className="text-[9px] font-normal opacity-60">({s.unit})</span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => onToggleHidden(s.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10"
-                    title="إخفاء هذا المساق"
-                  >
-                    <EyeOff className="w-3 h-3" />
-                  </button>
-                </span>
-              </th>
-            ))}
-            {/* عمود "نسبة المساق" — يتوسّط صفين ٢+٣ */}
-            {educationalSubs.length > 0 && (
-              <th rowSpan={2} className="border text-center font-bold text-[10px]"
-                style={{ background: 'rgba(93,66,86,0.18)', color: '#4A2F44', borderColor: 'var(--border-color)', minWidth: 36, padding: '4px 2px' }}>
-                <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', display: 'inline-block' }}>
-                  نسبة المساق
-                </div>
-              </th>
-            )}
-            {academicSubs.length > 0 && (
-              <th rowSpan={2} className="border text-center font-bold text-[10px]"
-                style={{ background: 'rgba(53,107,110,0.18)', color: '#1F4F52', borderColor: 'var(--border-color)', minWidth: 36, padding: '4px 2px' }}>
-                <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', display: 'inline-block' }}>
-                  نسبة المساق
-                </div>
-              </th>
-            )}
-          </tr>
+          {/* نسبة الإنجاز — span across rows 1+2 (sticky left) */}
+          <div
+            style={{
+              position: 'sticky', left: 0, zIndex: 20,
+              background: 'linear-gradient(180deg, rgba(192,138,72,0.18), rgba(192,138,72,0.05))',
+              borderBottom: '1px solid var(--border-color)',
+              borderRight: '1px solid var(--border-color)',
+              padding: '14px 12px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gridRow: 'span 2',
+            }}
+          >
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontFamily: 'var(--font-noto-kufi), sans-serif',
+                fontSize: 12, fontWeight: 700,
+                color: 'var(--accent-warm)', letterSpacing: '-0.01em',
+              }}>
+                نسبة الإنجاز
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, marginTop: 3 }}>
+                مرجّح
+              </div>
+            </div>
+          </div>
 
-          {/* ── صف ٣: الأعمدة الفرعية (الحفظ/المراجعة/حضور/...) ── */}
-          <tr>
-            {orderedSubs.flatMap(s => {
-              const cols = columnsForKind(s.columns_kind)
-              return cols.map(col => (
-                <th
-                  key={`${s.id}-${col}`}
-                  colSpan={3}
-                  className="px-1 py-1 border text-center font-semibold text-[11px]"
-                  style={{
-                    background: headerBgSubColumn,
-                    color: 'var(--text-secondary)',
-                    borderColor: 'var(--border-color)',
-                  }}
-                >
-                  {subColumnLabel(s, col)}
-                </th>
-              ))
-            })}
-          </tr>
+          {/* ══════════ HEADER ROW 2 — sub-headers per column + aggregate ══════════ */}
+          {eduCols.map((c, ci) => (
+            <ColumnHeader key={c.id} c={c} trackColor={TRACK_COLOR.educational} isLast={ci === eduCols.length - 1} />
+          ))}
+          {eduCols.length > 0 && (
+            <AggregateHeader trackColor={TRACK_COLOR.educational} />
+          )}
 
-          {/* ── صف ٤: المفترض/الفعلي/نسبة ── */}
-          <tr>
-            {orderedSubs.flatMap(s => {
-              const cols = columnsForKind(s.columns_kind)
-              return cols.flatMap(col => ([
-                <th key={`${s.id}-${col}-mf`} className="px-1 py-1 border text-center text-[10px] font-semibold"
-                  style={{ background: headerBgValueType, color: 'var(--text-muted)', borderColor: 'var(--border-color)', minWidth: 52 }}>
-                  المفترض
-                </th>,
-                <th key={`${s.id}-${col}-fa`} className="px-1 py-1 border text-center text-[10px] font-semibold"
-                  style={{ background: headerBgValueType, color: 'var(--text-muted)', borderColor: 'var(--border-color)', minWidth: 52 }}>
-                  الفعلي
-                </th>,
-                <th key={`${s.id}-${col}-pc`} className="px-1 py-1 border text-center text-[10px] font-bold"
-                  style={{ background: 'rgba(192,138,72,0.18)', color: '#8B5A1E', borderColor: 'var(--border-color)', minWidth: 44 }}>
-                  ٪
-                </th>,
-              ]))
-            })}
-          </tr>
-        </thead>
+          {acaCols.map((c, ci) => (
+            <ColumnHeader key={c.id} c={c} trackColor={TRACK_COLOR.academic} isLast={ci === acaCols.length - 1} />
+          ))}
+          {acaCols.length > 0 && (
+            <AggregateHeader trackColor={TRACK_COLOR.academic} />
+          )}
 
-        {/* ════════════ BODY ════════════ */}
-        <tbody>
-          {students.map((st, rowIdx) => {
-            const totalPct  = studentTotalPct(st.id)
-            const totalPal  = paletteForPercent(totalPct)
-            const eduPct    = studentTrackPct(st.id, educationalSubs)
-            const acaPct    = studentTrackPct(st.id, academicSubs)
-            const rowBg     = rowIdx % 2 === 0 ? 'var(--bg-card, #fff)' : 'var(--bg-subtle)'
+          {/* ══════════ DATA ROWS ══════════ */}
+          {students.map((s, si) => {
+            const lastRow = si === students.length - 1
+            const overall = overallPct(s.id)
+            const eduPct = trackPct(s.id, eduCols)
+            const acaPct = trackPct(s.id, acaCols)
+            const rowBg = si % 2 === 0 ? 'var(--bg-card, #fff)' : 'var(--bg-subtle)'
 
             return (
-              <tr key={st.id}>
-                {/* اسم الطالب — sticky */}
-                <td
-                  className="sticky right-0 z-10 px-3 py-2 font-semibold border text-[13px]"
-                  style={{
-                    background: rowBg, borderColor: 'var(--border-color)',
-                    color: 'var(--text-primary)',
-                    boxShadow: '2px 0 4px rgba(0,0,0,0.06)',
-                  }}
-                >
-                  {st.name}
-                </td>
-
-                {/* الأعمدة لكل مساق في المسار التربوي ثم العلمي */}
-                {educationalSubs.map(s => (
-                  <SubjectCells
-                    key={s.id}
-                    student={st}
-                    subject={s}
-                    rowBg={rowBg}
-                    entriesMap={entriesMap}
-                    excluded={exclusionSet.has(`${s.id}:${st.id}`)}
-                    readOnly={readOnly}
-                    canManageExclusions={canManageExclusions}
-                    onSave={onCellSave}
-                    onToggleExclusion={onToggleExclusion}
-                  />
-                ))}
-                {educationalSubs.length > 0 && <PctTotalCell value={eduPct} />}
-
-                {academicSubs.map(s => (
-                  <SubjectCells
-                    key={s.id}
-                    student={st}
-                    subject={s}
-                    rowBg={rowBg}
-                    entriesMap={entriesMap}
-                    excluded={exclusionSet.has(`${s.id}:${st.id}`)}
-                    readOnly={readOnly}
-                    canManageExclusions={canManageExclusions}
-                    onSave={onCellSave}
-                    onToggleExclusion={onToggleExclusion}
-                  />
-                ))}
-                {academicSubs.length > 0 && <PctTotalCell value={acaPct} />}
-
-                {/* نسبة الطالب الكلية */}
-                <td
-                  className="px-3 py-1.5 border text-center font-bold text-[13px]"
-                  style={{
-                    background: totalPal?.bg ?? 'var(--bg-subtle)',
-                    color: totalPal?.text ?? 'var(--text-muted)',
-                    borderColor: 'var(--border-color)',
-                  }}
-                >
-                  {totalPct != null ? `${totalPct}%` : '—'}
-                </td>
-              </tr>
+              <RowFragment
+                key={s.id}
+                student={s}
+                rowBg={rowBg}
+                lastRow={lastRow}
+                eduCols={eduCols}
+                acaCols={acaCols}
+                eduPct={eduPct}
+                acaPct={acaPct}
+                overall={overall}
+                rowH={rowH}
+                density={density}
+                thresholds={thresholds}
+                entriesMap={entriesMap}
+                exclusionSet={exclusionSet}
+                readOnly={readOnly}
+                editPlannedMode={editPlannedMode}
+                onCellSave={onCellSave}
+                onOpenStudent={onOpenStudent}
+              />
             )
           })}
-        </tbody>
-      </table>
+        </div>
+      </div>
+
+      {/* ── footer summary ── */}
+      <div
+        style={{
+          padding: '12px 22px',
+          borderTop: '1px solid var(--border-color)',
+          background: 'var(--bg-subtle)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', fontSize: 12 }}>
+          <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+            <strong style={{ color: 'var(--text-primary)' }}>{students.length}</strong> طالب
+          </span>
+          <span style={{ width: 1, height: 14, background: 'var(--border-color)' }} />
+          <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+            متوسط الأداء:{' '}
+            <strong style={{ color: 'var(--accent-warm)' }}>
+              {(() => {
+                const all = students.map(st => overallPct(st.id)).filter((p): p is number => p != null)
+                if (all.length === 0) return '—'
+                return Math.round(all.reduce((a, b) => a + b, 0) / all.length) + '٪'
+              })()}
+            </strong>
+          </span>
+          <span style={{ width: 1, height: 14, background: 'var(--border-color)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, color: 'var(--text-muted)' }}>
+            <LegendDot color="#5A8F67" label={`ممتاز ≥${thresholds.green}٪`} />
+            <LegendDot color="#C08A48" label={`مقبول >${thresholds.red}٪`} />
+            <LegendDot color="#B94838" label="يحتاج متابعة" />
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          💡 انقر على الفعلي لتعديله · فعّل "تعديل الأهداف" لتعديل المفترض
+        </div>
+      </div>
     </div>
   )
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// خلايا مساق لطالب واحد (يتعامل مع dual/single/attendance + الاستثناء)
+// Sub-components
 // ═══════════════════════════════════════════════════════════════════════
-function SubjectCells({
-  student, subject, rowBg, entriesMap, excluded, readOnly, canManageExclusions, onSave, onToggleExclusion,
-}: {
-  student: DBStudent
-  subject: ReportSubject
-  rowBg: string
-  entriesMap: Map<string, PerformanceEntry>
-  excluded: boolean
-  readOnly?: boolean
-  canManageExclusions?: boolean
-  onSave: (s: string, sub: string, c: EntryColumnKey, field: 'expected' | 'actual', v: number | null) => Promise<void>
-  onToggleExclusion: (subId: string, studentId: string, currentlyExcluded: boolean) => void
-}) {
-  const cols = columnsForKind(subject.columns_kind)
 
-  if (excluded) {
-    return (
-      <td
-        colSpan={cols.length * 3}
-        className="border text-center text-[11px] font-medium relative group"
-        style={{
-          background: 'repeating-linear-gradient(45deg, var(--bg-subtle), var(--bg-subtle) 6px, rgba(0,0,0,0.03) 6px, rgba(0,0,0,0.03) 12px)',
-          color: 'var(--text-muted)',
-          borderColor: 'var(--border-color)',
-        }}
-      >
-        <span className="opacity-70">— مستثنى —</span>
-        {canManageExclusions && (
-          <button
-            type="button"
-            onClick={() => onToggleExclusion(subject.id, student.id, true)}
-            className="opacity-0 group-hover:opacity-100 mr-2 text-[10px] font-bold underline text-[var(--accent-warm)]"
-          >
-            إعادة إدراج
-          </button>
-        )}
-      </td>
-    )
-  }
-
+function ColumnHeader({ c, trackColor }: { c: FlatColumn; trackColor: string; isLast: boolean }) {
   return (
-    <>
-      {cols.map((col, idx) => {
-        const e = entriesMap.get(cellKey(student.id, subject.id, col))
-        const exp = e?.expected ?? null
-        const act = e?.actual ?? null
-        const pct = calcPercent(exp, act)
-        const palette = paletteForPercent(pct)
-        const isFirstCol = idx === 0
-        return (
-          <ColumnTrio
-            key={col}
-            studentId={student.id}
-            subjectId={subject.id}
-            col={col}
-            expected={exp}
-            actual={act}
-            pct={pct}
-            palette={palette}
-            rowBg={rowBg}
-            readOnly={readOnly}
-            canManageExclusions={canManageExclusions && isFirstCol}
-            onSave={onSave}
-            onExclude={() => onToggleExclusion(subject.id, student.id, false)}
-          />
-        )
-      })}
-    </>
-  )
-}
-
-function ColumnTrio({
-  studentId, subjectId, col, expected, actual, pct, palette, rowBg,
-  readOnly, canManageExclusions, onSave, onExclude,
-}: {
-  studentId: string; subjectId: string; col: EntryColumnKey
-  expected: number | null; actual: number | null; pct: number | null
-  palette: { bg: string; text: string } | null
-  rowBg: string
-  readOnly?: boolean; canManageExclusions?: boolean
-  onSave: (s: string, sub: string, c: EntryColumnKey, field: 'expected' | 'actual', v: number | null) => Promise<void>
-  onExclude: () => void
-}) {
-  const baseStyle: React.CSSProperties = { borderColor: 'var(--border-color)', background: rowBg }
-  return (
-    <>
-      <td className="border p-0.5" style={baseStyle}>
-        <PerformanceCell
-          value={expected}
-          readOnly={readOnly}
-          variant="expected"
-          onSave={(v) => onSave(studentId, subjectId, col, 'expected', v)}
-        />
-      </td>
-      <td className="border p-0.5 relative group" style={baseStyle}>
-        <PerformanceCell
-          value={actual}
-          readOnly={readOnly}
-          variant="actual"
-          onSave={(v) => onSave(studentId, subjectId, col, 'actual', v)}
-        />
-        {canManageExclusions && (
-          <button
-            type="button"
-            onClick={onExclude}
-            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-rose-100"
-            title="استثناء الطالب من هذا المساق"
-          >
-            <X className="w-2.5 h-2.5 text-rose-600" />
-          </button>
-        )}
-      </td>
-      <td
-        className="border text-center text-[11px] font-bold p-1"
-        style={{
-          borderColor: 'var(--border-color)',
-          background: palette?.bg ?? 'var(--bg-subtle)',
-          color: palette?.text ?? 'var(--text-muted)',
-          minWidth: 44,
-        }}
-      >
-        {pct != null ? `${pct}%` : '—'}
-      </td>
-    </>
-  )
-}
-
-function PctTotalCell({ value }: { value: number | null }) {
-  const p = paletteForPercent(value)
-  return (
-    <td
-      className="border text-center font-bold text-[12px] p-1"
+    <div
       style={{
-        borderColor: 'var(--border-color)',
-        background: p?.bg ?? 'var(--bg-subtle)',
-        color: p?.text ?? 'var(--text-muted)',
-        minWidth: 50,
+        background: 'var(--bg-subtle)',
+        borderBottom: '1.5px solid var(--border-color)',
+        borderLeft: '1px solid var(--border-color)',
+        padding: '8px 6px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+        textAlign: 'center',
+        transition: 'background 0.15s',
       }}
     >
-      {value != null ? `${value}%` : '—'}
-    </td>
+      <div
+        style={{
+          fontFamily: 'var(--font-noto-kufi), sans-serif',
+          fontSize: 11.5, fontWeight: 700,
+          color: 'var(--text-primary)',
+          lineHeight: 1.25,
+          maxWidth: '100%',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}
+        title={c.label}
+      >
+        {c.label}
+      </div>
+      <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 }}>
+        {c.subject.unit ? `(${c.subject.unit})` : 'فعلي/مفترض'}
+      </div>
+      <span style={{
+        width: 16, height: 2, borderRadius: 2, background: trackColor, opacity: 0.6, marginTop: 2,
+      }} />
+    </div>
+  )
+}
+
+function AggregateHeader({ trackColor }: { trackColor: string }) {
+  return (
+    <div
+      style={{
+        background: `${trackColor}22`,
+        borderBottom: '1.5px solid var(--border-color)',
+        borderLeft: '1px solid var(--border-color)',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 2,
+      }}
+    >
+      <div style={{
+        fontSize: 10, fontWeight: 800, color: trackColor,
+        fontFamily: 'var(--font-noto-kufi), sans-serif',
+      }}>
+        Σ إجمالي
+      </div>
+    </div>
+  )
+}
+
+function RowFragment({
+  student, rowBg, lastRow, eduCols, acaCols, eduPct, acaPct, overall,
+  rowH, density, thresholds, entriesMap, exclusionSet,
+  readOnly, editPlannedMode, onCellSave, onOpenStudent,
+}: {
+  student: DBStudent; rowBg: string; lastRow: boolean
+  eduCols: FlatColumn[]; acaCols: FlatColumn[]
+  eduPct: number | null; acaPct: number | null; overall: number | null
+  rowH: number; density: 'compact' | 'medium' | 'cozy'
+  thresholds: Thresholds
+  entriesMap: Map<string, PerformanceEntry>
+  exclusionSet: Set<string>
+  readOnly?: boolean; editPlannedMode?: boolean
+  onCellSave: (s: string, sub: string, c: EntryColumnKey, field: 'expected' | 'actual', v: number | null) => Promise<void>
+  onOpenStudent?: (studentId: string) => void
+}) {
+  const baseBorder = lastRow ? 'none' : '1px solid var(--border-color)'
+
+  return (
+    <>
+      {/* اسم الطالب — sticky right */}
+      <div
+        style={{
+          position: 'sticky', right: 0, zIndex: 5,
+          background: rowBg,
+          borderBottom: baseBorder,
+          borderLeft: '1px solid var(--border-color)',
+          padding: '10px 16px',
+          display: 'flex', alignItems: 'center', gap: 10,
+          minHeight: rowH,
+        }}
+      >
+        <div
+          style={{
+            width: density === 'compact' ? 32 : 38, height: density === 'compact' ? 32 : 38,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, var(--accent-warm), var(--accent-gold))',
+            color: '#fff',
+            fontSize: density === 'compact' ? 12 : 14,
+            fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+            fontFamily: 'var(--font-noto-kufi), sans-serif',
+          }}
+        >
+          {(student.name || '؟').charAt(0)}
+        </div>
+        <div
+          style={{ flex: 1, minWidth: 0, cursor: onOpenStudent ? 'pointer' : 'default' }}
+          onClick={() => onOpenStudent?.(student.id)}
+        >
+          <div
+            style={{
+              fontWeight: 700, fontSize: 13, color: 'var(--text-primary)',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}
+            title={student.name}
+          >
+            {student.name}
+          </div>
+          {density !== 'compact' && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+              دفعة {student.batch_id}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* خلايا تربوي */}
+      {eduCols.map(c => (
+        <CellWrap
+          key={c.id} student={student} c={c} rowBg={rowBg} lastRow={lastRow}
+          density={density} thresholds={thresholds}
+          entriesMap={entriesMap} exclusionSet={exclusionSet}
+          readOnly={readOnly} editPlannedMode={editPlannedMode}
+          onCellSave={onCellSave}
+        />
+      ))}
+      {eduCols.length > 0 && (
+        <AggregateCell value={eduPct} thresholds={thresholds} trackColor={TRACK_COLOR.educational} lastRow={lastRow} rowBg={rowBg} />
+      )}
+
+      {/* خلايا علمي */}
+      {acaCols.map(c => (
+        <CellWrap
+          key={c.id} student={student} c={c} rowBg={rowBg} lastRow={lastRow}
+          density={density} thresholds={thresholds}
+          entriesMap={entriesMap} exclusionSet={exclusionSet}
+          readOnly={readOnly} editPlannedMode={editPlannedMode}
+          onCellSave={onCellSave}
+        />
+      ))}
+      {acaCols.length > 0 && (
+        <AggregateCell value={acaPct} thresholds={thresholds} trackColor={TRACK_COLOR.academic} lastRow={lastRow} rowBg={rowBg} />
+      )}
+
+      {/* نسبة الإنجاز — sticky left */}
+      <div
+        style={{
+          position: 'sticky', left: 0, zIndex: 5,
+          background: `linear-gradient(90deg, rgba(192,138,72,0.06), rgba(192,138,72,0.14))`,
+          borderBottom: baseBorder,
+          borderRight: '1px solid var(--border-color)',
+          padding: '8px 12px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <ProgressRing
+          pct={overall}
+          thresholds={thresholds}
+          size={density === 'compact' ? 38 : density === 'medium' ? 46 : 54}
+          stroke={4}
+        />
+      </div>
+    </>
+  )
+}
+
+function CellWrap({
+  student, c, rowBg, lastRow, density, thresholds,
+  entriesMap, exclusionSet, readOnly, editPlannedMode, onCellSave,
+}: {
+  student: DBStudent; c: FlatColumn; rowBg: string; lastRow: boolean
+  density: 'compact' | 'medium' | 'cozy'; thresholds: Thresholds
+  entriesMap: Map<string, PerformanceEntry>
+  exclusionSet: Set<string>
+  readOnly?: boolean; editPlannedMode?: boolean
+  onCellSave: (s: string, sub: string, c: EntryColumnKey, field: 'expected' | 'actual', v: number | null) => Promise<void>
+}) {
+  const excluded = exclusionSet.has(`${c.subject.id}:${student.id}`)
+  const e = entriesMap.get(cellKey(student.id, c.subject.id, c.columnKey))
+
+  return (
+    <div
+      style={{
+        background: rowBg,
+        borderBottom: lastRow ? 'none' : '1px solid var(--border-color)',
+        borderLeft: '1px solid var(--border-color)',
+        padding: 4,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      {excluded ? (
+        <div style={{
+          width: '100%', textAlign: 'center', fontSize: 10,
+          color: 'var(--text-muted)', fontWeight: 600,
+          padding: 8,
+          background: 'repeating-linear-gradient(45deg, var(--bg-subtle), var(--bg-subtle) 4px, rgba(0,0,0,0.03) 4px, rgba(0,0,0,0.03) 8px)',
+          borderRadius: 6,
+        }}>
+          مستثنى
+        </div>
+      ) : (
+        <PerfCell
+          expected={e?.expected ?? null}
+          actual={e?.actual ?? null}
+          thresholds={thresholds}
+          density={density}
+          readOnly={readOnly}
+          editPlannedMode={editPlannedMode}
+          onSaveActual={(v) => onCellSave(student.id, c.subject.id, c.columnKey, 'actual', v)}
+          onSaveExpected={(v) => onCellSave(student.id, c.subject.id, c.columnKey, 'expected', v)}
+        />
+      )}
+    </div>
+  )
+}
+
+function AggregateCell({
+  value, thresholds, trackColor, lastRow, rowBg,
+}: {
+  value: number | null; thresholds: Thresholds
+  trackColor: string; lastRow: boolean; rowBg: string
+}) {
+  return (
+    <div
+      style={{
+        background: rowBg.includes('subtle') ? `${trackColor}10` : `${trackColor}06`,
+        borderBottom: lastRow ? 'none' : '1px solid var(--border-color)',
+        borderLeft: `1px solid ${trackColor}33`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <PctBadge pct={value} thresholds={thresholds} size="sm" />
+    </div>
+  )
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+      <span style={{ width: 8, height: 8, borderRadius: 2, background: color }} />
+      {label}
+    </span>
   )
 }
