@@ -1,18 +1,20 @@
 'use client'
 /**
- * خلية تعديل inline للقيم — تحفظ تلقائياً على blur/Enter
+ * خلية تعديل inline — تحفظ تلقائياً على blur/Enter.
+ * تصميم واضح: حدود منقّطة عند الفراغ + خلفية مميّزة عند الفوكس
  */
 import { useEffect, useRef, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 
 interface Props {
   value: number | null
   readOnly?: boolean
   onSave: (next: number | null) => Promise<void> | void
-  align?: 'center' | 'end'
-  unit?: string | null
+  /** نمط بصري: مفترض = خلفية مائلة للأصفر، فعلي = أبيض نقي */
+  variant?: 'expected' | 'actual'
 }
 
-export default function PerformanceCell({ value, readOnly, onSave, align = 'center' }: Props) {
+export default function PerformanceCell({ value, readOnly, onSave, variant = 'actual' }: Props) {
   const [v, setV] = useState<string>(value != null ? String(value) : '')
   const [saving, setSaving] = useState(false)
   const ref = useRef<HTMLInputElement>(null)
@@ -43,23 +45,42 @@ export default function PerformanceCell({ value, readOnly, onSave, align = 'cent
     }
   }
 
+  const isEmpty = v === ''
+  const expectedTint = variant === 'expected'
+    ? 'rgba(192,138,72,0.06)'
+    : 'transparent'
+
   return (
-    <input
-      ref={ref}
-      type="text"
-      inputMode="decimal"
-      value={v}
-      readOnly={readOnly}
-      onChange={(e) => setV(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') ref.current?.blur()
-        if (e.key === 'Escape') { setV(initial.current); ref.current?.blur() }
-      }}
-      className={`w-full h-7 px-1 text-center text-xs font-mono outline-none bg-transparent ${
-        readOnly ? 'cursor-default' : 'focus:bg-white focus:ring-2 focus:ring-[var(--accent-warm)] rounded'
-      } ${saving ? 'opacity-60' : ''}`}
-      style={{ textAlign: align === 'center' ? 'center' : 'right', color: 'var(--text-primary)' }}
-    />
+    <div className="relative w-full" style={{ background: expectedTint }}>
+      <input
+        ref={ref}
+        type="text"
+        inputMode="decimal"
+        value={v}
+        readOnly={readOnly}
+        placeholder={readOnly ? '' : '—'}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') ref.current?.blur()
+          if (e.key === 'Escape') { setV(initial.current); ref.current?.blur() }
+        }}
+        className={`w-full h-8 px-1 text-center text-[12px] font-mono font-semibold outline-none bg-transparent transition ${
+          readOnly
+            ? 'cursor-default'
+            : isEmpty
+              ? 'border border-dashed border-[var(--border-soft)] rounded'
+              : 'border border-transparent rounded hover:border-[var(--border-soft)]'
+        } focus:border-[var(--accent-warm)] focus:bg-white focus:ring-2 focus:ring-[var(--accent-warm)]/20 ${
+          saving ? 'opacity-60' : ''
+        }`}
+        style={{ color: 'var(--text-primary)' }}
+      />
+      {saving && (
+        <span className="absolute top-1/2 right-1 -translate-y-1/2 pointer-events-none">
+          <Loader2 className="w-3 h-3 animate-spin" style={{ color: 'var(--accent-warm)' }} />
+        </span>
+      )}
+    </div>
   )
 }
