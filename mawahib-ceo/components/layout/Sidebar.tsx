@@ -14,7 +14,6 @@ import { UserRole } from '@/lib/auth'
 import { BrandMark } from '@/components/ui/BrandMark'
 import { TIMELINE_ENABLED } from '@/lib/timeline/flag'
 import { STUDENT_CASES_ENABLED } from '@/lib/student-cases/flag'
-import { PERFORMANCE_REPORTS_ENABLED } from '@/lib/performance/flag'
 
 interface NavItem {
   href: string
@@ -58,9 +57,8 @@ const navItems: NavItem[] = [
   ...(STUDENT_CASES_ENABLED ? [
     { href: '/student-cases', icon: ShieldAlert, label: 'الحالات الطلابية', badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher', 'records_officer'] as UserRole[] },
   ] : []),
-  ...(PERFORMANCE_REPORTS_ENABLED ? [
-    { href: '/reports/performance', icon: FileText, label: 'تقرير إنجاز الطلاب', badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher', 'records_officer'] as UserRole[] },
-  ] : []),
+  // ملاحظة: تقرير إنجاز الطلاب الديناميكي (/reports/performance) متاح كزر بارز
+  // داخل صفحة /reports — تجنّب ازدحام الـsidebar.
   // ملاحظة: "تعديل المتون" (/matn/manage) مُدمَجة الآن داخل صفحة "رصد المتون"
   // كزر بارز للمدير التنفيذي، فلا حاجة لبند منفصل.
   { href: '/reminders/saved', icon: BookHeart,   label: 'التذكيرات المحفوظة',    badge: 0 },

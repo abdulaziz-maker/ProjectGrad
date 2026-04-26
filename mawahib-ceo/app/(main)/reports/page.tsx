@@ -1,8 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { getBatches, getStudents, getAllAttendance, getExams, DBBatch } from '@/lib/db'
-import { FileText, Download, Printer, BarChart2, PieChart, TrendingUp, Calendar } from 'lucide-react'
+import { FileText, Download, Printer, BarChart2, PieChart, TrendingUp, Calendar, ArrowLeft, Sparkles } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell } from 'recharts'
+import { PERFORMANCE_REPORTS_ENABLED } from '@/lib/performance/flag'
 
 const REPORT_TYPES = [
   { id: 'monthly', label: 'التقرير الشهري', icon: Calendar, color: 'bg-blue-500/10 text-blue-400', desc: 'يُولَّد تلقائياً — أداء الطلاب والمشرفين والحضور' },
@@ -72,6 +74,82 @@ export default function ReportsPage() {
           </button>
         </div>
       </div>
+
+      {/* ════════════ زر بارز: قياس الأداء الديناميكي ════════════ */}
+      {PERFORMANCE_REPORTS_ENABLED && (
+        <Link
+          href="/reports/performance"
+          className="block group rounded-2xl overflow-hidden relative transition-all hover:shadow-lg"
+          style={{
+            background: 'linear-gradient(135deg, #3A3D44 0%, #1A1B20 100%)',
+            border: '1px solid rgba(192,138,72,0.30)',
+            boxShadow: '0 4px 20px rgba(58,61,68,0.15)',
+          }}
+        >
+          {/* topographic background */}
+          <svg
+            style={{ position: 'absolute', inset: 0, opacity: 0.18, pointerEvents: 'none' }}
+            preserveAspectRatio="none"
+            viewBox="0 0 800 200"
+          >
+            <g stroke="#C08A48" strokeWidth="0.8" fill="none">
+              <ellipse cx="700" cy="170" rx="80" ry="50" />
+              <ellipse cx="700" cy="170" rx="130" ry="80" />
+              <ellipse cx="700" cy="170" rx="180" ry="110" />
+              <path d="M-50 50 Q 100 70 200 40 T 450 90 T 850 60" />
+              <path d="M-50 110 Q 150 130 300 100 T 600 150" />
+            </g>
+          </svg>
+
+          <div className="relative px-6 py-5 flex items-center gap-5">
+            <div
+              className="flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, #C08A48, #D4A24C)',
+                boxShadow: '0 4px 14px rgba(192,138,72,0.45)',
+              }}
+            >
+              <Sparkles className="w-7 h-7 text-white" />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: 'rgba(192,138,72,0.20)', color: '#D4A24C', letterSpacing: '0.06em' }}
+                >
+                  جديد
+                </span>
+                <span className="text-[11px] font-semibold" style={{ color: '#D4A24C' }}>
+                  مساقات ديناميكية + تصدير Excel/PDF
+                </span>
+              </div>
+              <h2
+                className="m-0 text-white"
+                style={{ fontFamily: 'var(--font-noto-kufi), serif', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}
+              >
+                قياس الأداء — تقرير إنجاز الطلاب
+              </h2>
+              <p className="mt-1 text-[12.5px]" style={{ color: 'rgba(255,255,255,0.70)' }}>
+                لوحة احترافية بالمسارين العلمي والتربوي · المفترض/الفعلي · ألوان حسب الأداء · إدارة المساقات والاستثناءات
+              </p>
+            </div>
+
+            <div
+              className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all group-hover:translate-x-[-3px]"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.20)',
+                color: '#fff',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              فتح اللوحة
+              <ArrowLeft className="w-4 h-4" />
+            </div>
+          </div>
+        </Link>
+      )}
 
       {/* Report type cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
