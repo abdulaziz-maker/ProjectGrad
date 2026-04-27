@@ -21,7 +21,7 @@ import {
   AlertCircle, UserCheck, Users, ShieldAlert, CheckCircle2, Lock,
   Clock,
 } from 'lucide-react'
-import type { CaseTransition, CaseStage, CaseStatus } from '@/lib/student-cases/types'
+import type { CaseTransition, CaseAction, CaseStage, CaseStatus } from '@/lib/student-cases/types'
 import { STAGE_ORDER, timeAgoArabic } from '@/lib/student-cases/format'
 
 interface Props {
@@ -30,11 +30,13 @@ interface Props {
   startedAt: string
   transitions: CaseTransition[]
   closedAt?: string | null
+  /** الإجراءات الموثّقة — تُستخدم لاكتشاف "استدعاء/اجتماع ولي الأمر" */
+  actions?: CaseAction[]
 }
 
 interface StepDef {
   rank: number
-  key: 'opened' | 'stage_1_supervisor' | 'stage_2_batch_manager' | 'stage_3_ceo' | 'terminal'
+  key: 'opened' | 'stage_1_supervisor' | 'stage_2_batch_manager' | 'stage_3_ceo' | 'parent_summons' | 'terminal'
   label: string
   short: string
   icon: React.ComponentType<{ className?: string }>
@@ -45,11 +47,17 @@ const STEPS: StepDef[] = [
   { rank: 1, key: 'stage_1_supervisor',     label: 'مع المشرف',          short: 'المرحلة ١',   icon: UserCheck   },
   { rank: 2, key: 'stage_2_batch_manager',  label: 'مع مدير الدفعة',     short: 'المرحلة ٢',   icon: Users       },
   { rank: 3, key: 'stage_3_ceo',            label: 'مع المدير التنفيذي', short: 'المرحلة ٣',   icon: ShieldAlert },
+  { rank: 4, key: 'parent_summons',         label: 'استدعاء ولي الأمر',  short: 'المرحلة ٤',   icon: Users       },
 ]
 
-export default function CaseStageStepper({ currentStage, status, startedAt, transitions, closedAt }: Props) {
+export default function CaseStageStepper({ currentStage, status, startedAt, transitions, closedAt, actions = [] }: Props) {
   const currentRank = STAGE_ORDER[currentStage] ?? 1
   const isClosed = currentStage === 'resolved' || currentStage === 'closed'
+
+  // اكتشف وقت أول استدعاء/اجتماع ولي أمر
+  const parentActionAt = actions
+    .filter(a => a.action_type === 'parent_call' || a.action_type === 'parent_meeting')
+    .sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))[0]?.occurred_at ?? null
   const closedKind: 'resolved' | 'closed' | null =
     currentStage === 'resolved' ? 'resolved' : currentStage === 'closed' ? 'closed' : null
 
@@ -65,9 +73,10 @@ export default function CaseStageStepper({ currentStage, status, startedAt, tran
     }
   }
 
-  // المرحلة "opened" = startedAt
+  // المرحلة "opened" = startedAt | "parent_summons" = من actions
   const dateForStep = (key: StepDef['key']): string | null => {
     if (key === 'opened') return startedAt
+    if (key === 'parent_summons') return parentActionAt
     if (key === 'terminal') return closedAt ?? null
     return stageEnteredMap.get(key) ?? null
   }
@@ -85,8 +94,14 @@ export default function CaseStageStepper({ currentStage, status, startedAt, tran
 
   const stateForStep = (s: StepDef): ColorState => {
     if (s.rank === 0) return 'completed' // الكشف دائماً مكتمل
+    // مرحلة استدعاء ولي الأمر — مكتملة إذا وُجدت إجراءات parent_*
+    if (s.key === 'parent_summons') {
+      if (parentActionAt) return 'completed'
+      // الحالي إذا وصلت لـstage_3 ولم يُستدعَ بعد
+      if (currentRank >= 3 && !isClosed) return 'current'
+      return 'pending'
+    }
     if (isClosed) {
-      // عند الإغلاق: كل المراحل التي مرّ بها مكتملة
       const reachedThisStage = stageEnteredMap.has(s.key)
       if (reachedThisStage) return 'completed'
       return 'pending'
@@ -125,7 +140,7 @@ export default function CaseStageStepper({ currentStage, status, startedAt, tran
       </div>
 
       {/* ── Stepper ── */}
-      <ol className="relative grid grid-cols-4 gap-2">
+      <ol className="relative grid grid-cols-5 gap-2">
         {STEPS.map((step, i) => {
           const state = stateForStep(step)
           const c = colors[state]

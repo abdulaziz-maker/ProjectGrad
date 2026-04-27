@@ -31,6 +31,7 @@ import {
 } from '@/lib/student-cases/format'
 import type { UserProfile } from '@/lib/auth'
 import CloseCaseModal from '@/components/student-cases/CloseCaseModal'
+import CaseStageStepper from '@/components/student-cases/CaseStageStepper'
 
 type StageFilter = 'stage_2_batch_manager' | 'stage_1_supervisor' | 'stage_3_ceo' | 'closed_or_resolved' | 'all_active'
 
@@ -166,7 +167,7 @@ export default function ManagerBoard({ profile }: Props) {
         <div className="mt-5 grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
           <StageKPI label="عند المشرف"  count={countsByStage.stage_1_supervisor}    color="sky"     icon={<UserCheck  className="size-4" />} onClick={() => setFilter('stage_1_supervisor')} active={filter === 'stage_1_supervisor'} />
           <StageKPI label="عندي"        count={countsByStage.stage_2_batch_manager} color="amber"   icon={<Users       className="size-4" />} onClick={() => setFilter('stage_2_batch_manager')} active={filter === 'stage_2_batch_manager'} />
-          <StageKPI label="عند التنفيذي" count={countsByStage.stage_3_ceo}          color="rose"    icon={<ShieldAlert className="size-4" />} onClick={() => setFilter('stage_3_ceo')}          active={filter === 'stage_3_ceo'} />
+          <StageKPI label="عند المدير التنفيذي" count={countsByStage.stage_3_ceo}          color="rose"    icon={<ShieldAlert className="size-4" />} onClick={() => setFilter('stage_3_ceo')}          active={filter === 'stage_3_ceo'} />
           <StageKPI label="منتهية"      count={countsByStage.resolved}              color="emerald" icon={<CheckCircle2 className="size-4" />} onClick={() => setFilter('closed_or_resolved')} active={filter === 'closed_or_resolved'} />
           <StageKPI label="النشطة كلها" count={countsByStage.stage_1_supervisor + countsByStage.stage_2_batch_manager + countsByStage.stage_3_ceo} color="slate" icon={<ArrowLeftRight className="size-4" />} onClick={() => setFilter('all_active')} active={filter === 'all_active'} />
         </div>
@@ -280,30 +281,31 @@ function CaseRow({
   onClose: () => void
 }) {
   return (
-    <li className="card-interactive p-4 flex flex-wrap items-center gap-3">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link
-            href={`/student-cases/${c.id}`}
-            className="font-bold text-base hover:underline"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            {c.student_name}
-          </Link>
-          <span className={`px-2 py-0.5 rounded-full border text-[10px] font-medium ${STAGE_COLOR[c.current_stage]}`}>
-            {STAGE_SHORT_LABEL[c.current_stage]}
-          </span>
-          <span className="text-[11px] text-[var(--text-muted)] inline-flex items-center gap-1">
-            <Clock className="size-3" />
-            في هذه المرحلة {timeAgoArabic(c.stage_entered_at)}
-          </span>
+    <li className="card-interactive p-4 space-y-3">
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href={`/student-cases/${c.id}`}
+              className="font-bold text-base hover:underline"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              {c.student_name}
+            </Link>
+            <span className={`px-2 py-0.5 rounded-full border text-[10px] font-medium ${STAGE_COLOR[c.current_stage]}`}>
+              {STAGE_SHORT_LABEL[c.current_stage]}
+            </span>
+            <span className="text-[11px] text-[var(--text-muted)] inline-flex items-center gap-1">
+              <Clock className="size-3" />
+              في هذه المرحلة {timeAgoArabic(c.stage_entered_at)}
+            </span>
+          </div>
+          <p className="text-xs text-[var(--text-muted)] mt-1 line-clamp-2">
+            {c.trigger_reason}
+          </p>
         </div>
-        <p className="text-xs text-[var(--text-muted)] mt-1 line-clamp-2">
-          {c.trigger_reason}
-        </p>
-      </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
         {canAct && (
           <>
             <button
@@ -318,7 +320,7 @@ function CaseRow({
               onClick={onEscalate}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700"
             >
-              <ShieldAlert className="size-3.5" /> تصعيد للتنفيذي
+              <ShieldAlert className="size-3.5" /> تصعيد للمدير التنفيذي
             </button>
             <button
               type="button"
@@ -335,6 +337,18 @@ function CaseRow({
         >
           <ExternalLink className="size-3.5" /> التفاصيل
         </Link>
+        </div>
+      </div>
+
+      {/* مسار التصعيد المصوّر — يظهر داخل البطاقة مباشرة */}
+      <div>
+        <CaseStageStepper
+          currentStage={c.current_stage}
+          status={c.status}
+          startedAt={c.started_at}
+          transitions={[]}
+          closedAt={c.closed_at}
+        />
       </div>
     </li>
   )

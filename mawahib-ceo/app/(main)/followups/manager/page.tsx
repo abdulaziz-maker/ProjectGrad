@@ -116,29 +116,37 @@ export default function ManagerFollowupPage() {
     })
   }, [weekRange])
 
-  // Supervisor compliance: how many of their students have followups this week
+  // Supervisor compliance: نسبة طلاب المشرف الذين تمّت متابعتهم على الأقل مرة
+  // واحدة هذا الأسبوع. هذا المقياس مستقر (لا يتأرجح يومياً) ومفهوم للمشرف.
+  // بدائل أُلغيت: حساب (طلاب × أيام منقضية) كان يخفّض النسبة كل يوم بدون
+  // سبب واضح للمستخدم.
   const supervisorStats = useMemo(() => {
+    const weekDaysSet = new Set(weekDays)
     return batchSupervisors.map(sup => {
       const supStudents = batchStudents.filter(s => s.supervisor_id === sup.id)
       const studentsWithPlan = supStudents.filter(s => planMap.has(s.id))
-      const totalExpected = studentsWithPlan.length * weekDays.filter(d => d <= today).length
-      const totalRecorded = followups.filter(f =>
-        supStudents.some(s => s.id === f.student_id) &&
-        f.actual_position != null
-      ).length
-
-      const compliance = totalExpected > 0 ? Math.round((totalRecorded / totalExpected) * 100) : 0
+      // عدد الطلاب الذين سُجِّلت لهم متابعة واحدة على الأقل هذا الأسبوع
+      const followedStudentIds = new Set(
+        followups
+          .filter(f => f.actual_position != null && weekDaysSet.has(f.followup_date))
+          .map(f => f.student_id)
+      )
+      const studentsFollowed = supStudents.filter(s => followedStudentIds.has(s.id)).length
+      const compliance = studentsWithPlan.length > 0
+        ? Math.round((studentsFollowed / studentsWithPlan.length) * 100)
+        : 0
 
       return {
         supervisor: sup,
         studentCount: supStudents.length,
         withPlan: studentsWithPlan.length,
-        totalExpected,
-        totalRecorded,
+        // نُبقي الحقول السابقة لكن بدلالة أوضح: "متابَعون / لديهم خطة"
+        totalExpected: studentsWithPlan.length,
+        totalRecorded: studentsFollowed,
         compliance,
       }
     }).sort((a, b) => b.compliance - a.compliance)
-  }, [batchSupervisors, batchStudents, planMap, followups, weekDays, today])
+  }, [batchSupervisors, batchStudents, planMap, followups, weekDays])
 
   // Students with delays
   const delayedStudents = useMemo(() => {
@@ -268,7 +276,7 @@ export default function ManagerFollowupPage() {
               <div className="flex-1">
                 <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{supervisor.name}</p>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {totalRecorded}/{totalExpected} متابعة — {withPlan}/{studentCount} طالب لديهم خطة
+                  {totalRecorded}/{totalExpected} طالب تمّت متابعته هذا الأسبوع — {withPlan}/{studentCount} لديهم خطة
                 </p>
               </div>
               <div className="w-24 h-2 rounded-full bg-gray-200/20 overflow-hidden">

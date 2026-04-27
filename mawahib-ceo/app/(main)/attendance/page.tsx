@@ -4,26 +4,23 @@ import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { getStudents, getAllAttendance, saveAttendanceDay, DBStudent, DBAttendanceRecord } from '@/lib/db'
 import { toHijriDisplay, toGregorianDisplay, addDays, todayStr } from '@/lib/hijri'
-import { Loader2, Check, X, AlertCircle, CheckCheck } from 'lucide-react'
+import { Loader2, Check, X, AlertCircle, CheckCheck, Clock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
-// ملاحظة: الحالات الآن ثلاث: حاضر (present) / غائب (absent) / غائب بعذر (excused).
-// البيانات القديمة المحفوظة باسم 'late' تُعرض كـ 'excused' (نفس اللون الأصفر)
-// وتُحوَّل تلقائياً عند إعادة الحفظ. راجع supabase-attendance-excused-migration.sql
-// لتحديث السجلات القديمة إلى 'excused' في قاعدة البيانات.
-type AttendanceStatus = 'present' | 'absent' | 'excused'
+// الحالات الأربع: حاضر / متأخر / غائب بعذر / غائب
+type AttendanceStatus = 'present' | 'late' | 'excused' | 'absent'
 type BatchId = '46' | '48'
 
 const STATUS_META: Record<AttendanceStatus, { label: string; bg: string; bgSoft: string; text: string; textSoft: string; icon: typeof Check }> = {
   present: { label: 'حاضر',      bg: '#6FA392', bgSoft: '#f0fdf4', text: '#ffffff', textSoft: '#2F6F56', icon: Check },
-  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', text: '#ffffff', textSoft: '#b91c1c', icon: X },
+  late:    { label: 'متأخر',     bg: '#C08A48', bgSoft: '#fef3e2', text: '#ffffff', textSoft: '#8B5A1E', icon: Clock },
   excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', text: '#ffffff', textSoft: '#854d0e', icon: AlertCircle },
+  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', text: '#ffffff', textSoft: '#b91c1c', icon: X },
 }
 
-// تطبيع الحالات القديمة ('late') إلى الحالة الجديدة ('excused')
+// تطبيع لكل القيم المعروفة (يحفظ التوافق مع البيانات القديمة)
 function normalizeStatus(s: string): AttendanceStatus {
-  if (s === 'late') return 'excused'
-  if (s === 'present' || s === 'absent' || s === 'excused') return s
+  if (s === 'present' || s === 'absent' || s === 'excused' || s === 'late') return s
   return 'absent'
 }
 

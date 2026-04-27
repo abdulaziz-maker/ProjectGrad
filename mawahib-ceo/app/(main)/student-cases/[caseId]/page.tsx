@@ -296,6 +296,7 @@ export default function CaseDetailPage({
             status={caseData.status}
             startedAt={caseData.started_at}
             transitions={caseData.transitions}
+            actions={caseData.actions}
             closedAt={caseData.closed_at}
           />
         </div>

@@ -9,6 +9,7 @@ import {
   getNotifications, getUnreadCount, markNotificationRead,
   markAllRead, deleteNotification, type DBNotification,
 } from '@/lib/db'
+import WisdomTicker from './WisdomTicker'
 
 interface HeaderProps { onMenuClick: () => void }
 
@@ -165,6 +166,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </p>
         </div>
       </div>
+
+      {/* Center: Wisdom ticker (desktop only) */}
+      <WisdomTicker />
 
       {/* Left: actions */}
       <div className="flex items-center gap-1.5 sm:gap-2">

@@ -32,7 +32,7 @@ const FILTERS: { k: FilterKey; l: string }[] = [
   { k: 'all_active',           l: 'كل النشطة' },
   { k: 'stage_1_supervisor',   l: 'عند المشرف' },
   { k: 'stage_2_batch_manager', l: 'عند مدير الدفعة' },
-  { k: 'stage_3_ceo',          l: 'عند التنفيذي' },
+  { k: 'stage_3_ceo',          l: 'عند المدير التنفيذي' },
   { k: 'closed_or_resolved',   l: 'منتهية' },
 ]
 
@@ -159,7 +159,7 @@ export default function EscalationTimelinePage() {
         <StatChip label="نشطة" value={counts.active} color="#C08A48" />
         <StatChip label="عند المشرف" value={counts.stage_1_supervisor} color="#356B6E" />
         <StatChip label="عند مدير الدفعة" value={counts.stage_2_batch_manager} color="#5D4256" />
-        <StatChip label="عند التنفيذي" value={counts.stage_3_ceo} color="#B94838" />
+        <StatChip label="عند المدير التنفيذي" value={counts.stage_3_ceo} color="#B94838" />
         <StatChip label="منتهية" value={counts.closed} color="#5A8F67" />
       </div>
 
@@ -281,6 +281,7 @@ export default function EscalationTimelinePage() {
                           status={detailed.status}
                           startedAt={detailed.started_at}
                           transitions={detailed.transitions}
+                          actions={detailed.actions}
                           closedAt={detailed.closed_at}
                         />
                       ) : (
