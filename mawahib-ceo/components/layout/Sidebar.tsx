@@ -45,7 +45,6 @@ const navItems: NavItem[] = [
   // === المشرف / المعلم ===
   { href: '/dashboard',       icon: LayoutDashboard, label: 'لوحة التحكم',      badge: 0, roles: ['supervisor', 'teacher'] },
   { href: '/followups',       icon: ClipboardList,   label: 'المتابعات',         badge: 0, roles: ['supervisor', 'teacher', 'ceo'] },
-  { href: '/followups/checklist', icon: ListChecks,  label: 'قائمة اليوم',       badge: 0, roles: ['supervisor', 'teacher'] },
 
   // === مشترك ===
   { href: '/batches',     icon: Grid3x3,         label: 'قاعدة البيانات',         badge: 0 },
