@@ -6,6 +6,7 @@ import { getStudents, getAllAttendance, saveAttendanceDay, DBStudent, DBAttendan
 import { toHijriDisplay, toGregorianDisplay, addDays, todayStr } from '@/lib/hijri'
 import { Loader2, Check, X, AlertCircle, CheckCheck, Clock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import HijriDatePicker from '@/components/ui/HijriDatePicker'
 
 // الحالات الأربع: حاضر / متأخر / غائب بعذر / غائب
 type AttendanceStatus = 'present' | 'late' | 'excused' | 'absent'
@@ -165,8 +166,7 @@ export default function AttendancePage() {
                   <button onClick={() => setDate(d => addDays(d, 1))}
                     className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xl leading-none" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}>‹</button>
                 </div>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20 text-center" style={{ color: 'var(--text-secondary)' }} />
+                <HijriDatePicker value={date} onChange={(d) => setDate(d)} compact />
               </div>
 
               <div className="card-static p-5 flex flex-col justify-between gap-4">

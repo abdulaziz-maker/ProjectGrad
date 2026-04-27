@@ -142,10 +142,33 @@ export async function upsertStudent(s: DBStudent): Promise<void> {
   invalidateCache(CACHE_KEYS.STUDENTS)
 }
 
+/**
+ * حذف كامل للطالب مع تنظيف جميع البيانات المرتبطة.
+ *
+ * - الجداول المربوطة بـFK CASCADE تُمسح تلقائياً (escalations, student_cases,
+ *   student_case_weekly_reviews, matn_progress, recitations, weekly_plans،
+ *   report_subject_exclusions, performance_entries, student_text_progress).
+ * - الجداول القديمة بدون FK تحتاج حذفًا يدويًا قبل حذف صف الطالب.
+ *
+ * ⚠️ غير قابلة للتراجع — الواجهة يجب أن تطلب تأكيداً صريحاً.
+ */
 export async function deleteStudent(id: string): Promise<void> {
+  // 1) حذف يدوي من الجداول القديمة بلا FK
+  const tablesNoFk = [
+    'attendance', 'daily_followups', 'juz_progress',
+    'quran_plans', 'exams', 'exam_candidates', 'followups',
+  ] as const
+  for (const t of tablesNoFk) {
+    const { error } = await supabase.from(t).delete().eq('student_id', id)
+    if (error) throw new Error(`فشل التنظيف في ${t}: ${error.message}`)
+  }
+  // 2) حذف صف الطالب (CASCADE يتولّى البقية)
   const { error } = await supabase.from('students').delete().eq('id', id)
   if (error) throw error
+  // 3) إبطال كل الكاش — كثير من الصفحات تعتمد على بيانات الطالب
   invalidateCache(CACHE_KEYS.STUDENTS)
+  invalidateCache(CACHE_KEYS.JUZ_PROGRESS)
+  invalidateCache(CACHE_KEYS.ATTENDANCE_ALL)
 }
 
 // Juz Progress

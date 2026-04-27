@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { type DBTask, getTasks, saveTasks as dbSaveTasks, upsertTask, deleteTask as dbDeleteTask, getCustomCategories, saveCustomCategories as dbSaveCustomCategories, deleteCustomCategory } from '@/lib/db'
 import { CheckSquare, Square, Plus, RefreshCw, Calendar, Trash2, Users, Wallet, CreditCard, UserCheck, FolderPlus, X, Pencil, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import HijriDatePicker from '@/components/ui/HijriDatePicker'
 
 const today = new Date().toISOString().split('T')[0]
 
@@ -425,9 +426,7 @@ export default function TasksPage() {
             </div>
             <div>
               <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>تاريخ الاستحقاق</label>
-              <input type="date" value={newTask.dueDate} onChange={e => setNewTask({ ...newTask, dueDate: e.target.value })}
-                className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none focus:border-[#C08A48]"
-                style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+              <HijriDatePicker value={newTask.dueDate} onChange={(d) => setNewTask({ ...newTask, dueDate: d })} compact />
             </div>
           </div>
           <div className="flex gap-3">

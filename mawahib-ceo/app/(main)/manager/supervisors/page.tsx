@@ -11,6 +11,7 @@ import { UserCheck, Users, Loader2, ChevronLeft, CalendarCheck, Save, CheckCheck
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { todayStr, toHijriDisplay } from '@/lib/hijri'
+import HijriDatePicker from '@/components/ui/HijriDatePicker'
 
 function scoreColor(pct: number) {
   return pct >= 80 ? '#5A8F67' : pct >= 60 ? '#C08A48' : pct >= 40 ? '#C9972C' : '#B94838'
@@ -141,13 +142,7 @@ export default function ManagerSupervisorsPage() {
             <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>حضور المشرفين</h2>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>— {toHijriDisplay(attDate)}</span>
           </div>
-          <input
-            type="date"
-            value={attDate}
-            onChange={e => setAttDate(e.target.value)}
-            className="rounded-lg px-3 py-1.5 text-xs border"
-            style={{ background: 'var(--bg-body)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
-          />
+          <HijriDatePicker value={attDate} onChange={(d) => setAttDate(d)} compact />
         </div>
 
         <div className="flex gap-2 flex-wrap">

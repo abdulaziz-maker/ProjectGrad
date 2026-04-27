@@ -10,6 +10,7 @@ import { toHijriShort } from '@/lib/hijri'
 import { toast } from 'sonner'
 import { Loader2, CheckCheck, Check, X, AlertCircle, Users as UsersIcon } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import HijriDatePicker from '@/components/ui/HijriDatePicker'
 
 type ProgAttStatus = 'present' | 'absent' | 'excused'
 const PROG_ATT_META: Record<ProgAttStatus, { label: string; bg: string; bgSoft: string; textSoft: string; icon: typeof Check }> = {
@@ -283,13 +284,11 @@ export default function ProgramsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>تاريخ البداية *</label>
-                <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                <HijriDatePicker value={form.start_date} onChange={(d) => setForm({ ...form, start_date: d })} compact />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>تاريخ النهاية *</label>
-                <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                <HijriDatePicker value={form.end_date} onChange={(d) => setForm({ ...form, end_date: d })} compact />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>الميزانية (ريال)</label>
@@ -360,13 +359,11 @@ export default function ProgramsPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>تاريخ البداية</label>
-                      <input type="date" value={editForm.start_date} onChange={e => setEditForm({ ...editForm, start_date: e.target.value })}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                      <HijriDatePicker value={editForm.start_date} onChange={(d) => setEditForm({ ...editForm, start_date: d })} compact />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>تاريخ النهاية</label>
-                      <input type="date" value={editForm.end_date} onChange={e => setEditForm({ ...editForm, end_date: e.target.value })}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                      <HijriDatePicker value={editForm.end_date} onChange={(d) => setEditForm({ ...editForm, end_date: d })} compact />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>الميزانية</label>

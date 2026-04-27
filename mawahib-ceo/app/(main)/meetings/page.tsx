@@ -6,6 +6,7 @@ import { toHijriDisplay, toGregorianDisplay } from '@/lib/hijri'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import HijriDatePicker from '@/components/ui/HijriDatePicker'
 
 const MEETING_TYPES: Record<string, string> = {
   general_management: 'الإدارة العامة',
@@ -222,8 +223,7 @@ export default function MeetingsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>التاريخ</label>
-                <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
+                <HijriDatePicker value={form.date} onChange={(d) => setForm({ ...form, date: d })} compact />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>الوقت</label>
@@ -405,8 +405,7 @@ export default function MeetingsPage() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>التاريخ</label>
-                          <input type="date" value={editForm.date} onChange={e => setEditForm({ ...editForm, date: e.target.value })}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
+                          <HijriDatePicker value={editForm.date} onChange={(d) => setEditForm({ ...editForm, date: d })} compact />
                         </div>
                         <div>
                           <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>الوقت</label>
