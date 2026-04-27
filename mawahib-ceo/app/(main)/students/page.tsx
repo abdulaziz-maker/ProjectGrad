@@ -299,8 +299,12 @@ export default function StudentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>الطلاب</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>إدارة ومتابعة جميع الطلاب</p>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            {role === 'ceo' || role === 'records_officer' ? 'طلاب الدفع' : 'طلاب دفعتي'}
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {role === 'ceo' || role === 'records_officer' ? 'إدارة جميع طلاب البرنامج' : 'إدارة طلاب دفعتك'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button

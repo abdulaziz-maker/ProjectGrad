@@ -17,11 +17,12 @@ function scoreColor(pct: number) {
   return pct >= 80 ? '#5A8F67' : pct >= 60 ? '#C08A48' : pct >= 40 ? '#C9972C' : '#B94838'
 }
 
-type SupAttStatus = 'present' | 'absent' | 'excused'
+type SupAttStatus = 'present' | 'late' | 'excused' | 'absent'
 const SUP_STATUS_META: Record<SupAttStatus, { label: string; bg: string; bgSoft: string; textSoft: string }> = {
   present: { label: 'حاضر',      bg: '#6FA392', bgSoft: '#f0fdf4', textSoft: '#2F6F56' },
-  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', textSoft: '#b91c1c' },
+  late:    { label: 'متأخر',     bg: '#C08A48', bgSoft: '#fef3e2', textSoft: '#8B5A1E' },
   excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', textSoft: '#854d0e' },
+  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', textSoft: '#b91c1c' },
 }
 
 export default function ManagerSupervisorsPage() {
@@ -61,7 +62,7 @@ export default function ManagerSupervisorsPage() {
       .then(rows => {
         const map: Record<string, SupAttStatus> = {}
         for (const r of rows) {
-          if (r.status === 'present' || r.status === 'absent' || r.status === 'excused') {
+          if (r.status === 'present' || r.status === 'absent' || r.status === 'excused' || r.status === 'late') {
             map[r.supervisor_id] = r.status
           }
         }
@@ -149,6 +150,9 @@ export default function ManagerSupervisorsPage() {
           <button onClick={() => markAllSup('present')} className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ background: '#6FA392', color: '#fff' }}>
             <CheckCheck className="w-3.5 h-3.5" /> تحضير الكل
           </button>
+          <button onClick={() => markAllSup('late')} className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ background: '#C08A48', color: '#fff' }}>
+            <AlertCircle className="w-3.5 h-3.5" /> متأخر للكل
+          </button>
           <button onClick={() => markAllSup('absent')} className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ background: '#B94838', color: '#fff' }}>
             <X className="w-3.5 h-3.5" /> تغييب الكل
           </button>
@@ -177,7 +181,7 @@ export default function ManagerSupervisorsPage() {
                     <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{sup.name}</p>
                   </div>
                   <div className="flex gap-1.5">
-                    {(['present','absent','excused'] as const).map(s => {
+                    {(['present','late','excused','absent'] as const).map(s => {
                       const meta = SUP_STATUS_META[s]
                       const active = st === s
                       return (

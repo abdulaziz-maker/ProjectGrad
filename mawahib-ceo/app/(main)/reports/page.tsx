@@ -5,6 +5,7 @@ import { getBatches, getStudents, getAllAttendance, getExams, DBBatch } from '@/
 import { FileText, Download, Printer, BarChart2, PieChart, TrendingUp, Calendar, ArrowLeft, Sparkles } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell } from 'recharts'
 import { PERFORMANCE_REPORTS_ENABLED } from '@/lib/performance/flag'
+import { useAuth } from '@/contexts/AuthContext'
 
 const REPORT_TYPES = [
   { id: 'monthly', label: 'التقرير الشهري', icon: Calendar, color: 'bg-blue-500/10 text-blue-400', desc: 'يُولَّد تلقائياً — أداء الطلاب والمشرفين والحضور' },
@@ -26,14 +27,26 @@ const PERFORMANCE_DATA = [
 ]
 
 export default function ReportsPage() {
+  const { profile } = useAuth()
+  const role = profile?.role
+  const isCeo = role === 'ceo' || role === 'records_officer'
+  const myBatchId = profile?.batch_id ?? null
+  // عنوان ديناميكي حسب الدور (موحّد مع تسمية الـSidebar)
+  const pageTitle = isCeo ? 'تقارير الدفعات' : 'تقارير دفعتي'
+
   const [activeReport, setActiveReport] = useState('monthly')
   const [batches, setBatches] = useState<DBBatch[]>([])
   const [monthlyStats, setMonthlyStats] = useState({ totalStudents: 0, attendanceToday: 0, strugglingStudents: 0, juzsTestedThisMonth: 0 })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([getBatches(), getStudents(), getAllAttendance(), getExams()]).then(([b, students, attendance, exams]) => {
-      setBatches(b)
+    Promise.all([getBatches(), getStudents(), getAllAttendance(), getExams()]).then(([b, allStudents, allAttendance, allExams]) => {
+      // فلترة حسب دفعة المستخدم لو ليس CEO
+      const students = isCeo ? allStudents : allStudents.filter(s => s.batch_id === myBatchId)
+      const attendance = isCeo ? allAttendance : allAttendance.filter(a => a.batch_id === String(myBatchId))
+      const exams = isCeo ? allExams : allExams.filter(e => e.batch_id === myBatchId)
+      const visibleBatches = isCeo ? b : b.filter(x => x.id === myBatchId)
+      setBatches(visibleBatches)
       const today = new Date().toISOString().slice(0, 10)
       const todayAtt = attendance.filter(a => a.date === today)
       const presentToday = todayAtt.filter(a => a.status === 'present').length
@@ -60,8 +73,10 @@ export default function ReportsPage() {
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>التقارير</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>توليد وتصدير تقارير البرنامج</p>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{pageTitle}</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {isCeo ? 'تقارير شاملة لجميع الدفعات' : 'تقارير دفعتك مع إحصاءات مفصّلة'}
+          </p>
         </div>
         <div className="flex gap-2">
           <button className="flex items-center gap-2 px-4 py-2 text-sm border border-white/10 rounded-xl hover:bg-white/5" style={{ color: 'var(--text-secondary)' }}>

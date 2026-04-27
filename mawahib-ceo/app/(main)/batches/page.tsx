@@ -238,8 +238,8 @@ export default function BatchesPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>خريطة الحفظ</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>اضغط على أي جزء لتغيير حالته مباشرة</p>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>قاعدة البيانات</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>خريطة تقدّم الطلاب في حفظ الأجزاء — اضغط لتغيير الحالة</p>
         </div>
 
         {/* Batch tabs */}

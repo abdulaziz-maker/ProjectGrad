@@ -79,6 +79,7 @@ export interface DBExam {
 export interface DBTask {
   id: string; category: string; title: string; description: string
   recurrence: string; due_date: string | null; completed_dates: string[]; priority: string
+  user_id?: string | null
 }
 
 export interface DBFollowup {
@@ -513,14 +514,19 @@ export async function saveSupervisorAttendanceDay(
   if (error) throw error
 }
 
-// CEO Tasks
+// User Tasks (multi-user task list — RLS يفلتر حسب user_id)
 export async function getTasks(): Promise<DBTask[]> {
-  const { data, error } = await supabase.from('ceo_tasks').select('id,category,title,description,recurrence,due_date,completed_dates,priority')
+  const { data, error } = await supabase.from('ceo_tasks').select('id,category,title,description,recurrence,due_date,completed_dates,priority,user_id')
   if (error) throw error
   return data as DBTask[]
 }
 
 export async function upsertTask(task: DBTask): Promise<void> {
+  // التأكد من user_id موجود (RLS يرفض عند غيابه)
+  if (!task.user_id) {
+    const { data: { user } } = await supabase.auth.getUser()
+    task = { ...task, user_id: user?.id ?? null }
+  }
   const { error } = await supabase.from('ceo_tasks').upsert(task)
   if (error) throw error
 }
@@ -531,7 +537,9 @@ export async function deleteTask(id: string): Promise<void> {
 }
 
 export async function saveTasks(tasks: DBTask[]): Promise<void> {
-  const { error } = await supabase.from('ceo_tasks').upsert(tasks)
+  const { data: { user } } = await supabase.auth.getUser()
+  const withUser = tasks.map(t => ({ ...t, user_id: t.user_id ?? user?.id ?? null }))
+  const { error } = await supabase.from('ceo_tasks').upsert(withUser)
   if (error) throw error
 }
 

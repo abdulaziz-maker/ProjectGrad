@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { type DBTask, getTasks, saveTasks as dbSaveTasks, upsertTask, deleteTask as dbDeleteTask, getCustomCategories, saveCustomCategories as dbSaveCustomCategories, deleteCustomCategory } from '@/lib/db'
 import { CheckSquare, Square, Plus, RefreshCw, Calendar, Trash2, Users, Wallet, CreditCard, UserCheck, FolderPlus, X, Pencil, Loader2 } from 'lucide-react'
@@ -9,12 +8,24 @@ import HijriDatePicker from '@/components/ui/HijriDatePicker'
 
 const today = new Date().toISOString().split('T')[0]
 
-// الأقسام الثابتة
-const FIXED_CATEGORIES = [
+// الأقسام الثابتة — تختلف حسب الدور
+const CEO_CATEGORIES = [
   { id: 'batch_managers', label: 'متابعة مدراء المراحل', icon: Users, color: 'text-blue-600 bg-blue-50' },
-  { id: 'supervisors', label: 'متابعة المشرفين', icon: UserCheck, color: 'text-purple-600 bg-purple-50' },
-  { id: 'budget', label: 'متابعة العهد', icon: Wallet, color: 'text-orange-600 bg-orange-50' },
-  { id: 'fees', label: 'متابعة الرسوم', icon: CreditCard, color: 'text-green-600 bg-green-50' },
+  { id: 'supervisors',    label: 'متابعة المشرفين',       icon: UserCheck, color: 'text-purple-600 bg-purple-50' },
+  { id: 'budget',         label: 'متابعة العهد',           icon: Wallet, color: 'text-orange-600 bg-orange-50' },
+  { id: 'fees',           label: 'متابعة الرسوم',          icon: CreditCard, color: 'text-green-600 bg-green-50' },
+]
+const MANAGER_CATEGORIES = [
+  { id: 'supervisors_review', label: 'متابعة مشرفي دفعتي',     icon: UserCheck, color: 'text-purple-600 bg-purple-50' },
+  { id: 'students_attention', label: 'طلاب يحتاجون متابعة',    icon: Users,     color: 'text-red-600 bg-red-50' },
+  { id: 'reports_review',     label: 'مراجعة التقارير الأسبوعية', icon: CreditCard, color: 'text-blue-600 bg-blue-50' },
+  { id: 'planning',           label: 'التخطيط والمتابعة',       icon: Wallet,    color: 'text-amber-600 bg-amber-50' },
+]
+const SUPERVISOR_CATEGORIES = [
+  { id: 'student_followup',   label: 'متابعة طلابي اليومية',    icon: Users,     color: 'text-emerald-600 bg-emerald-50' },
+  { id: 'attendance_check',   label: 'تحضير الحضور',            icon: UserCheck, color: 'text-blue-600 bg-blue-50' },
+  { id: 'weekly_report',      label: 'التقرير الأسبوعي',        icon: CreditCard, color: 'text-purple-600 bg-purple-50' },
+  { id: 'parent_contact',     label: 'التواصل مع أولياء الأمور', icon: Wallet,    color: 'text-amber-600 bg-amber-50' },
 ]
 
 // ألوان يختار منها المستخدم للأقسام الجديدة
@@ -89,17 +100,17 @@ function defaultTasks(): LocalTask[] {
 }
 
 export default function TasksPage() {
-  const router = useRouter()
+  // مهامي اليومية — متاحة لكل دور (CEO، مدير دفعة، مشرف، معلم).
+  // الـRLS يفلتر السجلات بـuser_id تلقائياً.
   const { profile, loading: authLoading } = useAuth()
-  // ⚠️ صفحة المهام مخصّصة للمدير التنفيذي فقط — تعرض مهام متابعة مدراء الدفعات،
-  // المشرفين، العهدة، والرسوم. لا يجب أن يصلها المشرف ولا مدير الدفعة.
-  useEffect(() => {
-    if (authLoading) return
-    if (!profile) return
-    if (profile.role !== 'ceo') {
-      router.replace('/dashboard')
-    }
-  }, [profile, authLoading, router])
+  const role = profile?.role
+
+  // الأقسام الثابتة حسب الدور
+  const FIXED_CATEGORIES =
+    role === 'ceo' ? CEO_CATEGORIES
+    : role === 'batch_manager' ? MANAGER_CATEGORIES
+    : (role === 'supervisor' || role === 'teacher') ? SUPERVISOR_CATEGORIES
+    : []
 
   const [tasks, setTasks] = useState<LocalTask[]>([])
   const [customCats, setCustomCats] = useState<{ id: string; label: string; color: string }[]>([])
@@ -107,7 +118,7 @@ export default function TasksPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [showAddSection, setShowAddSection] = useState(false)
   const [newTask, setNewTask] = useState({
-    title: '', description: '', category: 'batch_managers',
+    title: '', description: '', category: FIXED_CATEGORIES[0]?.id ?? 'general',
     recurrence: 'weekly' as LocalTask['recurrence'],
     priority: 'medium' as LocalTask['priority'], dueDate: '',
   })
@@ -118,10 +129,10 @@ export default function TasksPage() {
     async function load() {
       try {
         const [dbTasks, dbCats] = await Promise.all([getTasks(), getCustomCategories()])
-        if (dbTasks.length === 0) {
-          // Seed default tasks
+        // فقط نزرع defaultTasks للمدير التنفيذي (التسوية القديمة)
+        if (dbTasks.length === 0 && role === 'ceo') {
           const defaults = defaultTasks()
-          const dbDefaults = defaults.map(localToDb)
+          const dbDefaults = defaults.map(t => ({ ...localToDb(t), user_id: profile?.id ?? null }))
           await dbSaveTasks(dbDefaults)
           setTasks(defaults)
         } else {
@@ -135,10 +146,10 @@ export default function TasksPage() {
         setLoading(false)
       }
     }
-    load()
-  }, [])
+    if (profile) load()
+  }, [profile, role])
 
-  // جميع الأقسام = الثابتة + المخصصة
+  // جميع الأقسام = الثابتة (حسب الدور) + المخصصة
   const allCategories = [
     ...FIXED_CATEGORIES.map(c => ({ ...c, isCustom: false })),
     ...customCats.map(c => ({ id: c.id, label: c.label, icon: CheckSquare, color: c.color, isCustom: true })),
@@ -264,16 +275,18 @@ export default function TasksPage() {
       </div>
     )
   }
-  // إخفاء المحتوى عن غير الـCEO حتى يكتمل الـredirect
-  if (profile && profile.role !== 'ceo') return null
-
   return (
     <div className="space-y-6 max-w-3xl animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-extrabold" style={{ color: 'var(--text-primary)' }}>مهامي اليومية</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>متابعة مهام المدير التنفيذي</p>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {role === 'ceo'           ? 'متابعة مهام المدير التنفيذي'
+             : role === 'batch_manager' ? 'متابعة مهامي كمدير دفعة'
+             : (role === 'supervisor' || role === 'teacher') ? 'متابعة مهامي اليومية مع طلابي'
+             : 'مهامي'}
+          </p>
         </div>
         <div className="flex gap-2">
           <button

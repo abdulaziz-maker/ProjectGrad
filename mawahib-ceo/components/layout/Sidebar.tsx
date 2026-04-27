@@ -26,18 +26,21 @@ interface NavItem {
   roles?: UserRole[]
 }
 
+// ملاحظة: التسميات الديناميكية حسب الدور (طلاب دفعتي / طلاب الدفع، إلخ)
+// تتم في useMemo داخل المكوّن. هنا نضع تسميات افتراضية يستخدمها المدير التنفيذي.
 const navItems: NavItem[] = [
   // === المدير التنفيذي ===
   { href: '/admin/dashboard', icon: LayoutDashboard, label: 'لوحة التحكم',      badge: 0, roles: ['ceo'] },
-  { href: '/tasks',       icon: ListChecks,      label: 'مهامي اليومية',          badge: 3,  roles: ['ceo'] },
+  { href: '/tasks',           icon: ListChecks,      label: 'مهامي اليومية',     badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher'] },
+  // التقارير في الأعلى — تسمية ديناميكية حسب الدور
+  { href: '/reports',         icon: FileText,        label: 'تقارير الدفعات',   badge: 0 },
 
   // === مدير الدفعة ===
-  // ملاحظة: تم دمج "تكليف المشرفين" (الآن "توزيع المشرفين") داخل صفحة "مشرفو
-  // دفعتي" كزر بارز لتبسيط الشريط الجانبي.
+  // ملاحظة: تم دمج "تكليف المشرفين" داخل "مشرفو دفعتي" كزر، و "تقارير الدفعة"
+  // (/manager/reports) أُلغي لصالح /reports الموحّد أعلى.
   { href: '/manager/dashboard',    icon: LayoutDashboard, label: 'لوحة الدفعة',        badge: 0, roles: ['batch_manager'] },
   { href: '/manager/supervisors',  icon: UserCheck,       label: 'مشرفو دفعتي',        badge: 0, roles: ['batch_manager'] },
   { href: '/followups/manager',    icon: ClipboardList,   label: 'متابعات الدفعة',      badge: 0, roles: ['batch_manager'] },
-  { href: '/manager/reports',      icon: FileText,        label: 'تقارير الدفعة',       badge: 0, roles: ['batch_manager'] },
 
   // === المشرف / المعلم ===
   { href: '/dashboard',       icon: LayoutDashboard, label: 'لوحة التحكم',      badge: 0, roles: ['supervisor', 'teacher'] },
@@ -45,29 +48,28 @@ const navItems: NavItem[] = [
   { href: '/followups/checklist', icon: ListChecks,  label: 'قائمة اليوم',       badge: 0, roles: ['supervisor', 'teacher'] },
 
   // === مشترك ===
-  { href: '/batches',     icon: Grid3x3,         label: 'خريطة الطلاب والحفظ',   badge: 0 },
+  { href: '/batches',     icon: Grid3x3,         label: 'قاعدة البيانات',         badge: 0 },
   { href: '/matn',        icon: BookOpen,        label: 'رصد المتون',             badge: 0 },
-  { href: '/exams',       icon: ClipboardCheck,  label: 'جدول الاختبارات',        badge: 2 },
-  { href: '/students',    icon: Users,           label: 'الطلاب',                 badge: 0 },
-  { href: '/supervisors', icon: UserCheck,       label: 'المشرفون والمعلمون',     badge: 1,  roles: ['ceo'] },
+  { href: '/exams',       icon: ClipboardCheck,  label: 'جدول الاختبارات',        badge: 0 },
+  // "الطلاب" — تسمية ديناميكية: طلاب دفعتي / طلاب الدفع
+  { href: '/students',    icon: Users,           label: 'طلاب الدفع',             badge: 0 },
+  { href: '/supervisors', icon: UserCheck,       label: 'المشرفون والمعلمون',     badge: 0, roles: ['ceo'] },
   { href: '/attendance',  icon: CalendarCheck,   label: 'الحضور والغياب',         badge: 0 },
-  { href: '/programs',    icon: Star,            label: 'البرامج التربوية',       badge: 2 },
-  { href: '/meetings',    icon: MessageSquare,   label: 'الاجتماعات',             badge: 1 },
-  { href: '/admin/bulk-plan', icon: Target,      label: 'إنشاء خطة جماعي',        badge: 0,  roles: ['ceo'] },
-  ...(TIMELINE_ENABLED ? [
-    { href: '/timeline', icon: CalendarDays, label: 'الخطة الزمنية', badge: 0, roles: ['ceo', 'batch_manager', 'records_officer'] as UserRole[] },
-  ] : []),
+  // "البرامج" — تسمية ديناميكية: برامج دفعتي / برامج الدفع.
+  // الخطة الزمنية أصبحت زرّاً داخل هذه الصفحة (لا بند مستقل).
+  { href: '/programs',    icon: Star,            label: 'برامج الدفع',            badge: 0 },
+  { href: '/meetings',    icon: MessageSquare,   label: 'الاجتماعات',             badge: 0 },
+  { href: '/admin/bulk-plan', icon: Target,      label: 'إنشاء خطة جماعي',        badge: 0, roles: ['ceo'] },
   ...(STUDENT_CASES_ENABLED ? [
     { href: '/student-cases', icon: ShieldAlert, label: 'التصعيدات الواردة لي', badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher', 'records_officer'] as UserRole[] },
   ] : []),
-  // ملاحظة: تقرير إنجاز الطلاب الديناميكي (/reports/performance) متاح كزر بارز
-  // داخل صفحة /reports — تجنّب ازدحام الـsidebar.
-  // ملاحظة: "تعديل المتون" (/matn/manage) مُدمَجة الآن داخل صفحة "رصد المتون"
-  // كزر بارز للمدير التنفيذي، فلا حاجة لبند منفصل.
+  // ملاحظات:
+  // - الخطة الزمنية (/timeline) أصبحت زرّاً داخل /programs، لا بند مستقل.
+  // - تقارير الأداء الديناميكية (/reports/performance) زرّ داخل /reports.
+  // - "تعديل المتون" (/matn/manage) زرّ داخل /matn.
   { href: '/reminders/saved', icon: BookHeart,   label: 'التذكيرات المحفوظة',    badge: 0 },
-  { href: '/reports',         icon: FileText,     label: 'التقارير',               badge: 0 },
   { href: '/notifications',   icon: Bell,         label: 'الإشعارات',              badge: 0 },
-  { href: '/budget',      icon: Wallet,          label: 'الميزانية والعهد',       badge: 5,  roles: ['ceo'] },
+  { href: '/budget',      icon: Wallet,          label: 'الميزانية والعهد',       badge: 0,  roles: ['ceo'] },
   { href: '/admin/users', icon: ShieldCheck,     label: 'إدارة الحسابات',         badge: 0,  roles: ['ceo'] },
   { href: '/settings',    icon: Settings,        label: 'الإعدادات',              badge: 0,  roles: ['ceo'] },
 ]
@@ -106,26 +108,31 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
     return () => { alive = false }
   }, [profile, role])
 
-  // تسمية بند "الحالات" تختلف حسب الدور لتعكس وظيفتها الفعلية:
-  //   - المشرف/المعلم: صفحة المتابعة الأسبوعية (يرصد ويصعّد)
-  //   - مدير الدفعة: inbox للتصعيدات الواردة
-  //   - CEO/records: نظرة عامة لكل الحالات
-  const studentCasesLabel: string =
+  // ─── تسميات ديناميكية حسب الدور ───
+  const isMine = role === 'batch_manager' || role === 'supervisor' || role === 'teacher'
+
+  // الحالات الطلابية:
+  const studentCasesLabel =
     role === 'supervisor' || role === 'teacher' ? 'متابعتي الأسبوعية والتصعيد'
     : role === 'batch_manager'                  ? 'التصعيدات الواردة لي'
     : 'الحالات الطلابية'
+
+  // باقي البنود الديناميكية:
+  const labelOverrides: Record<string, string> = {
+    '/reports':  isMine ? 'تقارير دفعتي' : 'تقارير الدفعات',
+    '/students': isMine ? 'طلاب دفعتي'   : 'طلاب الدفع',
+    '/programs': isMine ? 'برامج دفعتي'  : 'برامج الدفع',
+  }
 
   const visibleItems = navItems.filter(item => {
     if (role === 'records_officer') return RECORDS_OFFICER_PATHS.has(item.href)
     return !item.roles || item.roles.includes(role)
   }).map(item => {
     if (item.href === '/student-cases') {
-      // تسمية ديناميكية + badge عدد الوارد
-      return {
-        ...item,
-        label: studentCasesLabel,
-        badge: inboxCount > 0 ? inboxCount : 0,
-      }
+      return { ...item, label: studentCasesLabel, badge: inboxCount > 0 ? inboxCount : 0 }
+    }
+    if (labelOverrides[item.href]) {
+      return { ...item, label: labelOverrides[item.href] }
     }
     return item
   })

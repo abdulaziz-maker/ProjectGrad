@@ -8,9 +8,11 @@ import {
 } from '@/lib/db'
 import { toHijriShort } from '@/lib/hijri'
 import { toast } from 'sonner'
-import { Loader2, CheckCheck, Check, X, AlertCircle, Users as UsersIcon } from 'lucide-react'
+import { Loader2, CheckCheck, Check, X, AlertCircle, Users as UsersIcon, CalendarDays } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import HijriDatePicker from '@/components/ui/HijriDatePicker'
+import Link from 'next/link'
+import { TIMELINE_ENABLED } from '@/lib/timeline/flag'
 
 type ProgAttStatus = 'present' | 'absent' | 'excused'
 const PROG_ATT_META: Record<ProgAttStatus, { label: string; bg: string; bgSoft: string; textSoft: string; icon: typeof Check }> = {
@@ -223,16 +225,34 @@ export default function ProgramsPage() {
   return (
     <div dir="rtl" className="min-h-screen p-6">
       <div className="max-w-5xl mx-auto space-y-6 animate-fade-in-up">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>البرامج والرحلات</h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>إدارة جميع البرامج والأنشطة التربوية</p>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              {profile?.role === 'ceo' || profile?.role === 'records_officer' ? 'برامج الدفع' : 'برامج دفعتي'}
+            </h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>إدارة البرامج والأنشطة التربوية</p>
           </div>
-          <button onClick={() => { setShowForm(!showForm); setEditId(null) }}
-            className="btn-primary btn-ripple flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90">
-            <span className="text-lg leading-none">{showForm ? '✕' : '+'}</span>
-            {showForm ? 'إلغاء' : 'إضافة برنامج'}
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {TIMELINE_ENABLED && (profile?.role === 'ceo' || profile?.role === 'batch_manager' || profile?.role === 'records_officer') && (
+              <Link
+                href="/timeline"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition"
+                style={{
+                  background: 'rgba(53,107,110,0.10)',
+                  color: '#235052',
+                  border: '1px solid rgba(53,107,110,0.32)',
+                }}
+              >
+                <CalendarDays className="w-4 h-4" />
+                الخطة الزمنية للسنة
+              </Link>
+            )}
+            <button onClick={() => { setShowForm(!showForm); setEditId(null) }}
+              className="btn-primary btn-ripple flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90">
+              <span className="text-lg leading-none">{showForm ? '✕' : '+'}</span>
+              {showForm ? 'إلغاء' : 'إضافة برنامج'}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-4 stagger-children">
