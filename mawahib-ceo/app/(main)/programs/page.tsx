@@ -8,17 +8,18 @@ import {
 } from '@/lib/db'
 import { toHijriShort } from '@/lib/hijri'
 import { toast } from 'sonner'
-import { Loader2, CheckCheck, Check, X, AlertCircle, Users as UsersIcon, CalendarDays } from 'lucide-react'
+import { Loader2, CheckCheck, Check, X, AlertCircle, Users as UsersIcon, CalendarDays, Clock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import HijriDatePicker from '@/components/ui/HijriDatePicker'
 import Link from 'next/link'
 import { TIMELINE_ENABLED } from '@/lib/timeline/flag'
 
-type ProgAttStatus = 'present' | 'absent' | 'excused'
+type ProgAttStatus = 'present' | 'late' | 'excused' | 'absent'
 const PROG_ATT_META: Record<ProgAttStatus, { label: string; bg: string; bgSoft: string; textSoft: string; icon: typeof Check }> = {
   present: { label: 'حاضر',      bg: '#6FA392', bgSoft: '#f0fdf4', textSoft: '#2F6F56', icon: Check },
-  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', textSoft: '#b91c1c', icon: X },
+  late:    { label: 'متأخر',     bg: '#C08A48', bgSoft: '#fef3e2', textSoft: '#8B5A1E', icon: Clock },
   excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', textSoft: '#854d0e', icon: AlertCircle },
+  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', textSoft: '#b91c1c', icon: X },
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -566,11 +567,14 @@ export default function ProgramsPage() {
                     <button onClick={() => markAllProgAtt('present', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="present">
                       <span className="qm-icon"><CheckCheck className="w-3 h-3" /></span><span>تحضير</span>
                     </button>
-                    <button onClick={() => markAllProgAtt('absent', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="absent">
-                      <span className="qm-icon"><X className="w-3 h-3" /></span><span>تغييب</span>
+                    <button onClick={() => markAllProgAtt('late', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="late">
+                      <span className="qm-icon"><Clock className="w-3 h-3" /></span><span>متأخر</span>
                     </button>
                     <button onClick={() => markAllProgAtt('excused', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="excused">
                       <span className="qm-icon"><AlertCircle className="w-3 h-3" /></span><span>بعذر</span>
+                    </button>
+                    <button onClick={() => markAllProgAtt('absent', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="absent">
+                      <span className="qm-icon"><X className="w-3 h-3" /></span><span>تغييب</span>
                     </button>
                   </div>
                 </div>
@@ -626,7 +630,7 @@ export default function ProgramsPage() {
                                 </p>
                               </div>
                               <div role="radiogroup" aria-label={`حالة ${student.name}`} className="attendance-segment shrink-0">
-                                {(['present','absent','excused'] as const).map(s => {
+                                {(['present','late','excused','absent'] as const).map(s => {
                                   const meta = PROG_ATT_META[s]
                                   const active = st === s
                                   const Icon = meta.icon

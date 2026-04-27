@@ -211,13 +211,17 @@ export default function AttendancePage() {
                   <span className="qm-icon"><CheckCheck className="w-3.5 h-3.5" /></span>
                   <span>تحضير الكل</span>
                 </button>
-                <button onClick={() => markAll('absent')} className="quick-mark-btn" data-kind="absent">
-                  <span className="qm-icon"><X className="w-3.5 h-3.5" /></span>
-                  <span>تغييب الكل</span>
+                <button onClick={() => markAll('late')} className="quick-mark-btn" data-kind="late">
+                  <span className="qm-icon"><Clock className="w-3.5 h-3.5" /></span>
+                  <span>متأخر للكل</span>
                 </button>
                 <button onClick={() => markAll('excused')} className="quick-mark-btn" data-kind="excused">
                   <span className="qm-icon"><AlertCircle className="w-3.5 h-3.5" /></span>
                   <span>غياب بعذر</span>
+                </button>
+                <button onClick={() => markAll('absent')} className="quick-mark-btn" data-kind="absent">
+                  <span className="qm-icon"><X className="w-3.5 h-3.5" /></span>
+                  <span>تغييب الكل</span>
                 </button>
               </div>
             </div>
@@ -305,7 +309,7 @@ export default function AttendancePage() {
                         aria-label={`حالة ${student.name}`}
                         className="attendance-segment shrink-0"
                       >
-                        {(['present', 'absent', 'excused'] as const).map(st => {
+                        {(['present', 'late', 'excused', 'absent'] as const).map(st => {
                           const meta = STATUS_META[st]
                           const active = status === st
                           const Icon = meta.icon

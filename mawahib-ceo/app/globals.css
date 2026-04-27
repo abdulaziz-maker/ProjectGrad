@@ -1322,8 +1322,9 @@ a[href]:not(.card):not(.btn-primary):not(.btn-accent):not(.btn-ghost):not(.btn-d
 }
 
 .quick-mark-btn[data-kind="present"] { --qm-bg: #2E8B57; }
+.quick-mark-btn[data-kind="late"]    { --qm-bg: #C08A48; }
+.quick-mark-btn[data-kind="excused"] { --qm-bg: #eab308; }
 .quick-mark-btn[data-kind="absent"]  { --qm-bg: #B94838; }
-.quick-mark-btn[data-kind="excused"] { --qm-bg: #C08A48; }
 
 .quick-mark-btn:hover {
   transform: translateY(-2px);

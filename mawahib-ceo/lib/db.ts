@@ -462,7 +462,7 @@ export async function getProgramAttendance(programId: string): Promise<DBProgram
 
 export async function saveProgramAttendance(
   programId: string,
-  records: Record<string, 'present' | 'absent' | 'excused'>,
+  records: Record<string, 'present' | 'late' | 'excused' | 'absent'>,
 ): Promise<void> {
   await supabase.from('program_attendance').delete().eq('program_id', programId)
   const rows = Object.entries(records).map(([student_id, status]) => ({
