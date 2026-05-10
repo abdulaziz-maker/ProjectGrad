@@ -25,6 +25,10 @@ const TYPE_ICONS: Record<string, string> = {
   alert:            '⚠️',
   achievement:      '🏆',
   level_transition: '🎯',
+  student_lag:      '⏳',
+  upcoming_exam:    '📝',
+  missing_record:   '❗',
+  absence:          '🚫',
 }
 
 function timeAgo(iso: string): string {

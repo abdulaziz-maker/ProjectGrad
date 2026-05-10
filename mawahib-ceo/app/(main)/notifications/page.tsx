@@ -24,14 +24,20 @@ const TYPE_META: Record<string, { icon: React.ReactNode; label: string }> = {
   alert:            { icon: <Bell size={16} />,          label: 'تنبيه' },
   achievement:      { icon: <Trophy size={16} />,        label: 'إنجاز' },
   level_transition: { icon: <Target size={16} />,        label: 'انتقال مستوى' },
+  student_lag:      { icon: <AlertTriangle size={16} />, label: 'تأخر طالب' },
+  upcoming_exam:    { icon: <Target size={16} />,        label: 'اختبار قادم' },
+  missing_record:   { icon: <Bell size={16} />,          label: 'لم يسجّل' },
+  absence:          { icon: <AlertTriangle size={16} />, label: 'غياب متكرر' },
 }
 
 const FILTER_TABS = [
-  { key: 'all',       label: 'الكل' },
-  { key: 'unread',    label: 'غير مقروء' },
-  { key: 'escalation', label: 'تصعيدات' },
-  { key: 'report',    label: 'تقارير' },
-  { key: 'alert',     label: 'تنبيهات' },
+  { key: 'all',            label: 'الكل' },
+  { key: 'unread',         label: 'غير مقروء' },
+  { key: 'student_lag',    label: 'تأخر' },
+  { key: 'upcoming_exam',  label: 'اختبارات' },
+  { key: 'missing_record', label: 'لم يسجّل' },
+  { key: 'absence',        label: 'غياب' },
+  { key: 'escalation',     label: 'تصعيدات' },
 ]
 
 function timeAgo(iso: string): string {
