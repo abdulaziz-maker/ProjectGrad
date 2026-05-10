@@ -39,7 +39,7 @@ export default function TenantsPage() {
 
   // guard: super admin only — هذه إدارة بين الحلقات
   useEffect(() => {
-    if (profile && !profile.is_super_admin) router.replace('/dashboard')
+    if (profile && profile.role !== 'ceo') router.replace('/dashboard')
   }, [profile, router])
 
   // load
