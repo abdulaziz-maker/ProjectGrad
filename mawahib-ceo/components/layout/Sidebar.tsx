@@ -7,7 +7,7 @@ import {
   CalendarCheck, Star, MessageSquare, FileText,
   Wallet, Settings, X, Grid3x3,
   ClipboardCheck, ListChecks, LogOut, ShieldCheck, ChevronLeft, Bell,
-  ClipboardList, Target, BookHeart, CalendarDays, ShieldAlert,
+  ClipboardList, Target, BookHeart, CalendarDays, ShieldAlert, Building2,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { signOut } from '@/lib/auth'
@@ -47,11 +47,11 @@ const navItems: NavItem[] = [
   { href: '/followups',       icon: ClipboardList,   label: 'المتابعات',         badge: 0, roles: ['supervisor', 'teacher', 'ceo'] },
 
   // === نظام القرآن (سجلات الحفظ + التقدم + متابعات الجدولة) ===
-  { href: '/quran-system/daily-records',  icon: BookOpen,      label: 'سجلات الحفظ',   badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
-  { href: '/quran-system/batch-progress', icon: Target,        label: 'تقدم الحفظ',    badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
-  { href: '/followups/schedule',          icon: CalendarCheck, label: 'جدولة المتابعات', badge: 0, roles: ['batch_manager', 'ceo'] },
-  { href: '/followups/history',           icon: ClipboardList, label: 'سجل المتابعات',  badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
-  { href: '/followups/violations',        icon: ShieldAlert,   label: 'مخالفات المتابعة', badge: 0, roles: ['batch_manager', 'ceo'] },
+  { href: '/quran-system/daily-records',  icon: BookOpen,      label: 'سجلات الحفظ',     badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+  { href: '/quran-system/batch-progress', icon: Target,        label: 'تقدم الحفظ',      badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+  { href: '/followups/schedule',          icon: ClipboardList, label: 'جدول الأسبوع',     badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+  { href: '/followups/history',           icon: ClipboardList, label: 'أرشيف المتابعات', badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+  { href: '/followups/violations',        icon: ShieldAlert,   label: 'إخلالات المتابعة', badge: 0, roles: ['ceo', 'batch_manager'] },
 
   // === مشترك ===
   { href: '/batches',     icon: Grid3x3,         label: 'قاعدة البيانات',         badge: 0 },
@@ -76,7 +76,8 @@ const navItems: NavItem[] = [
   { href: '/reminders/saved', icon: BookHeart,   label: 'التذكيرات المحفوظة',    badge: 0 },
   { href: '/notifications',   icon: Bell,         label: 'الإشعارات',              badge: 0 },
   { href: '/budget',      icon: Wallet,          label: 'الميزانية والعهد',       badge: 0,  roles: ['ceo'] },
-  { href: '/admin/users', icon: ShieldCheck,     label: 'إدارة الحسابات',         badge: 0,  roles: ['ceo'] },
+  { href: '/admin/users',   icon: ShieldCheck,  label: 'إدارة الحسابات',         badge: 0,  roles: ['ceo'] },
+  { href: '/admin/tenants', icon: Building2,    label: 'إدارة الحلقات',          badge: 0,  roles: ['ceo'] },
   { href: '/settings',    icon: Settings,        label: 'الإعدادات',              badge: 0,  roles: ['ceo'] },
 ]
 
