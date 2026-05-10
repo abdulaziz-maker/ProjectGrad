@@ -4,26 +4,24 @@ import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { getStudents, getAllAttendance, saveAttendanceDay, DBStudent, DBAttendanceRecord } from '@/lib/db'
 import { toHijriDisplay, toGregorianDisplay, addDays, todayStr } from '@/lib/hijri'
-import { Loader2, Check, X, AlertCircle, CheckCheck } from 'lucide-react'
+import { Loader2, Check, X, AlertCircle, CheckCheck, Clock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import HijriDatePicker from '@/components/ui/HijriDatePicker'
 
-// ملاحظة: الحالات الآن ثلاث: حاضر (present) / غائب (absent) / غائب بعذر (excused).
-// البيانات القديمة المحفوظة باسم 'late' تُعرض كـ 'excused' (نفس اللون الأصفر)
-// وتُحوَّل تلقائياً عند إعادة الحفظ. راجع supabase-attendance-excused-migration.sql
-// لتحديث السجلات القديمة إلى 'excused' في قاعدة البيانات.
-type AttendanceStatus = 'present' | 'absent' | 'excused'
+// الحالات الأربع: حاضر / متأخر / غائب بعذر / غائب
+type AttendanceStatus = 'present' | 'late' | 'excused' | 'absent'
 type BatchId = '46' | '48'
 
 const STATUS_META: Record<AttendanceStatus, { label: string; bg: string; bgSoft: string; text: string; textSoft: string; icon: typeof Check }> = {
   present: { label: 'حاضر',      bg: '#6FA392', bgSoft: '#f0fdf4', text: '#ffffff', textSoft: '#2F6F56', icon: Check },
-  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', text: '#ffffff', textSoft: '#b91c1c', icon: X },
+  late:    { label: 'متأخر',     bg: '#C08A48', bgSoft: '#fef3e2', text: '#ffffff', textSoft: '#8B5A1E', icon: Clock },
   excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', text: '#ffffff', textSoft: '#854d0e', icon: AlertCircle },
+  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', text: '#ffffff', textSoft: '#b91c1c', icon: X },
 }
 
-// تطبيع الحالات القديمة ('late') إلى الحالة الجديدة ('excused')
+// تطبيع لكل القيم المعروفة (يحفظ التوافق مع البيانات القديمة)
 function normalizeStatus(s: string): AttendanceStatus {
-  if (s === 'late') return 'excused'
-  if (s === 'present' || s === 'absent' || s === 'excused') return s
+  if (s === 'present' || s === 'absent' || s === 'excused' || s === 'late') return s
   return 'absent'
 }
 
@@ -168,8 +166,7 @@ export default function AttendancePage() {
                   <button onClick={() => setDate(d => addDays(d, 1))}
                     className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xl leading-none" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}>‹</button>
                 </div>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20 text-center" style={{ color: 'var(--text-secondary)' }} />
+                <HijriDatePicker value={date} onChange={(d) => setDate(d)} compact />
               </div>
 
               <div className="card-static p-5 flex flex-col justify-between gap-4">
@@ -214,13 +211,17 @@ export default function AttendancePage() {
                   <span className="qm-icon"><CheckCheck className="w-3.5 h-3.5" /></span>
                   <span>تحضير الكل</span>
                 </button>
-                <button onClick={() => markAll('absent')} className="quick-mark-btn" data-kind="absent">
-                  <span className="qm-icon"><X className="w-3.5 h-3.5" /></span>
-                  <span>تغييب الكل</span>
+                <button onClick={() => markAll('late')} className="quick-mark-btn" data-kind="late">
+                  <span className="qm-icon"><Clock className="w-3.5 h-3.5" /></span>
+                  <span>متأخر للكل</span>
                 </button>
                 <button onClick={() => markAll('excused')} className="quick-mark-btn" data-kind="excused">
                   <span className="qm-icon"><AlertCircle className="w-3.5 h-3.5" /></span>
                   <span>غياب بعذر</span>
+                </button>
+                <button onClick={() => markAll('absent')} className="quick-mark-btn" data-kind="absent">
+                  <span className="qm-icon"><X className="w-3.5 h-3.5" /></span>
+                  <span>تغييب الكل</span>
                 </button>
               </div>
             </div>
@@ -308,7 +309,7 @@ export default function AttendancePage() {
                         aria-label={`حالة ${student.name}`}
                         className="attendance-segment shrink-0"
                       >
-                        {(['present', 'absent', 'excused'] as const).map(st => {
+                        {(['present', 'late', 'excused', 'absent'] as const).map(st => {
                           const meta = STATUS_META[st]
                           const active = status === st
                           const Icon = meta.icon

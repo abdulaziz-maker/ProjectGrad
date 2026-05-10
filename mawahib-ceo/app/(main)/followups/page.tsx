@@ -9,7 +9,7 @@ import {
   calculateExpectedPosition, getToday, PROGRAM_END_DATE,
   getStudentStatus, STATUS_LABELS, STATUS_COLORS, STATUS_BG,
   DELAY_REASONS, TREATMENT_ACTIONS,
-  getCompletedJuz, getUpcomingExamDays,
+  getCompletedJuz, getUpcomingExamDays, getThisWeekRange,
   type QuranPlan, type DailyFollowup, type BatchScheduleEntry,
 } from '@/lib/quran-followup'
 import { formatHijriWithDay } from '@/lib/hijri'
@@ -33,6 +33,8 @@ export default function FollowupsPage() {
   const [students, setStudents] = useState<DBStudent[]>([])
   const [plans, setPlans] = useState<QuranPlan[]>([])
   const [followups, setFollowups] = useState<DailyFollowup[]>([])
+  // متابعات الأسبوع كاملة — لاكتشاف "تمت المتابعة هذا الأسبوع"
+  const [weekFollowups, setWeekFollowups] = useState<DailyFollowup[]>([])
   const [schedule, setSchedule] = useState<BatchScheduleEntry[]>([])
   const [supervisorsList, setSupervisorsList] = useState<DBSupervisor[]>([])
   const [loading, setLoading] = useState(true)
@@ -91,6 +93,15 @@ export default function FollowupsPage() {
     if (loading) return
     getDailyFollowups({ dateFrom: selectedDate, dateTo: selectedDate }).then(setFollowups).catch(console.error)
   }, [selectedDate, loading])
+
+  // Load this-week followups for the weekly tracker (independent of selectedDate)
+  useEffect(() => {
+    if (loading) return
+    const wr = getThisWeekRange()
+    getDailyFollowups({ dateFrom: wr.start, dateTo: wr.end })
+      .then(setWeekFollowups)
+      .catch(console.error)
+  }, [loading, followups])  // إعادة تحميل كل ما تغيّرت متابعات اليوم لينعكس على الأسبوع
 
   // Build schedule map for algorithm
   const scheduleMap = useMemo(() => {
@@ -160,7 +171,38 @@ export default function FollowupsPage() {
     return m
   }, [followups])
 
+  // Weekly tracker: student_id → has at least one followup this week with actual_position set
+  // متابعة المشرف للطالب = مرة واحدة في الأسبوع تكفي إلا للمتعثرين
+  const weekFollowedSet = useMemo(() => {
+    const s = new Set<string>()
+    for (const f of weekFollowups) {
+      if (f.actual_position != null) s.add(f.student_id)
+    }
+    return s
+  }, [weekFollowups])
+
+  // أسوأ gap للطالب هذا الأسبوع (لاكتشاف المتعثرين)
+  const weekWorstGap = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const f of weekFollowups) {
+      if (f.gap == null) continue
+      const cur = m.get(f.student_id)
+      if (cur == null || f.gap < cur) m.set(f.student_id, f.gap)
+    }
+    return m
+  }, [weekFollowups])
+
+  const SEVERE_DELAY = 10
+  const isStudentSeverelyDelayed = useCallback((studentId: string): boolean => {
+    const g = weekWorstGap.get(studentId)
+    return g != null && g <= -SEVERE_DELAY
+  }, [weekWorstGap])
+
   // For each student, compute expected position and status
+  // فلتر: إخفاء الطلاب المتَابَعين هذا الأسبوع (افتراضياً مفعّل)
+  // المتعثّرون يبقون ظاهرين دائماً
+  const [hideWeeklyFollowed, setHideWeeklyFollowed] = useState(true)
+
   const studentData = useMemo(() => {
     return myStudents.map(student => {
       const plan = planMap.get(student.id)
@@ -183,11 +225,20 @@ export default function FollowupsPage() {
       const status = gap !== null ? getStudentStatus(gap) : 'no_followup'
 
       return { student, plan, expected, followup, gap, status, isExamDay, isFollowed }
-    }).sort((a, b) => {
+    })
+    // فلترة: لو مفعّل "إخفاء المُتابَعين هذا الأسبوع"، أخفِ من تمت متابعته
+    // (إلا إذا كان متعثّراً — يبقى ظاهراً)
+    .filter(({ student }) => {
+      if (!hideWeeklyFollowed) return true
+      const followedThisWeek = weekFollowedSet.has(student.id)
+      const severelyDelayed = isStudentSeverelyDelayed(student.id)
+      return !followedThisWeek || severelyDelayed
+    })
+    .sort((a, b) => {
       const order = { severe_delay: 0, slight_delay: 1, no_followup: 2, on_track: 3, no_plan: 4 }
       return (order[a.status] ?? 5) - (order[b.status] ?? 5)
     })
-  }, [myStudents, planMap, followupMap, selectedDate, scheduleMap])
+  }, [myStudents, planMap, followupMap, selectedDate, scheduleMap, hideWeeklyFollowed, weekFollowedSet, isStudentSeverelyDelayed])
 
   // Stats
   const stats = useMemo(() => ({
@@ -291,15 +342,38 @@ export default function FollowupsPage() {
     }
   }
 
-  // Save followup — step 1 saves actual/reviews, step 2 saves reasons/actions
+  // ⚙️ منطق المتابعة الأسبوعية (#1، #2، #3):
+  //   - المتابعة تُعتبر مكتملة عند تسجيل actual_position
+  //   - مرة واحدة في الأسبوع تكفي إلا للمتعثرين (gap >= -10 أوجه)
+  //   - عند التأخر، الأسباب والإجراءات إلزامية في step 2
+  //   - عند التعثّر الشديد، نقترح التصعيد لمدير الدفعة
+  const SEVERE_DELAY_THRESHOLD = 10  // أكثر من ١٠ أوجه = متعثر يحتاج متابعة دائمة
+
   async function saveFollowup(studentId: string, expectedPosition: number, isExamDay: boolean) {
     if (formActual === '') {
       toast.error('أدخل الوجه الفعلي')
       return
     }
-    setSaving(true)
     const actual = Number(formActual)
     const effectiveExpected = formExpectedOverride !== '' ? Number(formExpectedOverride) : expectedPosition
+    const gap = actual - effectiveExpected
+    const isBehind = actual < effectiveExpected
+
+    // ⚠️ في step 2 (التأخر) — إلزامية ≥1 سبب و ≥1 إجراء
+    if (followupStep === 2 && isBehind) {
+      const totalReasons = formReasons.length + (formCustomReason.trim() ? 1 : 0)
+      const totalActions = formActions.length + (formCustomAction.trim() ? 1 : 0)
+      if (totalReasons === 0) {
+        toast.error('اختر سبباً واحداً على الأقل لتأخر الطالب')
+        return
+      }
+      if (totalActions === 0) {
+        toast.error('اختر إجراءً علاجياً واحداً على الأقل')
+        return
+      }
+    }
+
+    setSaving(true)
     const allReasons = [...formReasons, ...(formCustomReason ? [formCustomReason] : [])]
     const allActions = [...formActions, ...(formCustomAction ? [formCustomAction] : [])]
 
@@ -324,12 +398,23 @@ export default function FollowupsPage() {
         return [...filtered, followup]
       })
 
-      // Step 1 → if behind, auto-transition to step 2
-      if (followupStep === 1 && actual < effectiveExpected) {
-        toast.success('تم الحفظ — حدد أسباب التأخر')
+      // Step 1 → إذا متأخر، انتقل لـstep 2 (إلزامي عند التأخر)
+      if (followupStep === 1 && isBehind) {
+        toast.success('تم الحفظ — لكن الطالب متأخر، يجب تحديد الأسباب والإجراءات')
         setFollowupStep(2)
       } else {
-        toast.success('تم حفظ المتابعة')
+        // اقتراح التصعيد للمتعثرين الشديدين
+        if (gap <= -SEVERE_DELAY_THRESHOLD) {
+          toast.success('تم حفظ المتابعة')
+          setTimeout(() => {
+            toast.warning(
+              `الطالب متعثّر (${Math.abs(gap)} وجه تأخر). يُنصح برفع تصعيد لمدير الدفعة من صفحة "الحالات الطلابية".`,
+              { duration: 8000 }
+            )
+          }, 600)
+        } else {
+          toast.success('تم حفظ المتابعة — تُعتبر متابعة هذا الأسبوع مكتملة')
+        }
         setExpandedStudent(null)
         setFollowupStep(1)
       }
@@ -435,6 +520,7 @@ export default function FollowupsPage() {
         }
         singleSupervisor={isSupervisor}
         alertsOnly
+        collapsible
       />
 
       {/* ── Header ── */}
@@ -452,7 +538,21 @@ export default function FollowupsPage() {
             {formatHijriWithDay(selectedDate)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* فلتر إخفاء المُتَابَعين هذا الأسبوع */}
+          <button
+            type="button"
+            onClick={() => setHideWeeklyFollowed(v => !v)}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition"
+            style={{
+              background: hideWeeklyFollowed ? 'rgba(90,143,103,0.10)' : 'var(--bg-card, #fff)',
+              borderColor: hideWeeklyFollowed ? 'rgba(90,143,103,0.40)' : 'var(--border-soft)',
+              color: hideWeeklyFollowed ? '#3F6E4B' : 'var(--text-muted)',
+            }}
+            title="إخفاء الطلاب الذين تمّت متابعتهم هذا الأسبوع (المتعثّرون يبقون ظاهرين)"
+          >
+            {hideWeeklyFollowed ? '✓ مُتَابَع الأسبوع مُخفي' : 'إظهار الكل'}
+          </button>
           <HijriDatePicker value={selectedDate} onChange={setSelectedDate} compact />
           {canViewSupervisors && (
             <Link
@@ -596,11 +696,30 @@ export default function FollowupsPage() {
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
                   {/* ✓ Followed checkmark */}
                   {isFollowed && (
                     <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  )}
+                  {/* مؤشر الأسبوع — تمت متابعته أو متعثر */}
+                  {weekFollowedSet.has(student.id) && !isStudentSeverelyDelayed(student.id) && (
+                    <span
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded inline-flex items-center gap-1"
+                      style={{ background: 'rgba(90,143,103,0.14)', color: '#3F6E4B', border: '1px solid rgba(90,143,103,0.30)' }}
+                      title="تمّت متابعة هذا الطالب هذا الأسبوع — لا متابعة مطلوبة قبل الأسبوع القادم"
+                    >
+                      ✓ تمّت متابعته الأسبوع
+                    </span>
+                  )}
+                  {isStudentSeverelyDelayed(student.id) && (
+                    <span
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded inline-flex items-center gap-1"
+                      style={{ background: 'rgba(185,72,56,0.14)', color: '#8B2F23', border: '1px solid rgba(185,72,56,0.30)' }}
+                      title={`متعثّر بأكثر من ${SEVERE_DELAY} أوجه — متابعة مستمرّة مطلوبة`}
+                    >
+                      ⚠️ متعثّر — متابعة مستمرّة
+                    </span>
                   )}
                 </div>
                 <div className="flex items-center gap-3 text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>

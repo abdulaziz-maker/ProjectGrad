@@ -79,6 +79,7 @@ export interface DBExam {
 export interface DBTask {
   id: string; category: string; title: string; description: string
   recurrence: string; due_date: string | null; completed_dates: string[]; priority: string
+  user_id?: string | null
 }
 
 export interface DBFollowup {
@@ -142,10 +143,33 @@ export async function upsertStudent(s: DBStudent): Promise<void> {
   invalidateCache(CACHE_KEYS.STUDENTS)
 }
 
+/**
+ * حذف كامل للطالب مع تنظيف جميع البيانات المرتبطة.
+ *
+ * - الجداول المربوطة بـFK CASCADE تُمسح تلقائياً (escalations, student_cases,
+ *   student_case_weekly_reviews, matn_progress, recitations, weekly_plans،
+ *   report_subject_exclusions, performance_entries, student_text_progress).
+ * - الجداول القديمة بدون FK تحتاج حذفًا يدويًا قبل حذف صف الطالب.
+ *
+ * ⚠️ غير قابلة للتراجع — الواجهة يجب أن تطلب تأكيداً صريحاً.
+ */
 export async function deleteStudent(id: string): Promise<void> {
+  // 1) حذف يدوي من الجداول القديمة بلا FK
+  const tablesNoFk = [
+    'attendance', 'daily_followups', 'juz_progress',
+    'quran_plans', 'exams', 'exam_candidates', 'followups',
+  ] as const
+  for (const t of tablesNoFk) {
+    const { error } = await supabase.from(t).delete().eq('student_id', id)
+    if (error) throw new Error(`فشل التنظيف في ${t}: ${error.message}`)
+  }
+  // 2) حذف صف الطالب (CASCADE يتولّى البقية)
   const { error } = await supabase.from('students').delete().eq('id', id)
   if (error) throw error
+  // 3) إبطال كل الكاش — كثير من الصفحات تعتمد على بيانات الطالب
   invalidateCache(CACHE_KEYS.STUDENTS)
+  invalidateCache(CACHE_KEYS.JUZ_PROGRESS)
+  invalidateCache(CACHE_KEYS.ATTENDANCE_ALL)
 }
 
 // Juz Progress
@@ -438,7 +462,7 @@ export async function getProgramAttendance(programId: string): Promise<DBProgram
 
 export async function saveProgramAttendance(
   programId: string,
-  records: Record<string, 'present' | 'absent' | 'excused'>,
+  records: Record<string, 'present' | 'late' | 'excused' | 'absent'>,
 ): Promise<void> {
   await supabase.from('program_attendance').delete().eq('program_id', programId)
   const rows = Object.entries(records).map(([student_id, status]) => ({
@@ -490,14 +514,19 @@ export async function saveSupervisorAttendanceDay(
   if (error) throw error
 }
 
-// CEO Tasks
+// User Tasks (multi-user task list — RLS يفلتر حسب user_id)
 export async function getTasks(): Promise<DBTask[]> {
-  const { data, error } = await supabase.from('ceo_tasks').select('id,category,title,description,recurrence,due_date,completed_dates,priority')
+  const { data, error } = await supabase.from('ceo_tasks').select('id,category,title,description,recurrence,due_date,completed_dates,priority,user_id')
   if (error) throw error
   return data as DBTask[]
 }
 
 export async function upsertTask(task: DBTask): Promise<void> {
+  // التأكد من user_id موجود (RLS يرفض عند غيابه)
+  if (!task.user_id) {
+    const { data: { user } } = await supabase.auth.getUser()
+    task = { ...task, user_id: user?.id ?? null }
+  }
   const { error } = await supabase.from('ceo_tasks').upsert(task)
   if (error) throw error
 }
@@ -508,7 +537,9 @@ export async function deleteTask(id: string): Promise<void> {
 }
 
 export async function saveTasks(tasks: DBTask[]): Promise<void> {
-  const { error } = await supabase.from('ceo_tasks').upsert(tasks)
+  const { data: { user } } = await supabase.auth.getUser()
+  const withUser = tasks.map(t => ({ ...t, user_id: t.user_id ?? user?.id ?? null }))
+  const { error } = await supabase.from('ceo_tasks').upsert(withUser)
   if (error) throw error
 }
 

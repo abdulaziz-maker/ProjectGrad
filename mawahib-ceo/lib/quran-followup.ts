@@ -114,14 +114,26 @@ export function formatDateShort(dateStr: string): string {
 export const PROGRAM_END_DATE = '2026-05-21'
 
 // ─── Date Helpers ───────────────────────────────
+/**
+ * Format Date as YYYY-MM-DD using LOCAL components.
+ * ⚠️ Never use toISOString() — it returns UTC and gives YESTERDAY in
+ * positive timezones (Saudi Arabia is UTC+3, so local midnight = previous-day UTC).
+ */
+function localDateIso(d: Date): string {
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 export function getToday(): string {
-  return new Date().toISOString().split('T')[0]
+  return localDateIso(new Date())
 }
 
 export function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T12:00:00')
   d.setDate(d.getDate() + days)
-  return d.toISOString().split('T')[0]
+  return localDateIso(d)
 }
 
 export function getThisWeekRange(): { start: string; end: string } {
@@ -132,8 +144,8 @@ export function getThisWeekRange(): { start: string; end: string } {
   const thu = new Date(sun)
   thu.setDate(sun.getDate() + 4)
   return {
-    start: sun.toISOString().split('T')[0],
-    end: thu.toISOString().split('T')[0],
+    start: localDateIso(sun),
+    end: localDateIso(thu),
   }
 }
 
@@ -143,7 +155,7 @@ export function dateRange(startDate: string, endDate: string): string[] {
   const current = new Date(startDate + 'T12:00:00')
   const end = new Date(endDate + 'T12:00:00')
   while (current <= end) {
-    dates.push(current.toISOString().split('T')[0])
+    dates.push(localDateIso(current))
     current.setDate(current.getDate() + 1)
   }
   return dates
@@ -179,7 +191,7 @@ export function calculateExpectedPosition(
   const current = new Date(start)
 
   while (current <= target) {
-    const dateStr = current.toISOString().split('T')[0]
+    const dateStr = localDateIso(current)
     const dow = current.getDay()
 
     // Hard stop: after program end date, no more memorization

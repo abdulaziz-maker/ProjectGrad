@@ -8,14 +8,18 @@ import {
 } from '@/lib/db'
 import { toHijriShort } from '@/lib/hijri'
 import { toast } from 'sonner'
-import { Loader2, CheckCheck, Check, X, AlertCircle, Users as UsersIcon } from 'lucide-react'
+import { Loader2, CheckCheck, Check, X, AlertCircle, Users as UsersIcon, CalendarDays, Clock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import HijriDatePicker from '@/components/ui/HijriDatePicker'
+import Link from 'next/link'
+import { TIMELINE_ENABLED } from '@/lib/timeline/flag'
 
-type ProgAttStatus = 'present' | 'absent' | 'excused'
+type ProgAttStatus = 'present' | 'late' | 'excused' | 'absent'
 const PROG_ATT_META: Record<ProgAttStatus, { label: string; bg: string; bgSoft: string; textSoft: string; icon: typeof Check }> = {
   present: { label: 'حاضر',      bg: '#6FA392', bgSoft: '#f0fdf4', textSoft: '#2F6F56', icon: Check },
-  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', textSoft: '#b91c1c', icon: X },
+  late:    { label: 'متأخر',     bg: '#C08A48', bgSoft: '#fef3e2', textSoft: '#8B5A1E', icon: Clock },
   excused: { label: 'غائب بعذر', bg: '#eab308', bgSoft: '#fefce8', textSoft: '#854d0e', icon: AlertCircle },
+  absent:  { label: 'غائب',      bg: '#B94838', bgSoft: '#fef2f2', textSoft: '#b91c1c', icon: X },
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -222,16 +226,34 @@ export default function ProgramsPage() {
   return (
     <div dir="rtl" className="min-h-screen p-6">
       <div className="max-w-5xl mx-auto space-y-6 animate-fade-in-up">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>البرامج والرحلات</h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>إدارة جميع البرامج والأنشطة التربوية</p>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              {profile?.role === 'ceo' || profile?.role === 'records_officer' ? 'برامج الدفع' : 'برامج دفعتي'}
+            </h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>إدارة البرامج والأنشطة التربوية</p>
           </div>
-          <button onClick={() => { setShowForm(!showForm); setEditId(null) }}
-            className="btn-primary btn-ripple flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90">
-            <span className="text-lg leading-none">{showForm ? '✕' : '+'}</span>
-            {showForm ? 'إلغاء' : 'إضافة برنامج'}
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {TIMELINE_ENABLED && (profile?.role === 'ceo' || profile?.role === 'batch_manager' || profile?.role === 'records_officer') && (
+              <Link
+                href="/timeline"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition"
+                style={{
+                  background: 'rgba(53,107,110,0.10)',
+                  color: '#235052',
+                  border: '1px solid rgba(53,107,110,0.32)',
+                }}
+              >
+                <CalendarDays className="w-4 h-4" />
+                الخطة الزمنية للسنة
+              </Link>
+            )}
+            <button onClick={() => { setShowForm(!showForm); setEditId(null) }}
+              className="btn-primary btn-ripple flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90">
+              <span className="text-lg leading-none">{showForm ? '✕' : '+'}</span>
+              {showForm ? 'إلغاء' : 'إضافة برنامج'}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-4 stagger-children">
@@ -283,13 +305,11 @@ export default function ProgramsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>تاريخ البداية *</label>
-                <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                <HijriDatePicker value={form.start_date} onChange={(d) => setForm({ ...form, start_date: d })} compact />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>تاريخ النهاية *</label>
-                <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                <HijriDatePicker value={form.end_date} onChange={(d) => setForm({ ...form, end_date: d })} compact />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>الميزانية (ريال)</label>
@@ -360,13 +380,11 @@ export default function ProgramsPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>تاريخ البداية</label>
-                      <input type="date" value={editForm.start_date} onChange={e => setEditForm({ ...editForm, start_date: e.target.value })}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                      <HijriDatePicker value={editForm.start_date} onChange={(d) => setEditForm({ ...editForm, start_date: d })} compact />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>تاريخ النهاية</label>
-                      <input type="date" value={editForm.end_date} onChange={e => setEditForm({ ...editForm, end_date: e.target.value })}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-200" />
+                      <HijriDatePicker value={editForm.end_date} onChange={(d) => setEditForm({ ...editForm, end_date: d })} compact />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>الميزانية</label>
@@ -549,11 +567,14 @@ export default function ProgramsPage() {
                     <button onClick={() => markAllProgAtt('present', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="present">
                       <span className="qm-icon"><CheckCheck className="w-3 h-3" /></span><span>تحضير</span>
                     </button>
-                    <button onClick={() => markAllProgAtt('absent', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="absent">
-                      <span className="qm-icon"><X className="w-3 h-3" /></span><span>تغييب</span>
+                    <button onClick={() => markAllProgAtt('late', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="late">
+                      <span className="qm-icon"><Clock className="w-3 h-3" /></span><span>متأخر</span>
                     </button>
                     <button onClick={() => markAllProgAtt('excused', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="excused">
                       <span className="qm-icon"><AlertCircle className="w-3 h-3" /></span><span>بعذر</span>
+                    </button>
+                    <button onClick={() => markAllProgAtt('absent', studIds)} className="quick-mark-btn quick-mark-btn--sm" data-kind="absent">
+                      <span className="qm-icon"><X className="w-3 h-3" /></span><span>تغييب</span>
                     </button>
                   </div>
                 </div>
@@ -609,7 +630,7 @@ export default function ProgramsPage() {
                                 </p>
                               </div>
                               <div role="radiogroup" aria-label={`حالة ${student.name}`} className="attendance-segment shrink-0">
-                                {(['present','absent','excused'] as const).map(s => {
+                                {(['present','late','excused','absent'] as const).map(s => {
                                   const meta = PROG_ATT_META[s]
                                   const active = st === s
                                   const Icon = meta.icon

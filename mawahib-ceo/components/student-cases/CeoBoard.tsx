@@ -30,6 +30,7 @@ import {
 } from '@/lib/student-cases/format'
 import type { UserProfile } from '@/lib/auth'
 import CloseCaseModal from '@/components/student-cases/CloseCaseModal'
+import CaseStageStepper from '@/components/student-cases/CaseStageStepper'
 
 interface Props {
   profile: UserProfile
@@ -169,11 +170,23 @@ export default function CeoBoard({ profile, readOnly }: Props) {
               عرض شامل لكل الحالات النشطة عبر جميع الدفعات. الحالات عند مكتبك مُظلَّلة أعلى الصفحة.
             </p>
           </div>
-          {readOnly && (
-            <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs border border-slate-200 inline-flex items-center gap-1">
-              <Lock className="size-3.5" /> للعرض فقط
-            </span>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href="/student-cases/timeline"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl"
+              style={{
+                background: 'rgba(192,138,72,0.14)', color: '#8B5A1E',
+                border: '1px solid rgba(192,138,72,0.30)',
+              }}
+            >
+              🕐 متابعة التصعيدات
+            </Link>
+            {readOnly && (
+              <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs border border-slate-200 inline-flex items-center gap-1">
+                <Lock className="size-3.5" /> للعرض فقط
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="mt-5 grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
@@ -387,45 +400,56 @@ function CeoSpotlightRow({
   onClose: () => void
 }) {
   return (
-    <li className="rounded-xl bg-white/90 border border-rose-100 p-3 flex flex-wrap items-center gap-3">
-      <AlertTriangle className="size-4 text-rose-500 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link href={`/student-cases/${c.id}`} className="font-bold text-sm hover:underline" style={{ color: 'var(--text-primary)' }}>
-            {c.student_name}
-          </Link>
-          <span className="text-[11px] text-[var(--text-muted)]">· {c.batch_name ?? `دفعة ${c.batch_id}`}</span>
-          <span className="text-[11px] text-rose-700 inline-flex items-center gap-1">
-            <Clock className="size-3" />
-            {timeAgoArabic(c.stage_entered_at)}
-          </span>
+    <li className="rounded-xl bg-white/90 border border-rose-100 p-3 space-y-3">
+      <div className="flex flex-wrap items-start gap-3">
+        <AlertTriangle className="size-4 text-rose-500 shrink-0 mt-1" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link href={`/student-cases/${c.id}`} className="font-bold text-sm hover:underline" style={{ color: 'var(--text-primary)' }}>
+              {c.student_name}
+            </Link>
+            <span className="text-[11px] text-[var(--text-muted)]">· {c.batch_name ?? `دفعة ${c.batch_id}`}</span>
+            <span className="text-[11px] text-rose-700 inline-flex items-center gap-1">
+              <Clock className="size-3" />
+              {timeAgoArabic(c.stage_entered_at)}
+            </span>
+          </div>
+          <p className="text-xs text-[var(--text-muted)] mt-1 line-clamp-1">{c.trigger_reason}</p>
         </div>
-        <p className="text-xs text-[var(--text-muted)] mt-1 line-clamp-1">{c.trigger_reason}</p>
+        {!readOnly && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={onDemote}
+              className="px-2.5 py-1.5 rounded-lg border border-[var(--border-card)] text-xs text-amber-700 hover:bg-amber-50"
+            >
+              إعادة لمدير الدفعة
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
+            >
+              إغلاق
+            </button>
+          </div>
+        )}
+        <Link
+          href={`/student-cases/${c.id}`}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[var(--border-card)] text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)] shrink-0"
+        >
+          <ExternalLink className="size-3.5" /> التفاصيل
+        </Link>
       </div>
-      {!readOnly && (
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={onDemote}
-            className="px-2.5 py-1.5 rounded-lg border border-[var(--border-card)] text-xs text-amber-700 hover:bg-amber-50"
-          >
-            إعادة لمدير الدفعة
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
-          >
-            إغلاق
-          </button>
-        </div>
-      )}
-      <Link
-        href={`/student-cases/${c.id}`}
-        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[var(--border-card)] text-xs text-[var(--text-muted)] hover:bg-[var(--bg-hover)] shrink-0"
-      >
-        <ExternalLink className="size-3.5" /> التفاصيل
-      </Link>
+
+      {/* مسار التصعيد المصوّر — يظهر داخل البطاقة مباشرة */}
+      <CaseStageStepper
+        currentStage={c.current_stage}
+        status={c.status}
+        startedAt={c.started_at}
+        transitions={[]}
+        closedAt={c.closed_at}
+      />
     </li>
   )
 }

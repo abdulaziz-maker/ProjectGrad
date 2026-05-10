@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { getStudents, getSupervisors, upsertStudent, getJuzProgress, DBStudent, DBSupervisor } from '@/lib/db'
+import { getStudents, getSupervisors, upsertStudent, deleteStudent, getJuzProgress, DBStudent, DBSupervisor } from '@/lib/db'
 import { toHijriDisplay } from '@/lib/hijri'
 import { toast } from 'sonner'
-import { Loader2, Download } from 'lucide-react'
+import { Loader2, Download, Trash2, AlertTriangle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import * as XLSX from 'xlsx'
+import HijriDatePicker from '@/components/ui/HijriDatePicker'
 
 const BATCH_OPTIONS = [46, 48, 44, 42] as const
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 0] as const // 0 = عرض الكل
@@ -65,6 +66,34 @@ export default function StudentsPage() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [formErrors, setFormErrors] = useState<{ national_id?: string; parent_phone?: string }>({})
+  // ─── حذف طالب ───
+  const [deleteTarget, setDeleteTarget] = useState<DBStudent | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
+  // الـCEO فقط يحذف (الحماية الإضافية في RLS — نحن نخفي الزر هنا للأمان)
+  const canDelete = profile?.role === 'ceo'
+
+  const handleDeleteConfirmed = async () => {
+    if (!deleteTarget) return
+    if (deleteConfirmText.trim() !== deleteTarget.name) {
+      toast.error('الاسم المُدخَل لا يطابق اسم الطالب')
+      return
+    }
+    setDeleting(true)
+    try {
+      await deleteStudent(deleteTarget.id)
+      toast.success(`تم حذف ${deleteTarget.name} وكل بياناته المرتبطة`)
+      setStudents(prev => prev.filter(s => s.id !== deleteTarget.id))
+      setDeleteTarget(null)
+      setDeleteConfirmText('')
+    } catch (err) {
+      console.error(err)
+      toast.error(err instanceof Error ? err.message : 'تعذّر الحذف')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -270,8 +299,12 @@ export default function StudentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>الطلاب</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>إدارة ومتابعة جميع الطلاب</p>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            {role === 'ceo' || role === 'records_officer' ? 'طلاب الدفع' : 'طلاب دفعتي'}
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {role === 'ceo' || role === 'records_officer' ? 'إدارة جميع طلاب البرنامج' : 'إدارة طلاب دفعتك'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -435,6 +468,21 @@ export default function StudentsPage() {
                         >
                           تعديل
                         </button>
+                        {canDelete && (
+                          <button
+                            onClick={() => { setDeleteTarget(s); setDeleteConfirmText('') }}
+                            className="text-xs px-2.5 py-1 rounded-full font-semibold inline-flex items-center gap-1"
+                            style={{
+                              background: 'rgba(185,72,56,0.10)',
+                              color: '#B94838',
+                              border: '1px solid rgba(185,72,56,0.30)',
+                            }}
+                            title="حذف الطالب نهائياً"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            حذف
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -550,12 +598,7 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>تاريخ الالتحاق</label>
-                <input
-                  type="date"
-                  value={form.enrollment_date}
-                  onChange={e => setForm(f => ({ ...f, enrollment_date: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20"
-                />
+                <HijriDatePicker value={form.enrollment_date} onChange={(d) => setForm(f => ({ ...f, enrollment_date: d }))} compact />
                 {hijriDate && (
                   <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{hijriDate}</p>
                 )}
@@ -583,12 +626,7 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>تاريخ الميلاد</label>
-                <input
-                  type="date"
-                  value={form.birth_date}
-                  onChange={e => setForm(f => ({ ...f, birth_date: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C08A48]/20"
-                />
+                <HijriDatePicker value={form.birth_date} onChange={(d) => setForm(f => ({ ...f, birth_date: d }))} compact />
                 {form.birth_date && (
                   <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{toHijriDisplay(form.birth_date)}</p>
                 )}
@@ -651,6 +689,96 @@ export default function StudentsPage() {
               >
                 إلغاء
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── modal تأكيد حذف الطالب ── */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
+          <div
+            className="card-static max-w-md w-full p-0 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* رأس بلون التحذير */}
+            <div
+              className="px-5 py-4"
+              style={{ background: 'linear-gradient(135deg, #B94838, #8B2F23)', color: '#fff' }}
+            >
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                <h2 className="font-bold text-base" style={{ fontFamily: 'var(--font-noto-kufi), serif' }}>
+                  تأكيد حذف نهائي
+                </h2>
+              </div>
+              <p className="text-[12px] mt-1.5" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                هذا الإجراء غير قابل للتراجع.
+              </p>
+            </div>
+
+            <div className="p-5 space-y-3">
+              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                سيتم حذف الطالب{' '}
+                <strong style={{ color: '#B94838' }}>{deleteTarget.name}</strong>
+                {' '}مع <strong>كل بياناته المرتبطة</strong>:
+              </p>
+              <ul className="text-[12px] space-y-1 pr-4" style={{ color: 'var(--text-muted)' }}>
+                <li>• سجل الحضور والغياب</li>
+                <li>• المتابعات اليومية والخطط الزمنية</li>
+                <li>• تقدّم الأجزاء والمتون</li>
+                <li>• الاختبارات السابقة والقادمة</li>
+                <li>• حالات التصعيد والمراجعات الأسبوعية</li>
+                <li>• تقييمات الأداء</li>
+              </ul>
+
+              <div className="rounded-xl p-3" style={{ background: 'rgba(185,72,56,0.06)', border: '1px solid rgba(185,72,56,0.25)' }}>
+                <label className="block text-[11.5px] font-semibold mb-1.5" style={{ color: '#8B2F23' }}>
+                  للتأكيد، اكتب اسم الطالب كاملاً:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder={deleteTarget.name}
+                  className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                  style={{
+                    background: 'var(--bg-card, #fff)',
+                    border: `1.5px solid ${deleteConfirmText === deleteTarget.name ? '#B94838' : 'var(--border-soft)'}`,
+                    color: 'var(--text-primary)',
+                  }}
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t" style={{ borderColor: 'var(--border-soft)' }}>
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={deleting}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold"
+                  style={{ border: '1px solid var(--border-soft)', color: 'var(--text-muted)' }}
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteConfirmed}
+                  disabled={deleting || deleteConfirmText.trim() !== deleteTarget.name}
+                  className="px-5 py-2 rounded-xl text-sm font-bold text-white inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    background: 'linear-gradient(135deg, #B94838, #8B2F23)',
+                    boxShadow: '0 2px 10px rgba(185,72,56,0.30)',
+                  }}
+                >
+                  {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {deleting ? 'جارٍ الحذف…' : 'حذف نهائياً'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

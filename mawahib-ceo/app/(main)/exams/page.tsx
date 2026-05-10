@@ -5,9 +5,21 @@ import { CalendarCheck, Plus, Check, X, ChevronLeft, ChevronRight, AlertTriangle
 import { toast } from 'sonner'
 import { getBatchName } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import HijriDatePicker from '@/components/ui/HijriDatePicker'
 
 const DAYS_AR = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
 const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
+
+/**
+ * تنسيق تاريخ كـ YYYY-MM-DD باستخدام المكوّنات المحلية.
+ * ⚠️ لا تستخدم toISOString() لأنها تُرجع UTC وقد تعطي يوم أمس في الـtimezones الموجبة.
+ */
+function localDateIso(d: Date): string {
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
 
 /** إرجاع أيام أسبوع محدَّد بالإزاحة (0 = الأسبوع الحالي، -1 السابق، 1 التالي). */
 function getWeekDates(weekOffset: number = 0): string[] {
@@ -18,23 +30,20 @@ function getWeekDates(weekOffset: number = 0): string[] {
   for (let i = 0; i < 7; i++) {
     const d = new Date(base)
     d.setDate(base.getDate() - day + i + (weekOffset * 7))
-    week.push(d.toISOString().split('T')[0])
+    week.push(localDateIso(d))
   }
   return week
 }
 
-/** تاريخ اليوم بصيغة ISO (YYYY-MM-DD). */
+/** تاريخ اليوم بصيغة YYYY-MM-DD محلياً. */
 function todayIso(): string {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d.toISOString().split('T')[0]
+  return localDateIso(new Date())
 }
 
 function tomorrowIso(): string {
   const d = new Date()
-  d.setHours(0, 0, 0, 0)
   d.setDate(d.getDate() + 1)
-  return d.toISOString().split('T')[0]
+  return localDateIso(d)
 }
 
 function formatDateAr(dateStr: string): string {
@@ -574,23 +583,11 @@ export default function ExamsPage() {
                           </div>
                           <div>
                             <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>تاريخ النشر</label>
-                            <input
-                              type="date"
-                              value={candidateEditForm.postedDate}
-                              onChange={e => setCandidateEditForm({ ...candidateEditForm, postedDate: e.target.value })}
-                              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none"
-                              style={{ background: '#fff', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
-                            />
+                            <HijriDatePicker value={candidateEditForm.postedDate} onChange={(d) => setCandidateEditForm({ ...candidateEditForm, postedDate: d })} compact />
                           </div>
                           <div>
                             <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>التاريخ المتوقَّع</label>
-                            <input
-                              type="date"
-                              value={candidateEditForm.expectedDate}
-                              onChange={e => setCandidateEditForm({ ...candidateEditForm, expectedDate: e.target.value })}
-                              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none"
-                              style={{ background: '#fff', border: '1px solid rgba(192,138,72,0.30)', color: '#3a2412' }}
-                            />
+                            <HijriDatePicker value={candidateEditForm.expectedDate} onChange={(d) => setCandidateEditForm({ ...candidateEditForm, expectedDate: d })} compact />
                           </div>
                           <div>
                             <label className="text-[10px] font-semibold block mb-0.5" style={{ color: '#7A4E1E' }}>ملاحظات</label>
@@ -681,21 +678,11 @@ export default function ExamsPage() {
             </div>
             <div>
               <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>تاريخ النشر *</label>
-              <input
-                type="date"
-                value={candidateForm.postedDate}
-                onChange={e => setCandidateForm({ ...candidateForm, postedDate: e.target.value })}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
-              />
+              <HijriDatePicker value={candidateForm.postedDate} onChange={(d) => setCandidateForm({ ...candidateForm, postedDate: d })} compact />
             </div>
             <div>
               <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>التاريخ المتوقَّع للاختبار</label>
-              <input
-                type="date"
-                value={candidateForm.expectedDate}
-                onChange={e => setCandidateForm({ ...candidateForm, expectedDate: e.target.value })}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-amber-400"
-              />
+              <HijriDatePicker value={candidateForm.expectedDate} onChange={(d) => setCandidateForm({ ...candidateForm, expectedDate: d })} compact />
             </div>
             <div className="col-span-2 md:col-span-3">
               <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>ملاحظات</label>
@@ -797,12 +784,7 @@ export default function ExamsPage() {
             </div>
             <div>
               <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>التاريخ *</label>
-              <input
-                type="date"
-                value={form.date}
-                onChange={e => setForm({ ...form, date: e.target.value })}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-green-400"
-              />
+              <HijriDatePicker value={form.date} onChange={(d) => setForm({ ...form, date: d })} compact />
             </div>
             <div>
               <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>الوقت *</label>
@@ -1082,13 +1064,7 @@ export default function ExamsPage() {
                         </div>
                         <div>
                           <label className="text-[11px] font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>التاريخ</label>
-                          <input
-                            type="date"
-                            value={editForm.date}
-                            onChange={e => setEditForm({ ...editForm, date: e.target.value })}
-                            className="w-full px-2.5 py-2 text-sm rounded-lg outline-none"
-                            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
-                          />
+                          <HijriDatePicker value={editForm.date} onChange={(d) => setEditForm({ ...editForm, date: d })} compact />
                         </div>
                         <div>
                           <label className="text-[11px] font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>الوقت</label>
@@ -1284,11 +1260,32 @@ export default function ExamsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5 font-mono" style={{ color: 'var(--text-secondary)' }}>
-                    {exam.remaining_pages != null ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold" style={{ background: 'rgba(53,107,110,0.10)', color: '#235052', border: '1px solid rgba(53,107,110,0.30)' }}>
-                        {exam.remaining_pages} وجه
-                      </span>
-                    ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    {(() => {
+                      // إذا تم إدخال الأوجه يدوياً → اعرضها
+                      if (exam.remaining_pages != null) {
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold" style={{ background: 'rgba(53,107,110,0.10)', color: '#235052', border: '1px solid rgba(53,107,110,0.30)' }}>
+                            {exam.remaining_pages} وجه
+                          </span>
+                        )
+                      }
+                      // وإلا احسب تلقائياً من تقدم الطالب: (30 - juz_completed) * ~20 صفحة/جزء
+                      // الهدف: ما تبقى للطالب من إجمالي القرآن (604 وجه)
+                      const stu = students.find(s => s.id === exam.student_id)
+                      if (stu) {
+                        const computed = Math.max(0, 604 - (stu.juz_completed ?? 0) * 20)
+                        return (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs"
+                            title="محسوب تلقائياً من تقدم الطالب — يمكن تعديله يدوياً"
+                            style={{ background: 'rgba(192,138,72,0.08)', color: '#7A4E1E', border: '1px dashed rgba(192,138,72,0.30)' }}
+                          >
+                            ~{computed} وجه
+                          </span>
+                        )
+                      }
+                      return <span style={{ color: 'var(--text-muted)' }}>—</span>
+                    })()}
                   </td>
                   <td className="px-4 py-2.5" style={{ color: 'var(--text-secondary)' }}>{exam.examiner}</td>
                   <td className="px-4 py-2.5" style={{ color: 'var(--text-secondary)' }}>{formatDateAr(exam.date)}</td>

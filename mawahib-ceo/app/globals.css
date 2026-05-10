@@ -753,6 +753,13 @@ textarea:focus {
   50%      { transform: translateY(-6px); }
 }
 
+/* نبضة ناعمة للـCaseStageStepper (المرحلة الحالية) */
+@keyframes pulse-soft {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.06); opacity: 0.92; }
+}
+.animate-pulse-soft { animation: pulse-soft 2.2s ease-in-out infinite; }
+
 .loader-text {
   background: linear-gradient(90deg, var(--brand-from) 0%, var(--accent-warm) 30%, var(--accent-teal) 50%, var(--accent-warm) 70%, var(--brand-from) 100%);
   background-size: 200% auto;
@@ -821,6 +828,23 @@ a[href]:not(.card):not(.btn-primary):not(.btn-accent):not(.btn-ghost):not(.btn-d
 @media print {
   .no-print { display: none !important; }
   body { background: white; color: black; }
+
+  /* تقرير الأداء — تكبير المحتوى للورقة */
+  #perf-print-root { font-size: 9px; }
+  #perf-print-root table { width: 100% !important; page-break-inside: avoid; }
+  #perf-print-root th, #perf-print-root td {
+    padding: 1px 2px !important;
+    font-size: 9px !important;
+    /* أجبر طباعة الألوان */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #perf-print-root .sticky { position: static !important; }
+
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
 }
 
 /* ============================================================
@@ -1298,8 +1322,9 @@ a[href]:not(.card):not(.btn-primary):not(.btn-accent):not(.btn-ghost):not(.btn-d
 }
 
 .quick-mark-btn[data-kind="present"] { --qm-bg: #2E8B57; }
+.quick-mark-btn[data-kind="late"]    { --qm-bg: #C08A48; }
+.quick-mark-btn[data-kind="excused"] { --qm-bg: #eab308; }
 .quick-mark-btn[data-kind="absent"]  { --qm-bg: #B94838; }
-.quick-mark-btn[data-kind="excused"] { --qm-bg: #C08A48; }
 
 .quick-mark-btn:hover {
   transform: translateY(-2px);

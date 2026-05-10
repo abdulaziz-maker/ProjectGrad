@@ -36,7 +36,7 @@ import type {
   WeeklyReview,
 } from '@/lib/student-cases/types'
 import {
-  STAGE_LABEL, STAGE_SHORT_LABEL, STAGE_COLOR, STAGE_ORDER,
+  STAGE_SHORT_LABEL, STAGE_COLOR,
   CASE_STATUS_LABEL, CASE_STATUS_COLOR,
   TRANSITION_LABEL,
   ACTION_LABEL,
@@ -44,6 +44,7 @@ import {
   timeAgoArabic,
 } from '@/lib/student-cases/format'
 import CloseCaseModal from '@/components/student-cases/CloseCaseModal'
+import CaseStageStepper from '@/components/student-cases/CaseStageStepper'
 
 export default function CaseDetailPage({
   params,
@@ -288,8 +289,38 @@ export default function CaseDetailPage({
           </div>
         </div>
 
-        {/* Stage progress bar */}
-        <StageProgress stage={caseData.current_stage} />
+        {/* Hungerstation-style stage stepper */}
+        <div className="mt-5">
+          <CaseStageStepper
+            currentStage={caseData.current_stage}
+            status={caseData.status}
+            startedAt={caseData.started_at}
+            transitions={caseData.transitions}
+            actions={caseData.actions}
+            closedAt={caseData.closed_at}
+          />
+        </div>
+
+        {/* الخطة العلاجية الأولية — تظهر بصرياً بارزة لمدير الدفعة والمدير التنفيذي */}
+        {caseData.initial_remedial_plan && (
+          <div
+            className="mt-5 rounded-xl p-4"
+            style={{
+              background: 'linear-gradient(135deg, rgba(192,138,72,0.08), rgba(192,138,72,0.02))',
+              border: '1px solid rgba(192,138,72,0.30)',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <ClipboardEdit className="size-4" style={{ color: 'var(--accent-warm)' }} />
+              <h3 className="font-bold text-sm" style={{ color: '#7A4E1E' }}>
+                الخطة العلاجية الأولية — وثّقها المشرف قبل التصعيد
+              </h3>
+            </div>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>
+              {caseData.initial_remedial_plan}
+            </p>
+          </div>
+        )}
 
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 text-sm">
           <div>
@@ -314,7 +345,7 @@ export default function CaseDetailPage({
       {/* Add action form (hidden if terminal) */}
       {canAddAction && !isTerminal && (
         <section className="card-static p-5 no-print">
-          <AddActionForm onSubmit={onAddAction} />
+          <AddActionForm onSubmit={onAddAction} role={role} />
         </section>
       )}
 
@@ -427,57 +458,23 @@ export default function CaseDetailPage({
 // ═══════════════════════════════════════════════════════════════════
 // Sub-components
 // ═══════════════════════════════════════════════════════════════════
-function StageProgress({ stage }: { stage: CaseWithHistory['current_stage'] }) {
-  const rank = STAGE_ORDER[stage]
-  const isActive = rank < 10
-  const steps = [
-    { label: 'المشرف', rank: 1 },
-    { label: 'مدير الدفعة', rank: 2 },
-    { label: 'المدير التنفيذي', rank: 3 },
-  ]
-  return (
-    <div className="mt-5 rounded-xl bg-[var(--bg-pattern)] p-4">
-      <div className="flex items-center">
-        {steps.map((s, i) => {
-          const reached = rank >= s.rank
-          const isCurrent = rank === s.rank && isActive
-          return (
-            <div key={s.rank} className="flex-1 flex items-center">
-              <div className="flex flex-col items-center gap-1 flex-1">
-                <div className={`size-8 rounded-full grid place-content-center text-xs font-bold ${
-                  reached
-                    ? isCurrent ? 'bg-[var(--accent-warm)] text-white ring-4 ring-[var(--accent-warm)]/20'
-                                : 'bg-emerald-500 text-white'
-                    : 'bg-slate-200 text-slate-500'
-                }`}>
-                  {reached ? (isCurrent ? s.rank : <CheckCircle2 className="size-4" />) : s.rank}
-                </div>
-                <span className={`text-[11px] ${reached ? 'font-semibold text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
-                  {s.label}
-                </span>
-              </div>
-              {i < steps.length - 1 && (
-                <div className={`h-0.5 flex-1 ${rank > s.rank ? 'bg-emerald-500' : 'bg-slate-200'}`} />
-              )}
-            </div>
-          )
-        })}
-      </div>
-      {!isActive && (
-        <p className="text-center text-xs text-emerald-700 mt-3 font-medium">
-          {stage === 'resolved' ? '✓ الحالة منتهية بنجاح' : '🔒 الحالة مُغلقة نهائياً'}
-        </p>
-      )}
-    </div>
-  )
-}
+// StageProgress was replaced by CaseStageStepper (Hungerstation-style)
 
 function AddActionForm({
-  onSubmit,
+  onSubmit, role,
 }: {
   onSubmit: (type: CaseActionType, description: string, outcome: string) => Promise<void>
+  role: string | null
 }) {
-  const [type, setType] = useState<CaseActionType>('supervisor_meeting')
+  // الإجراءات المتاحة لكل دور
+  // - استدعاء/اجتماع ولي الأمر + تدخل التنفيذي = للـCEO فقط (حسب البرومبت)
+  const allowedActions: CaseActionType[] = (() => {
+    if (role === 'ceo') return ['supervisor_meeting', 'parent_call', 'parent_meeting', 'ceo_intervention', 'plan_adjustment', 'note']
+    if (role === 'batch_manager' || role === 'records_officer') return ['supervisor_meeting', 'plan_adjustment', 'note']
+    // المشرف/المعلم: محدود
+    return ['supervisor_meeting', 'plan_adjustment', 'note']
+  })()
+  const [type, setType] = useState<CaseActionType>(allowedActions[0] ?? 'supervisor_meeting')
   const [description, setDescription] = useState('')
   const [outcome, setOutcome] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -513,7 +510,7 @@ function AddActionForm({
         إضافة إجراء
       </h3>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
-        {(Object.keys(ACTION_LABEL) as CaseActionType[]).map((t) => (
+        {allowedActions.map((t) => (
           <button
             key={t}
             type="button"
