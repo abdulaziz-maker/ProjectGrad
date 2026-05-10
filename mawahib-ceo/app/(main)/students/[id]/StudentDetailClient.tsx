@@ -2,8 +2,9 @@
 import { useState, useEffect } from 'react'
 import { getStudents, getJuzProgress, DBStudent, DBJuzProgress } from '@/lib/db'
 import { getStatusColor, getStatusLabel, getBatchName, formatDate } from '@/lib/utils'
-import { ArrowRight, Edit, User, BookOpen, Calendar, FileText } from 'lucide-react'
+import { ArrowRight, Edit, User, BookOpen, Calendar, FileText, BarChart3 } from 'lucide-react'
 import Link from 'next/link'
+import StudentReportTab from './StudentReportTab'
 
 const JUZ_STATUS_COLORS: Record<string, string> = {
   memorized: 'bg-green-500 text-white',
@@ -41,6 +42,7 @@ export default function StudentDetailClient({ id }: { id: string }) {
 
   const tabs = [
     { id: 'details', label: 'التفاصيل', icon: User },
+    { id: 'report', label: 'التقرير', icon: BarChart3 },
     { id: 'quran', label: 'التقدم القرآني', icon: BookOpen },
     { id: 'attendance', label: 'سجل الحضور', icon: Calendar },
     { id: 'notes', label: 'الملاحظات', icon: FileText },
@@ -130,6 +132,10 @@ export default function StudentDetailClient({ id }: { id: string }) {
                 </div>
               </div>
             </div>
+          )}
+
+          {activeTab === 'report' && (
+            <StudentReportTab studentId={student.id} studentName={student.name} />
           )}
 
           {activeTab === 'quran' && (
