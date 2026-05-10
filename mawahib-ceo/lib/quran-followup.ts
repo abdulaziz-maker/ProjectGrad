@@ -2,6 +2,8 @@
 // Quran Followup System — Core Algorithm & Types
 // ═══════════════════════════════════════════════
 
+import { localDateIso } from '@/lib/date'
+
 // ─── Types ──────────────────────────────────────
 export interface QuranPlan {
   id: number
@@ -11,6 +13,7 @@ export interface QuranPlan {
   start_position: number
   daily_rate: number
   is_active: boolean
+  hijri_year?: number | null  // السنة الهجرية للخطة (1447، 1448، …) — null للخطط القديمة
   created_at?: string
 }
 
@@ -109,22 +112,8 @@ export function formatDateShort(dateStr: string): string {
   return `${d.getDate()} ${MONTHS_AR[d.getMonth()]}`
 }
 
-// ─── Program End Date ──────────────────────────
-/** الحلقة تنتهي في ٤ ذو الحجة ١٤٤٧هـ = 2026-05-21 */
-export const PROGRAM_END_DATE = '2026-05-21'
-
 // ─── Date Helpers ───────────────────────────────
-/**
- * Format Date as YYYY-MM-DD using LOCAL components.
- * ⚠️ Never use toISOString() — it returns UTC and gives YESTERDAY in
- * positive timezones (Saudi Arabia is UTC+3, so local midnight = previous-day UTC).
- */
-function localDateIso(d: Date): string {
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
-}
+// localDateIso lives in lib/date.ts (imported above) — KSA-safe local date formatter.
 
 export function getToday(): string {
   return localDateIso(new Date())
@@ -149,6 +138,45 @@ export function getThisWeekRange(): { start: string; end: string } {
   }
 }
 
+/**
+ * أسبوع المحاسبة على المتابعات: السبت → الخميس.
+ * - يبدأ السبت 00:00 وينتهي الخميس 21:00 (9م).
+ * - يُستخدم لقياس التزام المشرف بمتابعة كل طالب مرة على الأقل في الأسبوع.
+ * - الجمعة لا تُحتسب (لا متابعة فيها).
+ */
+export function getFollowupWeekRange(date: Date = new Date()): { start: string; end: string } {
+  // dow: 6=Sat, 0=Sun ... 4=Thu, 5=Fri
+  // أيام للوراء حتى آخر سبت: Sat→0, Sun→1, Mon→2, Tue→3, Wed→4, Thu→5, Fri→6
+  const dow = date.getDay()
+  const daysBack = (dow + 1) % 7
+  const sat = new Date(date)
+  sat.setDate(date.getDate() - daysBack)
+  const thu = new Date(sat)
+  thu.setDate(sat.getDate() + 5) // السبت + 5 = الخميس
+  return { start: localDateIso(sat), end: localDateIso(thu) }
+}
+
+/** الأسبوع السابق للمتابعة */
+export function getPreviousFollowupWeek(date: Date = new Date()): { start: string; end: string } {
+  const cur = getFollowupWeekRange(date)
+  const prevSat = new Date(cur.start + 'T12:00:00')
+  prevSat.setDate(prevSat.getDate() - 7)
+  return getFollowupWeekRange(prevSat)
+}
+
+/** هل اليوم بعد نهاية أسبوع المحاسبة (الجمعة فما بعد)؟ */
+export function isAfterFollowupWeekEnd(date: Date = new Date()): boolean {
+  // الجمعة (5) أو السبت قبل البدء (6 ولكن هذا يبدأ أسبوعاً جديداً)
+  // الفعلي: لو جلسنا في الخميس بعد 9م = نعدّه منتهياً
+  const dow = date.getDay()
+  if (dow === 5) return true // الجمعة كاملة بعد نهاية الأسبوع
+  if (dow === 4) {
+    // الخميس بعد 9م
+    return date.getHours() >= 21
+  }
+  return false
+}
+
 /** Generate all dates in a range (inclusive) */
 export function dateRange(startDate: string, endDate: string): string[] {
   const dates: string[] = []
@@ -169,8 +197,10 @@ export function dateRange(startDate: string, endDate: string): string[] {
  * - Friday & Saturday are holidays (no memorization, no count)
  * - Batch schedule overrides (holiday/trip/educational_day = off)
  * - Intensive days (batch schedule 'intensive') = 2x daily rate
- * - Every 20 pages from start = exam day (next working day off for exam)
+ * - Exam days = MANUAL ONLY via batch schedule (day_type: 'exam') — no auto-exam
  * - Otherwise position += daily_rate per working day
+ *
+ * ⚠️ لا توجد اختبارات تلقائية — الاختبارات يُضيفها المشرف يدوياً من صفحة الاختبارات
  */
 export function calculateExpectedPosition(
   startPosition: number,
@@ -182,24 +212,15 @@ export function calculateExpectedPosition(
   let position = startPosition
   const start = new Date(startDate + 'T12:00:00')
   const target = new Date(targetDate + 'T12:00:00')
-  const programEnd = new Date(PROGRAM_END_DATE + 'T12:00:00')
   const examDays: string[] = []
   const dayDetails: DayDetail[] = []
   let workDays = 0
-  let needExam = false
 
   const current = new Date(start)
 
   while (current <= target) {
     const dateStr = localDateIso(current)
     const dow = current.getDay()
-
-    // Hard stop: after program end date, no more memorization
-    if (current > programEnd) {
-      dayDetails.push({ date: dateStr, type: 'off', expectedPosition: position, isWorkDay: false })
-      current.setDate(current.getDate() + 1)
-      continue
-    }
 
     // Friday
     if (dow === 5) {
@@ -223,25 +244,9 @@ export function calculateExpectedPosition(
       continue
     }
 
-    // Manual exam day (from batch schedule) — no position advancement
+    // Manual exam day (from batch schedule only) — no position advancement
     if (scheduleType === 'exam') {
       examDays.push(dateStr)
-      if (needExam) needExam = false // consume the auto-exam flag too
-      dayDetails.push({ date: dateStr, type: 'exam', expectedPosition: position, isWorkDay: true })
-      current.setDate(current.getDate() + 1)
-      continue
-    }
-
-    // Force-normal: cancels auto-exam, treat as regular work day
-    if (scheduleType === 'normal' && needExam) {
-      needExam = false
-      // fall through to normal work day below
-    }
-
-    // Auto exam day (after completing 20 pages) — only if not overridden
-    if (needExam) {
-      examDays.push(dateStr)
-      needExam = false
       dayDetails.push({ date: dateStr, type: 'exam', expectedPosition: position, isWorkDay: true })
       current.setDate(current.getDate() + 1)
       continue
@@ -253,11 +258,6 @@ export function calculateExpectedPosition(
     // Normal work day
     position += rate
     workDays++
-
-    // Exam threshold: every 20 pages from start
-    if ((position - startPosition) > 0 && (position - startPosition) % 20 === 0) {
-      needExam = true
-    }
 
     dayDetails.push({
       date: dateStr,
@@ -324,6 +324,104 @@ export const TREATMENT_ACTIONS = [
   'متابعة يومية مع المشرف',
 ]
 
+// ════════════════════════════════════════════════════════════════════════
+// PROGRESS TRACKING — حسابات التقدم والتأخر
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * حالة تقدم الطالب بالنسبة للخطة.
+ * - ahead    : متقدم أكثر من 5 صفحات
+ * - on_track : ضمن النطاق (±5 صفحات)
+ * - behind   : متأخر أكثر من 5 صفحات
+ * - no_record: لا يوجد تسجيل حفظ بعد
+ */
+export type ProgressStatus = 'ahead' | 'on_track' | 'behind' | 'no_record'
+
+export interface StudentProgress {
+  studentId: string
+  name: string
+  expected: number | null  // الصفحة المتوقعة وفق الخطة
+  actual:   number | null  // آخر صفحة حفظ مُسجَّلة
+  gap:      number | null  // actual - expected (موجب = متقدم، سالب = متأخر)
+  status:   ProgressStatus
+  totalPagesInPeriod: number  // مجموع الأوجه المحفوظة في الفترة
+  planId:   number | null
+}
+
+export const PROGRESS_STATUS_LABELS: Record<ProgressStatus, string> = {
+  ahead:     'متقدم',
+  on_track:  'منتظم',
+  behind:    'متأخر',
+  no_record: 'لم يُسجَّل',
+}
+
+export const PROGRESS_STATUS_COLORS: Record<ProgressStatus, string> = {
+  ahead:     '#4ade80',
+  on_track:  '#facc15',
+  behind:    '#f87171',
+  no_record: 'var(--text-muted)',
+}
+
+export const PROGRESS_STATUS_BG: Record<ProgressStatus, string> = {
+  ahead:     'rgba(74,222,128,0.12)',
+  on_track:  'rgba(250,204,21,0.12)',
+  behind:    'rgba(248,113,113,0.12)',
+  no_record: 'var(--bg-elevated)',
+}
+
+export const PROGRESS_STATUS_BORDER: Record<ProgressStatus, string> = {
+  ahead:     'rgba(74,222,128,0.3)',
+  on_track:  'rgba(250,204,21,0.3)',
+  behind:    'rgba(248,113,113,0.3)',
+  no_record: 'var(--border-soft)',
+}
+
+/**
+ * احسب الموقع الفعلي (نقية — بدون DB).
+ *
+ * @param records  - سجلات الحفظ في الفترة المطلوبة
+ * @returns
+ *   latestPage        - آخر صفحة وصل إليها الطالب (لمقارنة مع المتوقع)
+ *   totalPagesInPeriod - مجموع الصفحات المحفوظة في الفترة (للعرض الإحصائي)
+ */
+export function computeActualPosition(
+  records: Array<{ memorization_from_page: number | null; memorization_to_page: number | null }>,
+): { latestPage: number | null; totalPagesInPeriod: number } {
+  let latestPage: number | null = null
+  let totalPages = 0
+
+  for (const rec of records) {
+    const from = rec.memorization_from_page
+    const to   = rec.memorization_to_page
+    if (from !== null && to !== null && to >= from) {
+      totalPages += to - from + 1
+      if (latestPage === null || to > latestPage) latestPage = to
+    }
+  }
+
+  return { latestPage, totalPagesInPeriod: totalPages }
+}
+
+/**
+ * احسب الفجوة والحالة (نقية — بدون DB).
+ *
+ * THRESHOLDS: ahead > +5 | on_track ±5 | behind < -5
+ */
+export function computeProgressGap(
+  expected: number,
+  latestPage: number | null,
+): { gap: number | null; status: ProgressStatus } {
+  if (latestPage === null) return { gap: null, status: 'no_record' }
+
+  const gap = latestPage - expected
+  const status: ProgressStatus =
+    gap > 5  ? 'ahead'    :
+    gap >= -5 ? 'on_track' :
+                'behind'
+
+  return { gap, status }
+}
+
 // ─── Escalation Level Helpers ───────────────────
 export const ESCALATION_LEVELS: Record<string, { label: string; action: string; color: string }> = {
   supervisor:      { label: 'المشرف',             action: 'تحفيز الطالب',         color: 'text-amber-500' },
@@ -369,3 +467,7 @@ export function getUpcomingExamDays(
     .filter(d => d.type === 'exam' && d.date > fromDate)
     .map(d => ({ date: d.date, expectedPosition: d.expectedPosition }))
 }
+
+// ─── Compat shim — للحفاظ على توافق صفحات قديمة ─────────────
+/** @deprecated استخدام نظام hijri_year الجديد بدلاً منه */
+export const PROGRAM_END_DATE = '2026-05-21'
