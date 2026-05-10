@@ -18,6 +18,7 @@ const toAr = (n: number) => n.toLocaleString('ar-SA')
 
 const EMPTY_FORM: Omit<DBTenant, 'created_at'> = {
   id: 0, slug: '', name: '', is_active: true,
+  name_ar: '', primary_color: '#C08A48', logo_url: null,
   metadata: { plan: 'pro' },
 }
 
