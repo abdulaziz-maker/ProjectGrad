@@ -117,6 +117,7 @@ export const CACHE_KEYS = {
   EXAM_CANDIDATES: 'exam_candidates',
   FOLLOWUP_SCHEDULE: 'followup_schedule',
   VIOLATIONS: 'violations',
+  WEEKLY_VIOLATIONS: 'weekly_violations',
   TENANTS: 'tenants',
   QURAN_DAILY_RECORDS: 'quran_daily_records',
 } as const
