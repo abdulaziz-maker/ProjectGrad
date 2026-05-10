@@ -1520,3 +1520,68 @@ export async function getLatestMemorizationByBatch(
   return map
 }
 
+
+// ════════════════════════════════════════════════════════════════════════
+// TENANTS — إدارة المنظومات (CEO فقط)
+// ════════════════════════════════════════════════════════════════════════
+
+export interface DBTenant {
+  id: number
+  slug: string
+  name: string
+  name_ar:       string
+  primary_color: string
+  logo_url:      string | null
+  is_active: boolean
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export interface DBTenantStats {
+  tenant_id: number
+  student_count: number
+  batch_count: number
+  user_count: number
+}
+
+export async function getTenants(): Promise<DBTenant[]> {
+  const { data, error } = await supabase
+    .from('tenants')
+    .select('id,slug,name,name_ar,primary_color,logo_url,is_active,metadata,created_at')
+    .order('id')
+  if (error) throw error
+  return data as DBTenant[]
+}
+
+export async function getTenantStats(): Promise<DBTenantStats[]> {
+  const [stuRes, batRes, usrRes] = await Promise.all([
+    supabase.from('students').select('tenant_id').eq('status', 'active'),
+    supabase.from('batches').select('tenant_id'),
+    supabase.from('profiles').select('tenant_id'),
+  ])
+  const count = <T extends { tenant_id: number }>(rows: T[]) =>
+    rows.reduce<Record<number, number>>((acc, r) => {
+      acc[r.tenant_id] = (acc[r.tenant_id] ?? 0) + 1
+      return acc
+    }, {})
+  const stuMap = count((stuRes.data ?? []) as { tenant_id: number }[])
+  const batMap = count((batRes.data ?? []) as { tenant_id: number }[])
+  const usrMap = count((usrRes.data ?? []) as { tenant_id: number }[])
+  const allIds = new Set([...Object.keys(stuMap), ...Object.keys(batMap), ...Object.keys(usrMap)].map(Number))
+  return Array.from(allIds).map(id => ({
+    tenant_id: id,
+    student_count: stuMap[id] ?? 0,
+    batch_count:   batMap[id] ?? 0,
+    user_count:    usrMap[id] ?? 0,
+  }))
+}
+
+export async function upsertTenant(t: Omit<DBTenant, 'created_at'>): Promise<void> {
+  const { error } = await supabase.from('tenants').upsert(t)
+  if (error) throw error
+}
+
+export async function toggleTenantActive(id: number, isActive: boolean): Promise<void> {
+  const { error } = await supabase.from('tenants').update({ is_active: isActive }).eq('id', id)
+  if (error) throw error
+}
