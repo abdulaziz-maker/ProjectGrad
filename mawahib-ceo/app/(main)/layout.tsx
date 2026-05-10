@@ -1,6 +1,7 @@
 'use client'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
+import BrandingApplier from '@/components/BrandingApplier'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
@@ -196,6 +197,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg-body)' }}>
+      <BrandingApplier />
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}

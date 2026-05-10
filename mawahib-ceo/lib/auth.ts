@@ -7,12 +7,13 @@ export interface UserProfile {
   role: UserRole
   batch_id: number | null
   name: string
+  tenant_id: number | null
 }
 
 export async function getProfile(userId: string): Promise<UserProfile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, role, batch_id, name')
+    .select('id, role, batch_id, name, tenant_id')
     .eq('id', userId)
     .single()
   if (error || !data) return null

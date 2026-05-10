@@ -4,14 +4,18 @@ import { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { UserProfile, getProfile } from '@/lib/auth'
 import { clearCache } from '@/lib/cache'
+import { getTenantBranding, DEFAULT_BRANDING, type TenantBranding } from '@/lib/db'
 
 interface AuthContextValue {
-  session: Session | null
-  profile: UserProfile | null
-  loading: boolean
+  session:        Session | null
+  profile:        UserProfile | null
+  loading:        boolean
+  tenantBranding: TenantBranding
 }
 
-const AuthContext = createContext<AuthContextValue>({ session: null, profile: null, loading: true })
+const AuthContext = createContext<AuthContextValue>({
+  session: null, profile: null, loading: true, tenantBranding: DEFAULT_BRANDING,
+})
 
 /**
  * مزوّد المصادقة — مُحسَّن لتسريع تسجيل الدخول.
@@ -23,13 +27,14 @@ const AuthContext = createContext<AuthContextValue>({ session: null, profile: nu
  *
  * بعد: نعتمد على `onAuthStateChange` وحده — يطلق `INITIAL_SESSION` فوراً
  * عند التركيب، فلا حاجة لـ `getSession()` منفصل. نرفع `loading=false` بمجرد
- * معرفة الجلسة، ونجلب الملف الشخصي في الخلفية دون حجب الواجهة. ونتجاهل
- * أحداث `TOKEN_REFRESHED` لأن هوية المستخدم لم تتغير.
+ * معرفة الجلسة، ونجلب الملف الشخصي والـbranding في الخلفية دون حجب الواجهة.
+ * ونتجاهل أحداث `TOKEN_REFRESHED` لأن هوية المستخدم لم تتغير.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [session,        setSession]        = useState<Session | null>(null)
+  const [profile,        setProfile]        = useState<UserProfile | null>(null)
+  const [loading,        setLoading]        = useState(true)
+  const [tenantBranding, setTenantBranding] = useState<TenantBranding>(DEFAULT_BRANDING)
   const lastUserIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -41,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userId = s?.user?.id ?? null
       if (!userId) {
         setProfile(null)
+        setTenantBranding(DEFAULT_BRANDING)
         // ⚠️ CRITICAL: امسح الكاش عند تسجيل الخروج لمنع تسرّب بيانات
         // المستخدم السابق (مثلاً: CEO يرى كل الدفعات) إلى المستخدم التالي
         // (مدير دفعة) في نفس التاب.
@@ -60,15 +66,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       lastUserIdRef.current = userId
 
-      // جلب في الخلفية — لا يحجب عرض الصفحة.
-      getProfile(userId).then(p => setProfile(p)).catch(() => setProfile(null))
+      // جلب الملف الشخصي والـbranding في الخلفية — لا يحجب عرض الصفحة.
+      getProfile(userId).then(p => {
+        setProfile(p)
+        if (p?.tenant_id) {
+          getTenantBranding(p.tenant_id)
+            .then(b => setTenantBranding(b))
+            .catch(() => {/* keep default */})
+        }
+      }).catch(() => setProfile(null))
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading }}>
+    <AuthContext.Provider value={{ session, profile, loading, tenantBranding }}>
       {children}
     </AuthContext.Provider>
   )

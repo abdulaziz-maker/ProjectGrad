@@ -1251,3 +1251,47 @@ export async function upsertFollowupEscalation(esc: FollowupEscalation): Promise
   const { error } = await supabase.from('followup_escalations').upsert(esc as FollowupEscalation)
   if (error) throw error
 }
+
+// ─── Tenant Branding ─────────────────────────────────────────────
+export interface TenantBranding {
+  tenantId:     number
+  nameAr:       string
+  primaryColor: string
+  logoUrl:      string | null
+}
+
+export const DEFAULT_BRANDING: TenantBranding = {
+  tenantId: 1, nameAr: 'المواهب الناشئة', primaryColor: '#C08A48', logoUrl: null,
+}
+
+export async function getTenantBranding(tenantId: number): Promise<TenantBranding> {
+  const { data, error } = await supabase
+    .from('tenants')
+    .select('id,name_ar,primary_color,logo_url')
+    .eq('id', tenantId)
+    .single()
+  if (error || !data) return DEFAULT_BRANDING
+  return {
+    tenantId:     data.id,
+    nameAr:       data.name_ar || DEFAULT_BRANDING.nameAr,
+    primaryColor: data.primary_color || DEFAULT_BRANDING.primaryColor,
+    logoUrl:      data.logo_url ?? null,
+  }
+}
+
+export async function updateTenantBranding(params: {
+  tenantId: number
+  nameAr: string
+  primaryColor: string
+  logoUrl?: string | null
+}): Promise<void> {
+  const { error } = await supabase
+    .from('tenants')
+    .update({
+      name_ar: params.nameAr,
+      primary_color: params.primaryColor,
+      ...(params.logoUrl !== undefined ? { logo_url: params.logoUrl } : {}),
+    })
+    .eq('id', params.tenantId)
+  if (error) throw error
+}

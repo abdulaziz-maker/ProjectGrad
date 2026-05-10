@@ -38,7 +38,7 @@ function timeAgo(iso: string): string {
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
-  const { profile } = useAuth()
+  const { profile, tenantBranding } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const router = useRouter()
 
@@ -149,20 +149,29 @@ export default function Header({ onMenuClick }: HeaderProps) {
         >
           <Menu className="w-5 h-5" />
         </button>
-        <div>
-          <h1
-            className="font-bold text-sm sm:text-base"
-            style={{
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-noto-kufi, Noto Kufi Arabic)',
-              letterSpacing: '-0.005em',
-            }}
-          >
-            المواهب الناشئة
-          </h1>
-          <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            {todayLabel}
-          </p>
+        <div className="flex items-center gap-2">
+          {tenantBranding.logoUrl && (
+            <img
+              src={tenantBranding.logoUrl}
+              alt={tenantBranding.nameAr}
+              className="w-7 h-7 rounded-lg object-cover shrink-0"
+            />
+          )}
+          <div>
+            <h1
+              className="font-bold text-sm sm:text-base"
+              style={{
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-noto-kufi, Noto Kufi Arabic)',
+                letterSpacing: '-0.005em',
+              }}
+            >
+              {tenantBranding.nameAr}
+            </h1>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              {todayLabel}
+            </p>
+          </div>
         </div>
       </div>
 
