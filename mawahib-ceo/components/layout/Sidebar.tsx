@@ -46,6 +46,13 @@ const navItems: NavItem[] = [
   { href: '/dashboard',       icon: LayoutDashboard, label: 'لوحة التحكم',      badge: 0, roles: ['supervisor', 'teacher'] },
   { href: '/followups',       icon: ClipboardList,   label: 'المتابعات',         badge: 0, roles: ['supervisor', 'teacher', 'ceo'] },
 
+  // === نظام القرآن (سجلات الحفظ + التقدم + متابعات الجدولة) ===
+  { href: '/quran-system/daily-records',  icon: BookOpen,      label: 'سجلات الحفظ',   badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+  { href: '/quran-system/batch-progress', icon: Target,        label: 'تقدم الحفظ',    badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+  { href: '/followups/schedule',          icon: CalendarCheck, label: 'جدولة المتابعات', badge: 0, roles: ['batch_manager', 'ceo'] },
+  { href: '/followups/history',           icon: ClipboardList, label: 'سجل المتابعات',  badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+  { href: '/followups/violations',        icon: ShieldAlert,   label: 'مخالفات المتابعة', badge: 0, roles: ['batch_manager', 'ceo'] },
+
   // === مشترك ===
   { href: '/batches',     icon: Grid3x3,         label: 'قاعدة البيانات',         badge: 0 },
   { href: '/matn',        icon: BookOpen,        label: 'رصد المتون',             badge: 0 },

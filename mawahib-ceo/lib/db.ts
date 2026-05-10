@@ -1326,3 +1326,197 @@ export async function updateTenantBranding(params: {
     .eq('id', params.tenantId)
   if (error) throw error
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// QURAN DAILY RECORDS — نظام سجلات الحفظ اليومية
+// ══════════════════════════════════════════════════════════════════════════
+
+/** يُرجع tenant_id للمستخدم الحالي عبر RPC SECURITY DEFINER. cached 10min. */
+async function getCurrentTenantId(): Promise<number> {
+  return cachedFetch('_tenant_id', async () => {
+    const { data, error } = await supabase.rpc('current_user_tenant_id')
+    if (error || data === null) throw new Error('Cannot determine tenant')
+    return data as number
+  }, 10 * 60_000)
+}
+
+export interface DBQuranDailyRecord {
+  id: string
+  student_id: string
+  batch_id: number
+  plan_id: number | null  // مرجع للخطة القرآنية النشطة وقت التسجيل
+  recorded_at: string
+  recorded_by: string
+  memorization_from_page: number | null
+  memorization_to_page: number | null
+  tafseer_completed: boolean | null   // null=لم يُحدد، true=فسّر، false=لم يفسّر
+  repeated: boolean | null            // null=لم يُحدد، true=كرّر، false=لم يكرّر
+  memorization_hesitations: number
+  memorization_corrections: number
+  memorization_mistakes: number
+  close_review_from_page: number | null
+  close_review_to_page: number | null
+  close_review_hesitations: number
+  close_review_corrections: number
+  close_review_mistakes: number
+  far_review_from_page: number | null
+  far_review_to_page: number | null
+  far_review_hesitations: number
+  far_review_corrections: number
+  far_review_mistakes: number
+  created_at: string
+  updated_at: string
+}
+
+export async function getQuranDailyRecords(batchId: number, date: string): Promise<DBQuranDailyRecord[]> {
+  const { data, error } = await supabase
+    .from('quran_daily_records')
+    .select('*')
+    .eq('batch_id', batchId)
+    .eq('recorded_at', date)
+    .order('student_id')
+    .limit(200)
+  if (error) { console.error('getQuranDailyRecords:', error); return [] }
+  return (data ?? []) as DBQuranDailyRecord[]
+}
+
+export async function getLastQuranRecord(studentId: string): Promise<DBQuranDailyRecord | null> {
+  const { data, error } = await supabase
+    .from('quran_daily_records')
+    .select('*')
+    .eq('student_id', studentId)
+    .order('recorded_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) { console.error('getLastQuranRecord:', error); return null }
+  return data as DBQuranDailyRecord | null
+}
+
+export async function upsertQuranDailyRecord(
+  record: Omit<DBQuranDailyRecord, 'id' | 'created_at' | 'updated_at'>
+): Promise<void> {
+  const tid = await getCurrentTenantId()
+  // plan_id يُمرَّر من الـUI (مرتبط بالخطة النشطة عند فتح الـsheet)
+  const { error } = await supabase
+    .from('quran_daily_records')
+    .upsert({ ...record, tenant_id: tid }, { onConflict: 'student_id,recorded_at' })
+  if (error) throw error
+
+  // تحديث تقدم المراجعة البعيدة تلقائياً
+  if (record.far_review_from_page && record.far_review_to_page) {
+    const { resolveProgressUpdate, upsertFarReviewProgress } = await import('@/lib/quran-far-review')
+    const update = resolveProgressUpdate(record.far_review_from_page, record.far_review_to_page)
+    if (update) {
+      await upsertFarReviewProgress({
+        studentId:   record.student_id,
+        batchId:     record.batch_id,
+        juzNumber:   update.juzNumber,
+        currentPage: update.newCurrentPage,
+        tenantId:    tid,
+      })
+    }
+  }
+}
+
+// ─── Quran Progress DB Helpers ────────────────────
+
+/** سجلات حفظ طالب واحد في نطاق تاريخي — للحساب الفردي */
+export async function getQuranRecordsInRange(
+  studentId: string,
+  fromDate: string,
+  toDate: string,
+): Promise<Pick<DBQuranDailyRecord, 'recorded_at' | 'memorization_from_page' | 'memorization_to_page'>[]> {
+  const { data, error } = await supabase
+    .from('quran_daily_records')
+    .select('recorded_at, memorization_from_page, memorization_to_page')
+    .eq('student_id', studentId)
+    .gte('recorded_at', fromDate)
+    .lte('recorded_at', toDate)
+    .not('memorization_to_page', 'is', null)
+    .order('recorded_at', { ascending: true })
+    .limit(400)
+  if (error) { console.error('getQuranRecordsInRange:', error); return [] }
+  return (data ?? []) as Pick<DBQuranDailyRecord, 'recorded_at' | 'memorization_from_page' | 'memorization_to_page'>[]
+}
+
+/** خطط جميع طلاب دفعة — 2 queries متتاليتان للحساب الجماعي */
+export async function getQuranPlansByBatch(batchId: number): Promise<QuranPlan[]> {
+  const tid = await getCurrentTenantId()
+  // ١. اجلب IDs طلاب الدفعة
+  const { data: studentRows, error: studErr } = await supabase
+    .from('students')
+    .select('id')
+    .eq('batch_id', batchId)
+    .eq('tenant_id', tid)
+  if (studErr || !studentRows?.length) return []
+  const studentIds = studentRows.map((r: { id: string }) => r.id)
+  // ٢. اجلب الخطط النشطة لهؤلاء الطلاب
+  const { data, error } = await supabase
+    .from('quran_plans')
+    .select('id, student_id, start_date, end_date, start_position, daily_rate, is_active, hijri_year')
+    .eq('tenant_id', tid)
+    .eq('is_active', true)
+    .in('student_id', studentIds)
+  if (error) { console.error('getQuranPlansByBatch:', error); return [] }
+  return (data ?? []) as QuranPlan[]
+}
+
+/** سجلات حفظ كل طلاب دفعة في نطاق تاريخي — query واحد للحساب الجماعي */
+export async function getQuranRecordsForBatch(
+  batchId: number,
+  fromDate: string,
+  toDate: string,
+): Promise<Array<Pick<DBQuranDailyRecord, 'student_id' | 'recorded_at' | 'memorization_from_page' | 'memorization_to_page'>>> {
+  const tid = await getCurrentTenantId()
+  const { data, error } = await supabase
+    .from('quran_daily_records')
+    .select('student_id, recorded_at, memorization_from_page, memorization_to_page')
+    .eq('batch_id', batchId)
+    .eq('tenant_id', tid)
+    .gte('recorded_at', fromDate)
+    .lte('recorded_at', toDate)
+    .not('memorization_to_page', 'is', null)
+    .order('recorded_at', { ascending: true })
+    .limit(2000)
+  if (error) { console.error('getQuranRecordsForBatch:', error); return [] }
+  return (data ?? []) as Array<Pick<DBQuranDailyRecord, 'student_id' | 'recorded_at' | 'memorization_from_page' | 'memorization_to_page'>>
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// EXAM DETECTION — اكتشاف الاختبارات التلقائية
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * آخر صفحة حفظ لكل طالب في دفعة — آخر 30 يوم.
+ * مُحسَّنة: query واحدة مرتّبة DESC، dedup في JS.
+ * تُستخدم في واجهة "قريبون من الاختبار".
+ * Returns Map<studentId, latestPage>
+ */
+export async function getLatestMemorizationByBatch(
+  batchId: number,
+): Promise<Map<string, number>> {
+  const tid = await getCurrentTenantId()
+  const fromDate = new Date()
+  fromDate.setDate(fromDate.getDate() - 30)
+
+  const { data, error } = await supabase
+    .from('quran_daily_records')
+    .select('student_id, memorization_to_page, recorded_at')
+    .eq('batch_id', batchId)
+    .eq('tenant_id', tid)
+    .gte('recorded_at', fromDate.toISOString().slice(0, 10))
+    .not('memorization_to_page', 'is', null)
+    .order('recorded_at', { ascending: false })
+    .limit(500)
+
+  if (error) { console.error('getLatestMemorizationByBatch:', error); return new Map() }
+
+  const map = new Map<string, number>()
+  for (const row of (data ?? [])) {
+    if (!map.has(row.student_id)) {
+      map.set(row.student_id, (row as { student_id: string; memorization_to_page: number }).memorization_to_page)
+    }
+  }
+  return map
+}
+
