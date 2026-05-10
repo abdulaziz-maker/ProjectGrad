@@ -225,13 +225,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, today, ...summary })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    await supabaseAdmin.from('automation_logs').insert({
-      job_name: 'notifications-check',
-      status: 'error',
-      records_processed: 0,
-      details: { today },
-      error_message: msg,
-    }).catch(() => {})
+    try {
+      await supabaseAdmin.from('automation_logs').insert({
+        job_name: 'notifications-check',
+        status: 'error',
+        records_processed: 0,
+        details: { today },
+        error_message: msg,
+      })
+    } catch { /* ignore log failure */ }
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
