@@ -27,9 +27,9 @@ export default function TenantBrandingPage() {
   const [saved, setSaved]         = useState(false)
   const [error, setError]         = useState('')
 
-  // حماية: super_admin فقط
+  // حماية: ceo فقط
   useEffect(() => {
-    if (profile && profile.role !== 'super_admin') router.replace('/dashboard')
+    if (profile && profile.role !== 'ceo') router.replace('/dashboard')
   }, [profile, router])
 
   useEffect(() => {
