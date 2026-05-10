@@ -70,7 +70,11 @@ export default function TenantsPage() {
 
   // open edit form
   function openEdit(t: DBTenant) {
-    setForm({ id: t.id, slug: t.slug, name: t.name, is_active: t.is_active, metadata: t.metadata })
+    setForm({
+      id: t.id, slug: t.slug, name: t.name, is_active: t.is_active,
+      name_ar: t.name_ar, primary_color: t.primary_color, logo_url: t.logo_url,
+      metadata: t.metadata,
+    })
     setShowForm(true)
   }
 
