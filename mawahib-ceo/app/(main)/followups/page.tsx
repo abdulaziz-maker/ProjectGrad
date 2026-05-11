@@ -3,20 +3,29 @@ import { useState, useEffect, useMemo, useCallback, memo } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   getStudents, getSupervisors, getQuranPlans, getDailyFollowups, upsertDailyFollowup,
-  getBatchSchedule, upsertQuranPlan, getExams, upsertExam, type DBStudent, type DBExam, type DBSupervisor,
+  getBatchSchedule, upsertQuranPlan, getJuzProgressForStudents, type DBStudent, type DBSupervisor,
+  type DBJuzProgress,
 } from '@/lib/db'
+import { calculateDailyReview } from '@/lib/review-schedule'
 import {
-  calculateExpectedPosition, getToday, PROGRAM_END_DATE,
+  calculateExpectedPosition, getToday,
   getStudentStatus, STATUS_LABELS, STATUS_COLORS, STATUS_BG,
   DELAY_REASONS, TREATMENT_ACTIONS,
-  getCompletedJuz, getUpcomingExamDays, getThisWeekRange,
+  getThisWeekRange,
   type QuranPlan, type DailyFollowup, type BatchScheduleEntry,
 } from '@/lib/quran-followup'
-import { formatHijriWithDay } from '@/lib/hijri'
+import { formatHijriWithDay, toHijriShort, gregorianToHijri } from '@/lib/hijri'
 import HijriDatePicker from '@/components/ui/HijriDatePicker'
+import WeekNavBar from '@/components/ui/WeekNavBar'
+import EscalationBanner from '@/components/followups/EscalationBanner'
+import RemedialPlanModal from '@/components/followups/RemedialPlanModal'
+import EscalateModal from '@/components/followups/EscalateModal'
+import CasesTimelineView from '@/components/student-cases/CasesTimelineView'
+import { getCases } from '@/lib/student-cases/db'
+import type { CaseWithStudent, StudentCase } from '@/lib/student-cases/types'
 import {
   BookOpenCheck, ChevronDown, ChevronUp, Save, Plus, Users, AlertTriangle,
-  CheckCircle2, Clock, CalendarDays, FileText, Pencil, X, Eye,
+  CheckCircle2, Clock, CalendarDays, FileText, Pencil, X, Eye, RotateCw, ShieldAlert, ExternalLink,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -29,6 +38,8 @@ export default function FollowupsPage() {
   const isBatchManager = profile?.role === 'batch_manager'
   const canViewSupervisors = isCeo || isBatchManager
   const myBatchId = profile?.batch_id ?? null
+  // فلتر الدفعة للـCEO — null = أول دفعة (يُضبط بعد تحميل الطلاب)
+  const [ceoBatchFilter, setCeoBatchFilter] = useState<number | null>(null)
 
   const [students, setStudents] = useState<DBStudent[]>([])
   const [plans, setPlans] = useState<QuranPlan[]>([])
@@ -37,6 +48,7 @@ export default function FollowupsPage() {
   const [weekFollowups, setWeekFollowups] = useState<DailyFollowup[]>([])
   const [schedule, setSchedule] = useState<BatchScheduleEntry[]>([])
   const [supervisorsList, setSupervisorsList] = useState<DBSupervisor[]>([])
+  const [juzProgress, setJuzProgress] = useState<DBJuzProgress[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState(getToday())
@@ -58,13 +70,24 @@ export default function FollowupsPage() {
   const [formCustomReason, setFormCustomReason] = useState('')
   const [formCustomAction, setFormCustomAction] = useState('')
 
+  // ── Escalation system (المهمة ٨ + ٩) ──
+  const [activeTab, setActiveTab] = useState<'daily' | 'cases'>('daily')
+  const [activeCases, setActiveCases] = useState<Map<string, StudentCase>>(new Map())
+  const [escalationFor, setEscalationFor] = useState<{
+    student: DBStudent; gap: number; severity: 'first_delay' | 'plan_failed' | 'escalated_manager' | 'escalated_ceo'
+  } | null>(null)
+  const [planModalFor, setPlanModalFor] = useState<{ student: DBStudent; gap: number } | null>(null)
+  const [escalateModalFor, setEscalateModalFor] = useState<{ student: DBStudent; case: StudentCase } | null>(null)
+  const [casesList, setCasesList] = useState<CaseWithStudent[]>([])
+
   // New plan form
   const [showAddPlan, setShowAddPlan] = useState<string | null>(null)
-  const [planForm, setPlanForm] = useState({ startDate: getToday(), endDate: PROGRAM_END_DATE, startPosition: '1', dailyRate: '1' })
+  const [planForm, setPlanForm] = useState({ startDate: getToday(), endDate: '', startPosition: '1', dailyRate: '1' })
 
   useEffect(() => {
     async function load() {
       try {
+        // Wave 1: independent fetches.
         const [s, p, batchSchedules, sups] = await Promise.all([
           getStudents(),
           getQuranPlans(),
@@ -75,7 +98,14 @@ export default function FollowupsPage() {
         setSupervisorsList(sups)
         setPlans(p)
         setSchedule(batchSchedules)
-        const f = await getDailyFollowups({ dateFrom: selectedDate, dateTo: selectedDate })
+
+        // Wave 2: parallel — juz progress scoped to visible students + today's followups.
+        const studentIds = s.map(x => x.id)
+        const [jp, f] = await Promise.all([
+          getJuzProgressForStudents(studentIds),
+          getDailyFollowups({ dateFrom: selectedDate, dateTo: selectedDate }),
+        ])
+        setJuzProgress(jp)
         setFollowups(f)
       } catch (err) {
         console.error(err)
@@ -103,6 +133,26 @@ export default function FollowupsPage() {
       .catch(console.error)
   }, [loading, followups])  // إعادة تحميل كل ما تغيّرت متابعات اليوم لينعكس على الأسبوع
 
+  // ── تحميل الحالات النشطة (Active Cases) ──
+  const reloadCases = useCallback(async () => {
+    try {
+      const cases = await getCases({ status: 'active' })
+      setCasesList(cases)
+      const map = new Map<string, StudentCase>()
+      for (const c of cases) {
+        if (c.status === 'active') map.set(c.student_id, c)
+      }
+      setActiveCases(map)
+    } catch (err) {
+      console.error('Failed to load cases', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (loading) return
+    reloadCases()
+  }, [loading, reloadCases])
+
   // Build schedule map for algorithm
   const scheduleMap = useMemo(() => {
     const m = new Map<string, string>()
@@ -114,12 +164,39 @@ export default function FollowupsPage() {
   const [studentFilter, setStudentFilter] = useState<'mine' | 'all'>('mine')
   const isSupervisor = profile?.role === 'supervisor' || profile?.role === 'teacher'
 
+  // قائمة الدفعات المتاحة للـCEO
+  const availableBatches = useMemo(() => {
+    if (!isCeo) return []
+    const seen = new Set<number>()
+    const batches: { id: number; count: number }[] = []
+    for (const s of students) {
+      if (!seen.has(s.batch_id)) {
+        seen.add(s.batch_id)
+        batches.push({ id: s.batch_id, count: 0 })
+      }
+      const b = batches.find(b => b.id === s.batch_id)
+      if (b) b.count++
+    }
+    return batches.sort((a, b) => a.id - b.id)
+  }, [students, isCeo])
+
+  // ضبط الفلتر الافتراضي على أول دفعة عند التحميل
+  useEffect(() => {
+    if (isCeo && availableBatches.length > 0 && ceoBatchFilter === null) {
+      setCeoBatchFilter(availableBatches[0].id)
+    }
+  }, [isCeo, availableBatches, ceoBatchFilter])
+
   // Filter students by batch
   const allBatchStudents = useMemo(() => {
-    if (isCeo) return students
+    if (isCeo) {
+      const batchId = ceoBatchFilter ?? availableBatches[0]?.id
+      if (batchId !== undefined) return students.filter(s => s.batch_id === batchId)
+      return students
+    }
     if (myBatchId !== null) return students.filter(s => s.batch_id === myBatchId)
     return []
-  }, [students, myBatchId, isCeo])
+  }, [students, myBatchId, isCeo, ceoBatchFilter, availableBatches])
 
   // Find current supervisor's table ID (sup_xxx) from their auth user_id
   const mySupervisorTableId = useMemo(() => {
@@ -164,6 +241,13 @@ export default function FollowupsPage() {
     return m
   }, [plans])
 
+  // Build supervisor name map: supervisor_id → supervisor name (for student card display)
+  const supervisorNameMap = useMemo(() => {
+    const m = new Map<string, string>()
+    supervisorsList.forEach(s => m.set(s.id, s.name))
+    return m
+  }, [supervisorsList])
+
   // Build followup map: student_id → followup for selected date
   const followupMap = useMemo(() => {
     const m = new Map<string, DailyFollowup>()
@@ -171,8 +255,7 @@ export default function FollowupsPage() {
     return m
   }, [followups])
 
-  // Weekly tracker: student_id → has at least one followup this week with actual_position set
-  // متابعة المشرف للطالب = مرة واحدة في الأسبوع تكفي إلا للمتعثرين
+  // الطلاب الذين تمّت متابعتهم هذا الأسبوع — للعرض فقط (لا يُخفي أحداً)
   const weekFollowedSet = useMemo(() => {
     const s = new Set<string>()
     for (const f of weekFollowups) {
@@ -181,7 +264,20 @@ export default function FollowupsPage() {
     return s
   }, [weekFollowups])
 
-  // أسوأ gap للطالب هذا الأسبوع (لاكتشاف المتعثرين)
+  // ── أحدث متابعة بـactual_position لكل طالب في هذا الأسبوع ──
+  const weekLatestActual = useMemo(() => {
+    const m = new Map<string, { position: number; date: string }>()
+    for (const f of weekFollowups) {
+      if (f.actual_position == null) continue
+      const cur = m.get(f.student_id)
+      if (!cur || f.followup_date > cur.date) {
+        m.set(f.student_id, { position: f.actual_position, date: f.followup_date })
+      }
+    }
+    return m
+  }, [weekFollowups])
+
+  // أسوأ gap للطالب هذا الأسبوع (لاكتشاف المتعثرين الشديدين)
   const weekWorstGap = useMemo(() => {
     const m = new Map<string, number>()
     for (const f of weekFollowups) {
@@ -198,20 +294,19 @@ export default function FollowupsPage() {
     return g != null && g <= -SEVERE_DELAY
   }, [weekWorstGap])
 
-  // For each student, compute expected position and status
-  // فلتر: إخفاء الطلاب المتَابَعين هذا الأسبوع (افتراضياً مفعّل)
-  // المتعثّرون يبقون ظاهرين دائماً
-  const [hideWeeklyFollowed, setHideWeeklyFollowed] = useState(true)
-
-  const studentData = useMemo(() => {
+  // حساب بيانات كل طالب (بدون sort) — يُعاد فقط عند تغيّر الحسابات الفعلية.
+  // TODO: استخراج بطاقة الطالب لـcomponent منفصل + React.memo لتجنّب re-render
+  // كل البطاقات عند تغيّر state واحد في الصفحة الأم.
+  const studentDataUnsorted = useMemo(() => {
     return myStudents.map(student => {
       const plan = planMap.get(student.id)
       if (!plan) return { student, plan: null, expected: 0, followup: null, gap: null, status: 'no_plan' as const, isExamDay: false, isFollowed: false }
 
+      const effectiveDate = plan.end_date && selectedDate > plan.end_date ? plan.end_date : selectedDate
       const result = calculateExpectedPosition(
         plan.start_position,
         plan.start_date,
-        selectedDate,
+        effectiveDate,
         plan.daily_rate,
         scheduleMap,
       )
@@ -226,19 +321,13 @@ export default function FollowupsPage() {
 
       return { student, plan, expected, followup, gap, status, isExamDay, isFollowed }
     })
-    // فلترة: لو مفعّل "إخفاء المُتابَعين هذا الأسبوع"، أخفِ من تمت متابعته
-    // (إلا إذا كان متعثّراً — يبقى ظاهراً)
-    .filter(({ student }) => {
-      if (!hideWeeklyFollowed) return true
-      const followedThisWeek = weekFollowedSet.has(student.id)
-      const severelyDelayed = isStudentSeverelyDelayed(student.id)
-      return !followedThisWeek || severelyDelayed
-    })
-    .sort((a, b) => {
-      const order = { severe_delay: 0, slight_delay: 1, no_followup: 2, on_track: 3, no_plan: 4 }
-      return (order[a.status] ?? 5) - (order[b.status] ?? 5)
-    })
-  }, [myStudents, planMap, followupMap, selectedDate, scheduleMap, hideWeeklyFollowed, weekFollowedSet, isStudentSeverelyDelayed])
+  }, [myStudents, planMap, followupMap, selectedDate, scheduleMap])
+
+  // sort منفصل — يعتمد فقط على نتيجة الحسابات.
+  const studentData = useMemo(() => {
+    const order = { severe_delay: 0, slight_delay: 1, no_followup: 2, on_track: 3, no_plan: 4 }
+    return [...studentDataUnsorted].sort((a, b) => (order[a.status] ?? 5) - (order[b.status] ?? 5))
+  }, [studentDataUnsorted])
 
   // Stats
   const stats = useMemo(() => ({
@@ -282,11 +371,18 @@ export default function FollowupsPage() {
     }
     setExpandedStudent(studentId)
     setEditingExpected(false)
+    // ── حساب المراجعة المقترحة (قريبة + بعيدة) من القواعد ──
+    // النظام يستخدم المفترض كأساس؛ لو الطالب متقدم/متأخر سنُحدّث القريبة بعد إدخال الفعلي
+    const dailyReview = calculateDailyReview(juzProgress, studentId, selectedDate, computedExpected)
+    const suggestedNear = dailyReview.near?.text || ''
+    const suggestedFar  = dailyReview.far.text === '—' ? '' : dailyReview.far.text
+
     const existing = followupMap.get(studentId)
     if (existing) {
       setFormActual(existing.actual_position ?? '')
-      setFormNearReview(existing.near_review || '')
-      setFormFarReview(existing.far_review || '')
+      // املأ من DB لو موجود، وإلا املأ من الاقتراح
+      setFormNearReview(existing.near_review || suggestedNear)
+      setFormFarReview(existing.far_review || suggestedFar)
       setFormReasons(Array.isArray(existing.delay_reasons) ? existing.delay_reasons : [])
       setFormActions(Array.isArray(existing.treatment_actions) ? existing.treatment_actions : [])
       setFormNotes(existing.notes || '')
@@ -295,14 +391,13 @@ export default function FollowupsPage() {
       } else {
         setFormExpectedOverride('')
       }
-      // Always start at step 1 — user can manually navigate to step 2 if needed
-      // (Step 2 auto-opens only after saving step 1 when gap is negative — see saveFollowup)
       setFollowupStep(1)
     } else {
       setFormActual('')
       setFormExpectedOverride('')
-      setFormNearReview('')
-      setFormFarReview('')
+      // متابعة جديدة → املأ تلقائياً من القواعد
+      setFormNearReview(suggestedNear)
+      setFormFarReview(suggestedFar)
       setFormReasons([])
       setFormActions([])
       setFormNotes('')
@@ -403,15 +498,29 @@ export default function FollowupsPage() {
         toast.success('تم الحفظ — لكن الطالب متأخر، يجب تحديد الأسباب والإجراءات')
         setFollowupStep(2)
       } else {
-        // اقتراح التصعيد للمتعثرين الشديدين
-        if (gap <= -SEVERE_DELAY_THRESHOLD) {
+        // ── منطق التصعيد الجديد (بانر بدل toast) ──
+        if (isBehind) {
           toast.success('تم حفظ المتابعة')
-          setTimeout(() => {
-            toast.warning(
-              `الطالب متعثّر (${Math.abs(gap)} وجه تأخر). يُنصح برفع تصعيد لمدير الدفعة من صفحة "الحالات الطلابية".`,
-              { duration: 8000 }
-            )
-          }, 600)
+          const student = myStudents.find(s => s.id === studentId)
+          const existingCase = activeCases.get(studentId)
+          if (student) {
+            // حدد شدة التنبيه حسب وجود حالة نشطة وحجم التأخر
+            let severity: 'first_delay' | 'plan_failed' | 'escalated_manager' | 'escalated_ceo' = 'first_delay'
+            if (existingCase) {
+              if (existingCase.current_stage === 'stage_1_supervisor') severity = 'plan_failed'
+              else if (existingCase.current_stage === 'stage_2_batch_manager') severity = 'escalated_manager'
+              else if (existingCase.current_stage === 'stage_3_ceo') severity = 'escalated_ceo'
+            }
+            // فقط أظهر البانر لو التأخر >= 5 (تجنّب الإزعاج بالتأخر البسيط جداً)
+            if (Math.abs(gap) >= 5 || existingCase) {
+              setEscalationFor({ student, gap, severity })
+              // اطوِ بطاقة الطالب لإظهار البانر
+              setExpandedStudent(null)
+              setFollowupStep(1)
+              setSaving(false)
+              return
+            }
+          }
         } else {
           toast.success('تم حفظ المتابعة — تُعتبر متابعة هذا الأسبوع مكتملة')
         }
@@ -419,48 +528,20 @@ export default function FollowupsPage() {
         setFollowupStep(1)
       }
 
-      // ── Auto exam scheduling (when on track) ──
+      // ── تنبيه المشرف بإضافة الاختبار يدوياً ──
+      // ⚠️ الاختبارات لا تُضاف تلقائياً — المشرف يضيفها يدوياً من صفحة الاختبارات
       if (actual >= effectiveExpected) {
         const plan = planMap.get(studentId)
-        const student = myStudents.find(s => s.id === studentId)
-        if (plan && student) {
-          try {
-            const upcomingExams = getUpcomingExamDays(
-              plan.start_position, plan.start_date, selectedDate,
-              plan.daily_rate, scheduleMap, 7,
-            )
-            if (upcomingExams.length > 0) {
-              const existingExams = await getExams()
-              for (const examDay of upcomingExams) {
-                const juzNum = getCompletedJuz(examDay.expectedPosition, plan.start_position)
-                if (juzNum <= 0) continue
-                // Check if exam already scheduled for this student + juz
-                const alreadyScheduled = existingExams.some(e =>
-                  e.student_id === studentId && e.juz_number === juzNum && (e.status === 'scheduled' || e.status === 'passed')
-                )
-                if (alreadyScheduled) continue
-                // Check daily capacity
-                const dayCount = existingExams.filter(e => e.date === examDay.date).length
-                if (dayCount >= 3) continue // default max 3 per day
-                const newExam: DBExam = {
-                  id: `auto_${studentId}_j${juzNum}_${Date.now()}`,
-                  student_id: studentId,
-                  student_name: student.name,
-                  batch_id: student.batch_id,
-                  juz_number: juzNum,
-                  examiner: profile?.name || 'المشرف',
-                  date: examDay.date,
-                  time: '10:00',
-                  status: 'scheduled',
-                  score: null,
-                  notes: 'مجدول تلقائياً من المتابعات',
-                }
-                await upsertExam(newExam)
-                toast.success(`تم جدولة اختبار الجزء ${juzNum} تلقائياً — ${examDay.date}`, { duration: 4000 })
-              }
-            }
-          } catch (examErr) {
-            console.error('Auto exam scheduling error:', examErr)
+        if (plan) {
+          const pagesCompleted = actual - plan.start_position
+          if (pagesCompleted > 0 && pagesCompleted % 20 === 0) {
+            const juzNum = Math.floor(pagesCompleted / 20)
+            setTimeout(() => {
+              toast.warning(
+                `📋 تذكير: الطالب أكمل الجزء ${juzNum} — يُرجى إضافة موعد الاختبار يدوياً من صفحة "الاختبارات".`,
+                { duration: 10000 }
+              )
+            }, 800)
           }
         }
       }
@@ -482,6 +563,7 @@ export default function FollowupsPage() {
         start_position: Number(planForm.startPosition) || 1,
         daily_rate: Number(planForm.dailyRate) || 1,
         is_active: true,
+        hijri_year: gregorianToHijri(planForm.startDate).year,
       })
       const updatedPlans = await getQuranPlans()
       setPlans(updatedPlans)
@@ -539,37 +621,170 @@ export default function FollowupsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* فلتر إخفاء المُتَابَعين هذا الأسبوع */}
-          <button
-            type="button"
-            onClick={() => setHideWeeklyFollowed(v => !v)}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition"
-            style={{
-              background: hideWeeklyFollowed ? 'rgba(90,143,103,0.10)' : 'var(--bg-card, #fff)',
-              borderColor: hideWeeklyFollowed ? 'rgba(90,143,103,0.40)' : 'var(--border-soft)',
-              color: hideWeeklyFollowed ? '#3F6E4B' : 'var(--text-muted)',
-            }}
-            title="إخفاء الطلاب الذين تمّت متابعتهم هذا الأسبوع (المتعثّرون يبقون ظاهرين)"
-          >
-            {hideWeeklyFollowed ? '✓ مُتَابَع الأسبوع مُخفي' : 'إظهار الكل'}
-          </button>
           <HijriDatePicker value={selectedDate} onChange={setSelectedDate} compact />
-          {canViewSupervisors && (
-            <Link
-              href="/followups/manager"
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-xl transition-colors"
-              style={{
-                background: 'rgba(53,107,110,0.08)',
-                border: '1px solid rgba(53,107,110,0.25)',
-                color: 'var(--accent-teal)',
-              }}
-            >
-              <Users className="w-3.5 h-3.5" />
-              لوحة المدير
-            </Link>
-          )}
         </div>
       </div>
+
+      {/* ── شريط أزرار الإجراءات السريعة (واضح كأزرار) ── */}
+      <div className="flex flex-wrap gap-2 sm:gap-2.5">
+        <Link
+          href="/followups/schedule"
+          className="group flex items-center gap-2 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0"
+          style={{
+            background: 'linear-gradient(135deg, #C08A48, #8a5e1a)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.20)',
+          }}
+        >
+          <CalendarDays className="w-4 h-4 group-hover:scale-110 transition-transform" />
+          <span>جدول الأسبوع</span>
+        </Link>
+        <Link
+          href="/followups/history"
+          className="group flex items-center gap-2 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0"
+          style={{
+            background: 'linear-gradient(135deg, #5D4256, #3A2840)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.20)',
+          }}
+        >
+          <FileText className="w-4 h-4 group-hover:scale-110 transition-transform" />
+          <span>الأرشيف</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('cases')
+            setTimeout(() => {
+              document.querySelector('[data-cases-tab]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }, 50)
+          }}
+          className="group flex items-center gap-2 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 relative"
+          style={{
+            background: 'linear-gradient(135deg, #DC2626, #7f1d1d)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.20)',
+          }}
+        >
+          <ShieldAlert className="w-4 h-4 group-hover:scale-110 transition-transform" />
+          <span>حالات التصعيد</span>
+          {casesList.length > 0 && (
+            <span className="text-[10px] font-mono font-black px-1.5 py-0.5 rounded-full"
+              style={{ background: '#fff', color: '#7f1d1d' }}>
+              {casesList.length}
+            </span>
+          )}
+        </button>
+        {canViewSupervisors && (
+          <>
+            <Link
+              href="/followups/violations"
+              className="group flex items-center gap-2 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0"
+              style={{
+                background: 'linear-gradient(135deg, #B94838, #7f1d1d)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.20)',
+              }}
+            >
+              <AlertTriangle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>الإخلالات</span>
+            </Link>
+            <Link
+              href="/followups/manager"
+              className="group flex items-center gap-2 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0"
+              style={{
+                background: 'linear-gradient(135deg, #356B6E, #244A4D)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.20)',
+              }}
+            >
+              <Users className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>لوحة المدير</span>
+            </Link>
+          </>
+        )}
+      </div>
+
+      {/* ── شريط التنقل الأسبوعي (السبت → الخميس) ── */}
+      <WeekNavBar
+        selectedDate={selectedDate}
+        onSelect={setSelectedDate}
+        weekFollowups={weekFollowups}
+      />
+
+      {/* ── بانر التصعيد (قنبلة / تحذير) ── */}
+      {escalationFor && (
+        <EscalationBanner
+          studentName={escalationFor.student.name}
+          gap={escalationFor.gap}
+          severity={escalationFor.severity}
+          activeCase={activeCases.get(escalationFor.student.id) ?? null}
+          onStartPlan={() => {
+            setPlanModalFor({ student: escalationFor.student, gap: escalationFor.gap })
+            setEscalationFor(null)
+          }}
+          onEscalate={() => {
+            const c = activeCases.get(escalationFor.student.id)
+            if (c) setEscalateModalFor({ student: escalationFor.student, case: c })
+            setEscalationFor(null)
+          }}
+          onViewCase={() => {
+            const c = activeCases.get(escalationFor.student.id)
+            if (c) window.location.href = `/student-cases/${c.id}`
+          }}
+          onDismiss={() => setEscalationFor(null)}
+        />
+      )}
+
+      {/* ── Tabs: المتابعات اليومية / حالات التصعيد ── */}
+      <div data-cases-tab className="flex gap-2 p-1 rounded-xl w-fit" style={{ background: 'var(--bg-elevated)' }}>
+        <button
+          onClick={() => setActiveTab('daily')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'daily' ? 'bg-white shadow-sm' : ''}`}
+          style={activeTab === 'daily' ? { color: 'var(--accent-teal)' } : { color: 'var(--text-muted)' }}
+        >
+          المتابعات اليومية
+        </button>
+        <button
+          onClick={() => setActiveTab('cases')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${activeTab === 'cases' ? 'bg-white shadow-sm' : ''}`}
+          style={activeTab === 'cases' ? { color: '#B94838' } : { color: 'var(--text-muted)' }}
+        >
+          حالات التصعيد
+          {casesList.length > 0 && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+              style={{ background: activeTab === 'cases' ? '#B94838' : 'rgba(185,72,56,0.15)', color: activeTab === 'cases' ? '#fff' : '#B94838' }}>
+              {casesList.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ── محتوى تبويب الحالات ── */}
+      {activeTab === 'cases' && profile && (
+        <div className="animate-fade-in-up">
+          <CasesTimelineView profile={profile} />
+        </div>
+      )}
+
+      {/* ── محتوى تبويب المتابعات (الأصلي) — يبقى كما كان فقط لـactiveTab='daily' ── */}
+      {activeTab === 'daily' && <>
+
+      {/* ── فلتر الدفعة للـCEO ── */}
+      {isCeo && availableBatches.length > 1 && (
+        <div className="flex gap-2 p-1 rounded-xl w-fit" style={{ background: 'var(--bg-elevated)' }}>
+          {availableBatches.map(batch => (
+            <button
+              key={batch.id}
+              onClick={() => setCeoBatchFilter(batch.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${ceoBatchFilter === batch.id ? 'bg-white shadow-sm' : ''}`}
+              style={ceoBatchFilter === batch.id ? { color: 'var(--accent-teal)' } : { color: 'var(--text-muted)' }}
+            >
+              دفعة {batch.id} <span className="text-xs opacity-60">({batch.count})</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── Supervisor filter toggle ── */}
       {isSupervisor && myAssignedIds.size > 0 && (
@@ -671,88 +886,152 @@ export default function FollowupsPage() {
       )}
 
       {/* ── Student list ── */}
-      <div className="space-y-3">
-        {studentData.map(({ student, plan, expected, followup, gap, status, isExamDay, isFollowed }) => (
+      <div className="space-y-2">
+        {studentData.map(({ student, plan, expected, followup, gap, status, isExamDay, isFollowed }) => {
+          const weekLatest = weekLatestActual.get(student.id)
+          const weekGap = weekLatest ? weekLatest.position - expected : null
+          const isExpanded = expandedStudent === student.id
+          const followedThisWeek = weekFollowedSet.has(student.id)
+          const severelyDelayed = isStudentSeverelyDelayed(student.id)
+
+          // لون الـborder حسب الحالة
+          const accentColor =
+            !plan ? '#9CA3AF'
+            : severelyDelayed ? '#B94838'
+            : status === 'severe_delay' ? '#B94838'
+            : status === 'slight_delay' ? '#C9972C'
+            : status === 'on_track' ? '#5A8F67'
+            : followedThisWeek ? '#356B6E'
+            : '#9CA3AF'
+
+          return (
           <div
             key={student.id}
-            className={`card-static overflow-hidden border transition-all ${
-              expandedStudent === student.id ? 'ring-1 ring-emerald-400/50' : ''
-            } ${plan ? STATUS_BG[status] : 'bg-gray-500/5 border-gray-200/20'}`}
+            className="card-static overflow-hidden transition-all"
+            style={{
+              borderRight: `4px solid ${accentColor}`,
+              boxShadow: isExpanded ? '0 4px 16px -4px rgba(0,0,0,0.08)' : undefined,
+            }}
           >
-            {/* Student row */}
+            {/* بطاقة الطالب — نظرة واحدة */}
             <button
               onClick={() => plan ? expandStudent(student.id, expected) : setShowAddPlan(showAddPlan === student.id ? null : student.id)}
-              className="w-full text-right p-4 flex items-center gap-3"
+              className="w-full text-right p-3 sm:p-4 flex items-center gap-3 hover:bg-black/[0.015] transition-colors"
             >
-              {/* Status indicator + checkmark */}
-              <div className="relative flex-shrink-0">
-                <div className={`w-3 h-3 rounded-full ${
-                  status === 'on_track' ? 'bg-green-500' :
-                  status === 'slight_delay' ? 'bg-amber-500' :
-                  status === 'severe_delay' ? 'bg-red-500 animate-pulse' :
-                  'bg-gray-300'
-                }`} />
+              {/* أحرف اسم الطالب */}
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-sm"
+                style={{ background: `${accentColor}15`, color: accentColor, border: `1px solid ${accentColor}30` }}>
+                {student.name.charAt(0)}
               </div>
 
-              {/* Info */}
+              {/* الاسم + الـbadges */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
-                  {/* ✓ Followed checkmark */}
-                  {isFollowed && (
-                    <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  )}
-                  {/* مؤشر الأسبوع — تمت متابعته أو متعثر */}
-                  {weekFollowedSet.has(student.id) && !isStudentSeverelyDelayed(student.id) && (
-                    <span
-                      className="text-[10px] font-bold px-1.5 py-0.5 rounded inline-flex items-center gap-1"
-                      style={{ background: 'rgba(90,143,103,0.14)', color: '#3F6E4B', border: '1px solid rgba(90,143,103,0.30)' }}
-                      title="تمّت متابعة هذا الطالب هذا الأسبوع — لا متابعة مطلوبة قبل الأسبوع القادم"
+                <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                  <p className="font-bold text-sm sm:text-[15px]" style={{ color: 'var(--text-primary)' }}>
+                    {student.name}
+                  </p>
+                  {/* رابط صفحة تفاصيل الطالب */}
+                  <span onClick={e => e.stopPropagation()}>
+                    <Link
+                      href={`/quran-system/student/${student.id}`}
+                      className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded transition-opacity hover:opacity-70"
+                      style={{ background: 'rgba(56,189,248,0.12)', color: '#38bdf8' }}
                     >
-                      ✓ تمّت متابعته الأسبوع
+                      <ExternalLink className="w-2.5 h-2.5" />
+                      التقدم
+                    </Link>
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold"
+                    style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>
+                    د{student.batch_id}
+                  </span>
+                  {isExamDay && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded font-bold"
+                      style={{ background: 'rgba(192,138,72,0.15)', color: '#8a5e1a' }}>
+                      اختبار
                     </span>
                   )}
-                  {isStudentSeverelyDelayed(student.id) && (
-                    <span
-                      className="text-[10px] font-bold px-1.5 py-0.5 rounded inline-flex items-center gap-1"
-                      style={{ background: 'rgba(185,72,56,0.14)', color: '#8B2F23', border: '1px solid rgba(185,72,56,0.30)' }}
-                      title={`متعثّر بأكثر من ${SEVERE_DELAY} أوجه — متابعة مستمرّة مطلوبة`}
-                    >
-                      ⚠️ متعثّر — متابعة مستمرّة
+                  {followedThisWeek && !severelyDelayed && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold inline-flex items-center gap-0.5"
+                      style={{ background: 'rgba(90,143,103,0.12)', color: '#3F6E4B' }}>
+                      <CheckCircle2 className="w-2.5 h-2.5" /> تمّت
+                    </span>
+                  )}
+                  {severelyDelayed && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-0.5"
+                      style={{ background: 'rgba(185,72,56,0.12)', color: '#8B2F23' }}>
+                      ⚠ متعثّر
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-3 text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  <span>دفعة {student.batch_id}</span>
-                  {plan && (
-                    <>
-                      <span>•</span>
-                      <span>المفترض: <strong className="font-mono">{expected}</strong></span>
-                      {followup?.actual_position != null && (
-                        <>
-                          <span>•</span>
-                          <span>الفعلي: <strong className="font-mono">{followup.actual_position}</strong></span>
-                          <span>•</span>
-                          <span className={`font-bold ${STATUS_COLORS[status]}`}>
-                            {gap !== null && gap !== 0 ? (gap > 0 ? `+${gap}` : gap) : '0'} وجه
-                          </span>
-                        </>
+
+                {/* اسم المشرف */}
+                {student.supervisor_id && supervisorNameMap.get(student.supervisor_id) && (
+                  <p className="text-[10px] sm:text-[11px] mb-1 inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                    <Users className="w-3 h-3" />
+                    <span>المشرف:</span>
+                    <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+                      {supervisorNameMap.get(student.supervisor_id)}
+                    </span>
+                  </p>
+                )}
+
+                {/* صف المعلومات الرئيسية — نظرة واحدة */}
+                {plan ? (
+                  <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-xs flex-wrap" style={{ color: 'var(--text-muted)' }}>
+                    {/* المفترض */}
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-[10px]">مفترض</span>
+                      <strong className="font-mono text-sm" style={{ color: 'var(--text-primary)' }}>{expected}</strong>
+                    </span>
+                    <span style={{ color: 'var(--border-color)' }}>·</span>
+
+                    {/* آخر فعلي هذا الأسبوع */}
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-[10px]">فعلي الأسبوع</span>
+                      <strong className="font-mono text-sm" style={{ color: weekLatest ? accentColor : 'var(--text-muted)' }}>
+                        {weekLatest ? weekLatest.position : '—'}
+                      </strong>
+                      {weekGap !== null && (
+                        <span className="text-[10px] font-mono font-bold px-1 py-0.5 rounded"
+                          style={{
+                            background: weekGap >= 0 ? 'rgba(90,143,103,0.12)' : weekGap >= -5 ? 'rgba(201,151,44,0.12)' : 'rgba(185,72,56,0.12)',
+                            color: weekGap >= 0 ? '#3F6E4B' : weekGap >= -5 ? '#8B5A1E' : '#B94838',
+                          }}>
+                          {weekGap > 0 ? `+${weekGap}` : weekGap}
+                        </span>
                       )}
-                    </>
-                  )}
-                </div>
+                    </span>
+                    <span style={{ color: 'var(--border-color)' }}>·</span>
+
+                    {/* آخر متابعة */}
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-[10px]">آخر متابعة</span>
+                      <strong className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                        {weekLatest ? toHijriShort(weekLatest.date) : student.last_followup ? toHijriShort(student.last_followup) : '—'}
+                      </strong>
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    دفعة {student.batch_id} · لا توجد خطة حفظ
+                  </p>
+                )}
               </div>
 
-              {/* Status badge */}
-              <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${STATUS_COLORS[status]}`}>
-                {isExamDay ? 'يوم اختبار' : STATUS_LABELS[status]}
-              </span>
-
-              {plan ? (
-                expandedStudent === student.id ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />
-              ) : (
-                <Plus className="w-4 h-4 text-gray-400" />
-              )}
+              {/* أيقونة فتح/إغلاق */}
+              <div className="flex-shrink-0">
+                {plan ? (
+                  isExpanded
+                    ? <ChevronUp className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                    : <ChevronDown className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                ) : (
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                    style={{ background: 'rgba(192,138,72,0.10)', color: '#8a5e1a' }}>
+                    <Plus className="w-4 h-4" />
+                  </div>
+                )}
+              </div>
             </button>
 
             {/* Add Plan form (for students without plan) */}
@@ -853,29 +1132,144 @@ export default function FollowupsPage() {
                     <p className="text-[10px] text-amber-500 mb-3 -mt-2">* سيعدّل وجه البداية في كامل الخطة</p>
                   )}
 
-                  {/* المراجعات */}
-                  <div className="grid grid-cols-2 gap-3 mb-3">
+                  {/* ── قسم المراجعات والملاحظات (محدَّث) ── */}
+                  <div className="rounded-xl p-3 mb-3 space-y-3"
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(192,138,72,0.04), rgba(53,107,110,0.03))',
+                      border: '1px solid rgba(192,138,72,0.18)',
+                    }}>
+                    <div className="flex items-center gap-2 pb-2 border-b border-amber-200/30">
+                      <RotateCw className="w-3.5 h-3.5" style={{ color: 'var(--accent-warm)' }} />
+                      <h4 className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                        المراجعة والملاحظات
+                      </h4>
+                      <span className="text-[9px] font-normal mr-auto" style={{ color: 'var(--text-muted)' }}>
+                        اختياري — يساعد على متابعة طويلة المدى
+                      </span>
+                    </div>
+
+                    {/* المراجعتان */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                      <label className="block">
+                        <span className="flex items-center gap-1.5 text-[11px] font-semibold mb-1.5" style={{ color: '#3F6E4B' }}>
+                          <span className="w-2 h-2 rounded-full" style={{ background: '#5A8F67' }} />
+                          مراجعة قريبة
+                          <span className="text-[9px] font-normal opacity-70">(آخر ٣ أشهر)</span>
+                        </span>
+                        <textarea
+                          value={formNearReview}
+                          onChange={e => setFormNearReview(e.target.value)}
+                          placeholder="مثال: الأجزاء ٢٨–٣٠، أو سور البقرة وآل عمران…"
+                          rows={2}
+                          className="w-full px-3 py-2 text-xs rounded-lg resize-none transition-colors focus:outline-none"
+                          style={{
+                            background: 'var(--bg-card, #fff)',
+                            border: '1px solid rgba(90,143,103,0.25)',
+                            color: 'var(--text-primary)',
+                          }}
+                        />
+                        {/* اقتراحات سريعة */}
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {['الجزء الأخير', 'آخر سورة', 'الأجزاء ٢٨–٣٠'].map(s => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setFormNearReview(s)}
+                              className="text-[9px] px-2 py-0.5 rounded-full font-medium transition-colors"
+                              style={{
+                                background: 'rgba(90,143,103,0.08)',
+                                color: '#3F6E4B',
+                                border: '1px solid rgba(90,143,103,0.20)',
+                              }}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </label>
+
+                      <label className="block">
+                        <span className="flex items-center gap-1.5 text-[11px] font-semibold mb-1.5" style={{ color: 'var(--accent-teal)' }}>
+                          <span className="w-2 h-2 rounded-full" style={{ background: 'var(--accent-teal)' }} />
+                          مراجعة بعيدة
+                          <span className="text-[9px] font-normal opacity-70">(قبل ٣ أشهر)</span>
+                        </span>
+                        <textarea
+                          value={formFarReview}
+                          onChange={e => setFormFarReview(e.target.value)}
+                          placeholder="مثال: الأجزاء ١–١٥، أو السور الطوال…"
+                          rows={2}
+                          className="w-full px-3 py-2 text-xs rounded-lg resize-none transition-colors focus:outline-none"
+                          style={{
+                            background: 'var(--bg-card, #fff)',
+                            border: '1px solid rgba(53,107,110,0.25)',
+                            color: 'var(--text-primary)',
+                          }}
+                        />
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {['الأجزاء ١–١٠', 'النصف الأول', 'السور الطوال'].map(s => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setFormFarReview(s)}
+                              className="text-[9px] px-2 py-0.5 rounded-full font-medium transition-colors"
+                              style={{
+                                background: 'rgba(53,107,110,0.08)',
+                                color: 'var(--accent-teal)',
+                                border: '1px solid rgba(53,107,110,0.20)',
+                              }}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </label>
+                    </div>
+
+                    {/* الملاحظات */}
                     <label className="block">
-                      <span className="text-[10px] text-gray-400 block mb-1">مراجعة قريبة</span>
-                      <input value={formNearReview} onChange={e => setFormNearReview(e.target.value)}
-                        placeholder="الأوجه القريبة..."
-                        className="w-full px-3 py-2 text-xs rounded-lg bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/20" />
-                    </label>
-                    <label className="block">
-                      <span className="text-[10px] text-gray-400 block mb-1">مراجعة بعيدة</span>
-                      <input value={formFarReview} onChange={e => setFormFarReview(e.target.value)}
-                        placeholder="الأوجه البعيدة..."
-                        className="w-full px-3 py-2 text-xs rounded-lg bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/20" />
+                      <span className="flex items-center gap-1.5 text-[11px] font-semibold mb-1.5" style={{ color: '#8a5e1a' }}>
+                        <FileText className="w-3 h-3" style={{ color: 'var(--accent-warm)' }} />
+                        ملاحظات إضافية
+                        <span className="text-[9px] font-normal opacity-70">(تُحفظ في سجل الطالب)</span>
+                      </span>
+                      <textarea
+                        value={formNotes}
+                        onChange={e => setFormNotes(e.target.value)}
+                        placeholder="مثال: الطالب متفاعل جداً اليوم، أتقن مخارج الحروف، يحتاج مراجعة في سورة معينة..."
+                        rows={3}
+                        className="w-full px-3 py-2 text-xs rounded-lg resize-none transition-colors focus:outline-none"
+                        style={{
+                          background: 'var(--bg-card, #fff)',
+                          border: '1px solid rgba(192,138,72,0.25)',
+                          color: 'var(--text-primary)',
+                        }}
+                      />
+                      {/* اقتراحات للملاحظات */}
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {[
+                          { label: '✨ متفاعل', value: 'الطالب متفاعل ومتميّز اليوم' },
+                          { label: '👍 أتقن', value: 'أتقن المقدار اليوم بشكل جيد' },
+                          { label: '⏳ يحتاج تركيز', value: 'يحتاج مزيداً من التركيز في المراجعة' },
+                          { label: '💪 تحفيز', value: 'تم تحفيز الطالب لزيادة المقدار' },
+                        ].map(s => (
+                          <button
+                            key={s.label}
+                            type="button"
+                            onClick={() => setFormNotes(prev => prev ? `${prev}\n${s.value}` : s.value)}
+                            className="text-[9px] px-2 py-0.5 rounded-full font-medium transition-colors"
+                            style={{
+                              background: 'rgba(192,138,72,0.08)',
+                              color: '#8a5e1a',
+                              border: '1px solid rgba(192,138,72,0.20)',
+                            }}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
                     </label>
                   </div>
-
-                  {/* ملاحظات */}
-                  <label className="block mb-4">
-                    <span className="text-[10px] text-gray-400 block mb-1">ملاحظات</span>
-                    <input value={formNotes} onChange={e => setFormNotes(e.target.value)}
-                      placeholder="ملاحظات إضافية..."
-                      className="w-full px-3 py-2 text-xs rounded-lg bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-300 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/20" />
-                  </label>
 
                   {/* تنبيه الخطوة الثانية عند التأخر */}
                   {gapVal !== null && gapVal < 0 && (
@@ -977,7 +1371,7 @@ export default function FollowupsPage() {
               )
             })()}
           </div>
-        ))}
+        )})}
 
         {studentData.length === 0 && (
           <div className="text-center py-16">
@@ -986,6 +1380,31 @@ export default function FollowupsPage() {
           </div>
         )}
       </div>
+      </>}
+
+      {/* ── مودال خطة علاجية ── */}
+      {planModalFor && (
+        <RemedialPlanModal
+          studentId={planModalFor.student.id}
+          studentName={planModalFor.student.name}
+          batchId={planModalFor.student.batch_id}
+          supervisorAuthId={profile?.id}
+          triggerReason={`تأخر بـ${Math.abs(planModalFor.gap)} وجه عن المفترض في متابعة ${selectedDate}`}
+          onCreated={() => { reloadCases() }}
+          onClose={() => setPlanModalFor(null)}
+        />
+      )}
+
+      {/* ── مودال تصعيد ── */}
+      {escalateModalFor && (
+        <EscalateModal
+          caseRecord={escalateModalFor.case}
+          studentName={escalateModalFor.student.name}
+          actorAuthId={profile?.id}
+          onEscalated={() => { reloadCases() }}
+          onClose={() => setEscalateModalFor(null)}
+        />
+      )}
     </div>
   )
 }
