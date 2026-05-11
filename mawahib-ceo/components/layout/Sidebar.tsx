@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  LayoutDashboard, Users, UserCheck, BookOpen,
-  CalendarCheck, Star, MessageSquare, FileText,
-  Wallet, Settings, X, Grid3x3,
-  ClipboardCheck, ListChecks, LogOut, ShieldCheck, ChevronLeft, Bell,
-  ClipboardList, Target, BookHeart, CalendarDays, ShieldAlert, Building2,
+  LayoutDashboard, GraduationCap, UserCog, BookOpenCheck, ScrollText,
+  CalendarCheck, CalendarDays, Sparkles, Users, FileBarChart,
+  Wallet, Settings, X, Database,
+  ClipboardCheck, ListTodo, LogOut, ShieldCheck, ChevronLeft, Bell,
+  NotebookPen, TrendingUp, Bookmark, Archive, AlertOctagon, ShieldAlert,
+  Building2, Target,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { signOut } from '@/lib/auth'
@@ -32,54 +33,45 @@ interface NavItem {
 const navItems: NavItem[] = [
   // === المدير التنفيذي ===
   { href: '/admin/dashboard', icon: LayoutDashboard, label: 'لوحة التحكم',      badge: 0, roles: ['ceo'] },
-  { href: '/tasks',           icon: ListChecks,      label: 'مهامي اليومية',     badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher'] },
+  { href: '/tasks',           icon: ListTodo,        label: 'مهامي اليومية',     badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher'] },
   // التقارير في الأعلى — تسمية ديناميكية حسب الدور
-  { href: '/reports',         icon: FileText,        label: 'تقارير الدفعات',   badge: 0 },
+  { href: '/reports',         icon: FileBarChart,    label: 'تقارير الدفعات',   badge: 0 },
 
   // === مدير الدفعة ===
-  // ملاحظة: تم دمج "تكليف المشرفين" داخل "مشرفو دفعتي" كزر، و "تقارير الدفعة"
-  // (/manager/reports) أُلغي لصالح /reports الموحّد أعلى.
   { href: '/manager/dashboard',    icon: LayoutDashboard, label: 'لوحة الدفعة',        badge: 0, roles: ['batch_manager'] },
-  { href: '/manager/supervisors',  icon: UserCheck,       label: 'مشرفو دفعتي',        badge: 0, roles: ['batch_manager'] },
-  { href: '/followups/manager',    icon: ClipboardList,   label: 'متابعات الدفعة',      badge: 0, roles: ['batch_manager'] },
+  { href: '/manager/supervisors',  icon: UserCog,         label: 'مشرفو دفعتي',        badge: 0, roles: ['batch_manager'] },
+  { href: '/followups/manager',    icon: NotebookPen,     label: 'متابعات الدفعة',      badge: 0, roles: ['batch_manager'] },
 
   // === المشرف / المعلم ===
   { href: '/dashboard',       icon: LayoutDashboard, label: 'لوحة التحكم',      badge: 0, roles: ['supervisor', 'teacher'] },
-  { href: '/followups',       icon: ClipboardList,   label: 'المتابعات',         badge: 0, roles: ['supervisor', 'teacher', 'ceo'] },
+  { href: '/followups',       icon: NotebookPen,     label: 'المتابعات',         badge: 0, roles: ['supervisor', 'teacher', 'ceo'] },
 
-  // === نظام القرآن (سجلات الحفظ + التقدم + متابعات الجدولة) ===
-  { href: '/quran-system/daily-records',  icon: BookOpen,      label: 'سجلات الحفظ',     badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
-  { href: '/quran-system/batch-progress', icon: Target,        label: 'تقدم الحفظ',      badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
-  { href: '/followups/schedule',          icon: ClipboardList, label: 'جدول الأسبوع',     badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
-  { href: '/followups/history',           icon: ClipboardList, label: 'أرشيف المتابعات', badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
-  { href: '/followups/violations',        icon: ShieldAlert,   label: 'إخلالات المتابعة', badge: 0, roles: ['ceo', 'batch_manager'] },
+  // === نظام القرآن ===
+  { href: '/quran-system/daily-records',  icon: BookOpenCheck, label: 'سجلات الحفظ',     badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+  { href: '/quran-system/batch-progress', icon: TrendingUp,    label: 'تقدم الحفظ',      badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+  { href: '/followups/schedule',          icon: CalendarDays,  label: 'جدول الأسبوع',     badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+  { href: '/followups/history',           icon: Archive,       label: 'أرشيف المتابعات', badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+  { href: '/followups/violations',        icon: AlertOctagon,  label: 'إخلالات المتابعة', badge: 0, roles: ['ceo', 'batch_manager'] },
 
   // === مشترك ===
-  { href: '/batches',     icon: Grid3x3,         label: 'قاعدة البيانات',         badge: 0 },
-  { href: '/matn',        icon: BookOpen,        label: 'رصد المتون',             badge: 0 },
+  { href: '/batches',     icon: Database,        label: 'قاعدة البيانات',         badge: 0 },
+  { href: '/matn',        icon: ScrollText,      label: 'رصد المتون',             badge: 0 },
   { href: '/exams',       icon: ClipboardCheck,  label: 'جدول الاختبارات',        badge: 0 },
-  // "الطلاب" — تسمية ديناميكية: طلاب دفعتي / طلاب الدفع
-  { href: '/students',    icon: Users,           label: 'طلاب الدفع',             badge: 0 },
-  { href: '/supervisors', icon: UserCheck,       label: 'المشرفون والمعلمون',     badge: 0, roles: ['ceo'] },
+  { href: '/students',    icon: GraduationCap,   label: 'طلاب الدفع',             badge: 0 },
+  { href: '/supervisors', icon: UserCog,         label: 'المشرفون والمعلمون',     badge: 0, roles: ['ceo'] },
   { href: '/attendance',  icon: CalendarCheck,   label: 'الحضور والغياب',         badge: 0 },
-  // "البرامج" — تسمية ديناميكية: برامج دفعتي / برامج الدفع.
-  // الخطة الزمنية أصبحت زرّاً داخل هذه الصفحة (لا بند مستقل).
-  { href: '/programs',    icon: Star,            label: 'برامج الدفع',            badge: 0 },
-  { href: '/meetings',    icon: MessageSquare,   label: 'الاجتماعات',             badge: 0 },
+  { href: '/programs',    icon: Sparkles,        label: 'برامج الدفع',            badge: 0 },
+  { href: '/meetings',    icon: Users,           label: 'الاجتماعات',             badge: 0 },
   { href: '/admin/bulk-plan', icon: Target,      label: 'إنشاء خطة جماعي',        badge: 0, roles: ['ceo'] },
   ...(STUDENT_CASES_ENABLED ? [
     { href: '/student-cases', icon: ShieldAlert, label: 'التصعيدات الواردة لي', badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher', 'records_officer'] as UserRole[] },
   ] : []),
-  // ملاحظات:
-  // - الخطة الزمنية (/timeline) أصبحت زرّاً داخل /programs، لا بند مستقل.
-  // - تقارير الأداء الديناميكية (/reports/performance) زرّ داخل /reports.
-  // - "تعديل المتون" (/matn/manage) زرّ داخل /matn.
-  { href: '/reminders/saved', icon: BookHeart,   label: 'التذكيرات المحفوظة',    badge: 0 },
-  { href: '/notifications',   icon: Bell,         label: 'الإشعارات',              badge: 0 },
-  { href: '/budget',      icon: Wallet,          label: 'الميزانية والعهد',       badge: 0,  roles: ['ceo'] },
-  { href: '/admin/users',   icon: ShieldCheck,  label: 'إدارة الحسابات',         badge: 0,  roles: ['ceo'] },
-  { href: '/admin/tenants', icon: Building2,    label: 'إدارة الحلقات',          badge: 0,  roles: ['ceo'], superAdminOnly: true },
-  { href: '/settings',    icon: Settings,        label: 'الإعدادات',              badge: 0,  roles: ['ceo'] },
+  { href: '/reminders/saved', icon: Bookmark,    label: 'التذكيرات المحفوظة',    badge: 0 },
+  { href: '/notifications',   icon: Bell,        label: 'الإشعارات',              badge: 0 },
+  { href: '/budget',          icon: Wallet,      label: 'الميزانية والعهد',       badge: 0, roles: ['ceo'] },
+  { href: '/admin/users',     icon: ShieldCheck, label: 'إدارة الحسابات',         badge: 0, roles: ['ceo'] },
+  { href: '/admin/tenants',   icon: Building2,   label: 'إدارة الحلقات',          badge: 0, roles: ['ceo'], superAdminOnly: true },
+  { href: '/settings',        icon: Settings,    label: 'الإعدادات',              badge: 0, roles: ['ceo'] },
 ]
 
 interface SidebarProps {
