@@ -35,12 +35,12 @@ export interface CompletedJuzStudent {
 
 /** آخر صفحة في كل جزء */
 export function getJuzEndPage(juz: number): number {
-  return JUZ_PAGE_RANGES[juz]?.to ?? juz * 20
+  return JUZ_PAGE_RANGES[juz]?.to ?? 604
 }
 
 /** أول صفحة في كل جزء */
 export function getJuzStartPage(juz: number): number {
-  return JUZ_PAGE_RANGES[juz]?.from ?? (juz - 1) * 20 + 1
+  return JUZ_PAGE_RANGES[juz]?.from ?? 1
 }
 
 // ─── Core Detection ───────────────────────────────────────────

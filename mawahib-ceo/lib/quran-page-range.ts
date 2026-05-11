@@ -1,28 +1,51 @@
 // ════════════════════════════════════════════════════════════════════════
-// تسمية نطاق صفحات القرآن كأجزاء مفهومة
-// كل جزء = 20 وجه (مصحف المدينة)
-// قاعدة الأوجه داخل الجزء الواحد:
-//   16-20 = جزء كامل
-//   8-15  = نصف
-//   1-7   = "X أوجه من ج N"
+// تقسيم مصحف المدينة (604 صفحة) إلى أجزاء — Source of Truth
+//
+// التقسيم الفعلي:
+//   ج١: 1   → 21   (21 صفحة)  — يبدأ من الفاتحة
+//   ج٢: 22  → 41   (20 صفحة)
+//   ج٣: 42  → 61   (20 صفحة)
+//   ... كل جزء 20 صفحة
+//   ج٢٩: 562 → 581 (20 صفحة)
+//   ج٣٠: 582 → 604 (23 صفحة)
+//
+// قاعدة العرض داخل الجزء الواحد:
+//   pages >= juzSize - 4  = جزء كامل
+//   pages >= 8 و < ذلك    = نصف
+//   1 → 7                 = "X أوجه من ج N"
 // ════════════════════════════════════════════════════════════════════════
 
-const JUZ_PAGES = 20
-
 function toAr(n: number): string { return n.toLocaleString('ar-EG') }
+
+/** حدود صفحات كل جزء (1-30). */
+export function juzBounds(juz: number): { start: number; end: number } {
+  if (juz <= 1)  return { start: 1,   end: 21  }   // ج١ = 21 صفحة
+  if (juz >= 30) return { start: 582, end: 604 }   // ج٣٠ = 23 صفحة
+  // ج٢..ج٢٩: كل واحد 20 صفحة، يبدأ ج٢ من ص٢٢
+  const start = 22 + (juz - 2) * 20
+  return { start, end: start + 19 }
+}
+
+/** يُرجع رقم الجزء (1-30) الذي تقع فيه صفحة معينة. */
+export function pageToJuzNumber(page: number): number {
+  if (page <= 0)   return 1
+  if (page <= 21)  return 1
+  if (page >= 582) return 30
+  // page بين 22 و581 → ج٢..ج٢٩
+  return 2 + Math.floor((page - 22) / 20)
+}
+
+/** عدد الصفحات في جزء معين. */
+function juzSize(juz: number): number {
+  const { start, end } = juzBounds(juz)
+  return end - start + 1
+}
 
 interface Segment {
   juz: number
   pages: number
-  full: boolean        // 16-20 = نعتبره جزءاً كاملاً
-  half: boolean        // 8-15 = نصف
-}
-
-/** حدود صفحات كل جزء (مصحف المدينة — ج30 = 24 صفحة 581-604، البقية 20). */
-function juzBounds(juz: number): { start: number; end: number } {
-  if (juz < 1) juz = 1
-  if (juz >= 30) return { start: 581, end: 604 }
-  return { start: (juz - 1) * JUZ_PAGES + 1, end: juz * JUZ_PAGES }
+  full: boolean        // عدد قريب من حجم الجزء كاملاً
+  half: boolean
 }
 
 /** يقسّم النطاق إلى segments — segment لكل جزء يلامسه النطاق. */
@@ -36,12 +59,11 @@ function splitByJuz(from: number, to: number): Segment[] {
     const b = Math.min(to,   juzEnd)
     const pages = b - a + 1
     if (pages <= 0) continue
-    // ج30 = 24 صفحة، فالحدود تتكيف
-    const fullSize = juzEnd - juzStart + 1
+    const size = juzSize(juz)
     segs.push({
       juz, pages,
-      full: pages >= fullSize - 4,                 // ≥ 16 لـ20 صفحة، ≥ 20 لـ24
-      half: pages >= 8 && pages < fullSize - 4,
+      full: pages >= size - 4,                 // كامل تقريباً
+      half: pages >= 8 && pages <  size - 4,
     })
   }
   return segs
@@ -50,31 +72,25 @@ function splitByJuz(from: number, to: number): Segment[] {
 /**
  * يحوّل نطاق صفحات إلى صيغة مختصرة كقائمة أجزاء.
  *
- * أمثلة:
- *   formatPageRangeAsJuz(1, 50)   → "ج١، ٢، نصف ج٣"
- *   formatPageRangeAsJuz(1, 30)   → "ج١، نصف ج٢"
- *   formatPageRangeAsJuz(1, 40)   → "ج١، ٢"
- *   formatPageRangeAsJuz(500, 510)→ "١ وجه من ج٢٥، نصف ج٢٦"
- *   formatPageRangeAsJuz(1, 7)    → "٧ أوجه من ج١"
+ * أمثلة (بالتقسيم الصحيح ج١=21، ج٢=20، ج٣٠=23):
+ *   (1, 21)   → "ج١"
+ *   (1, 41)   → "ج١، ٢"
+ *   (1, 51)   → "ج١، ٢، نصف ج٣"  (51-42+1=10 من ج٣ = نصف)
+ *   (22, 41)  → "ج٢"
+ *   (582, 604)→ "ج٣٠"
  */
 export function formatPageRangeAsJuz(from: number, to: number): string {
   if (!from || !to || to < from) return ''
   const segs = splitByJuz(from, to)
   if (segs.length === 0) return ''
 
-  // نجمع الأجزاء الكاملة المتتالية في group واحد: "ج١، ٢، ٣"
-  // الباقي (نصف / X أوجه) نُلحقه كنص مستقل.
   const parts: string[] = []
   let fullRun: number[] = []
 
   const flushFull = () => {
     if (fullRun.length === 0) return
-    if (fullRun.length === 1) {
-      parts.push(`ج${toAr(fullRun[0])}`)
-    } else {
-      // ج١، ٢، ٣ — الأول فقط بـ"ج"، الباقي أرقام مفصولة بفواصل
-      parts.push('ج' + fullRun.map(toAr).join('، '))
-    }
+    if (fullRun.length === 1) parts.push(`ج${toAr(fullRun[0])}`)
+    else                      parts.push('ج' + fullRun.map(toAr).join('، '))
     fullRun = []
   }
 
@@ -85,7 +101,6 @@ export function formatPageRangeAsJuz(from: number, to: number): string {
       flushFull()
       parts.push(`نصف ج${toAr(s.juz)}`)
     } else {
-      // 1-7 أوجه
       flushFull()
       const wajh = s.pages === 1 ? 'وجه' : s.pages === 2 ? 'وجهان' : 'أوجه'
       parts.push(`${toAr(s.pages)} ${wajh} من ج${toAr(s.juz)}`)
@@ -96,9 +111,12 @@ export function formatPageRangeAsJuz(from: number, to: number): string {
   return parts.join('، ')
 }
 
-/** يُرجع رقم الجزء (1-30) الذي تقع فيه صفحة معينة. */
-export function pageToJuzNumber(page: number): number {
-  if (page < 1) return 1
-  if (page >= 581) return 30
-  return Math.ceil(page / JUZ_PAGES)
-}
+/** JUZ_PAGE_RANGES — للحفاظ على التوافق مع الكود القديم. */
+export const JUZ_PAGE_RANGES: Record<number, { from: number; to: number }> = (() => {
+  const map: Record<number, { from: number; to: number }> = {}
+  for (let j = 1; j <= 30; j++) {
+    const { start, end } = juzBounds(j)
+    map[j] = { from: start, to: end }
+  }
+  return map
+})()

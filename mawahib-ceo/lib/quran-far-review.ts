@@ -18,12 +18,10 @@ import type { DBJuzProgress } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
 
 // ─── حدود صفحات كل جزء (مصحف المدينة — 604 وجه) ─────────────
-// كل جزء = 20 صفحة بالضبط، عدا الجزء 30 = 24 صفحة (581–604)
-export const JUZ_PAGE_RANGES: Record<number, { from: number; to: number }> = {}
-for (let j = 1; j <= 29; j++) {
-  JUZ_PAGE_RANGES[j] = { from: (j - 1) * 20 + 1, to: j * 20 }
-}
-JUZ_PAGE_RANGES[30] = { from: 581, to: 604 }
+// التقسيم الفعلي: ج١=21، ج٢..ج٢٩=20، ج٣٠=23
+// المرجع الموحّد في lib/quran-page-range.ts
+import { JUZ_PAGE_RANGES as _RANGES, pageToJuzNumber } from '@/lib/quran-page-range'
+export const JUZ_PAGE_RANGES = _RANGES
 
 /** كم صفحة في هذا الجزء؟ */
 export function juzPageCount(juzNumber: number): number {
@@ -35,10 +33,7 @@ export function juzPageCount(juzNumber: number): number {
 /** أي جزء تنتمي إليه هذه الصفحة؟ (null لو خارج النطاق) */
 export function getJuzForPage(page: number): number | null {
   if (page < 1 || page > 604) return null
-  for (const [juzStr, range] of Object.entries(JUZ_PAGE_RANGES)) {
-    if (page >= range.from && page <= range.to) return Number(juzStr)
-  }
-  return null
+  return pageToJuzNumber(page)
 }
 
 // ─── DB Types ────────────────────────────────────────────────
