@@ -37,9 +37,9 @@ export default function TenantsPage() {
   const [saving, setSaving]     = useState(false)
   const [toggling, setToggling] = useState<number | null>(null)
 
-  // guard: super admin only — هذه إدارة بين الحلقات
+  // guard: super_admin فقط — هذه إدارة بين الحلقات
   useEffect(() => {
-    if (profile && profile.role !== 'ceo') router.replace('/dashboard')
+    if (profile && !profile.is_super_admin) router.replace('/dashboard')
   }, [profile, router])
 
   // load

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { getStudents, getSupervisors, upsertStudent, deleteStudent, getJuzProgress, DBStudent, DBSupervisor } from '@/lib/db'
 import { toHijriDisplay } from '@/lib/hijri'
 import { toast } from 'sonner'
-import { Loader2, Download, Trash2, AlertTriangle } from 'lucide-react'
+import { Loader2, Download, Trash2, AlertTriangle, Users, UserCheck, UserX, Plus } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import * as XLSX from 'xlsx'
 import HijriDatePicker from '@/components/ui/HijriDatePicker'
@@ -295,51 +295,49 @@ export default function StudentsPage() {
   }
 
   return (
-    <div className="min-h-screen p-6 animate-fade-in-up" style={{ background: 'rgba(255,255,255,0.02)' }} dir="rtl">
+    <div className="min-h-screen p-4 sm:p-6 animate-fade-in-up max-w-7xl mx-auto" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            {role === 'ceo' || role === 'records_officer' ? 'طلاب الدفع' : 'طلاب دفعتي'}
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            {role === 'ceo' || role === 'records_officer' ? 'إدارة جميع طلاب البرنامج' : 'إدارة طلاب دفعتك'}
-          </p>
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
+            style={{ background: 'rgba(192,138,72,0.12)' }}>
+            <Users className="w-5 h-5" style={{ color: 'var(--accent-warm)' }} />
+          </div>
+          <div>
+            <h1 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
+              {role === 'ceo' || role === 'records_officer' ? 'طلاب الدفع' : 'طلاب دفعتي'}
+            </h1>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {role === 'ceo' || role === 'records_officer' ? 'إدارة جميع طلاب البرنامج' : 'إدارة طلاب دفعتك'}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={exportToExcel}
             disabled={filtered.length === 0}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-colors disabled:opacity-50"
-            style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 transition-all active:scale-95"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', color: 'var(--text-secondary)' }}
           >
             <Download className="w-4 h-4" />
-            تصدير Excel
+            <span className="hidden sm:inline">تصدير Excel</span>
           </button>
           <button
             onClick={openAdd}
-            className="btn-primary btn-ripple flex items-center gap-2 text-white px-4 py-2 rounded-xl text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
+            style={{ background: 'var(--accent-warm)', boxShadow: '0 4px 12px rgba(192,138,72,0.3)' }}
           >
-            <span className="text-lg leading-none">+</span>
+            <Plus className="w-4 h-4" />
             إضافة طالب
           </button>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6 stagger-children">
-        <div className="card-static p-4">
-          <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>إجمالي الطلاب</p>
-          <p className="text-3xl font-bold font-mono" style={{ color: '#C08A48' }}>{totalCount}</p>
-        </div>
-        <div className="card-static p-4">
-          <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>نشط</p>
-          <p className="text-3xl font-bold font-mono text-emerald-600">{activeCount}</p>
-        </div>
-        <div className="card-static p-4">
-          <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>متعثر</p>
-          <p className="text-3xl font-bold font-mono text-red-500">{suspendedCount}</p>
-        </div>
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        <StatCard label="إجمالي الطلاب" value={totalCount} icon={Users} color="#C08A48" />
+        <StatCard label="نشط"            value={activeCount} icon={UserCheck} color="#4ade80" />
+        <StatCard label="متعثر"          value={suspendedCount} icon={UserX} color="#f87171" />
       </div>
 
       {/* Filters */}
@@ -783,6 +781,28 @@ export default function StudentsPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Sub-component ──────────────────────────────────────────────────
+function StatCard({ label, value, icon: Icon, color }: {
+  label: string; value: number; icon: React.ElementType; color: string
+}) {
+  return (
+    <div className="rounded-2xl p-4 transition-all hover:shadow-sm"
+      style={{ background: 'var(--bg-card)', border: `1px solid ${color}25` }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold" style={{ color }}>{label}</span>
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+          style={{ background: `${color}18` }}>
+          <Icon className="w-4 h-4" style={{ color }} />
+        </div>
+      </div>
+      <p className="text-2xl sm:text-3xl font-black tabular-nums leading-none"
+        style={{ color: 'var(--text-primary)' }}>
+        {value.toLocaleString('ar-EG')}
+      </p>
     </div>
   )
 }

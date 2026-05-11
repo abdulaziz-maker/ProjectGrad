@@ -81,6 +81,17 @@ export default function TeacherDashboardPage() {
   const isCeo = profile?.role === 'ceo' || profile?.role === 'records_officer'
   const isBatchManager = profile?.role === 'batch_manager'
 
+  // قاعدة التوجيه: CEO → /admin/dashboard، مدير الدفعة → /manager/dashboard،
+  // المشرف/المعلم يبقى في /dashboard البسيطة.
+  useEffect(() => {
+    if (authLoading || !profile) return
+    if (profile.role === 'ceo' || profile.role === 'records_officer') {
+      router.replace('/admin/dashboard')
+    } else if (profile.role === 'batch_manager') {
+      router.replace('/manager/dashboard')
+    }
+  }, [profile, authLoading, router])
+
   // Batch selector (CEO فقط)
   const [batches, setBatches]       = useState<DBBatch[]>([])
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null)

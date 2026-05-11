@@ -1081,9 +1081,11 @@ export async function regenerateTextUnits(textId: string, totalLines: number, we
 }
 
 export async function createText(data: Omit<DBText, 'id'>): Promise<string> {
+  // tenant_id إلزامي على texts — نضيفه تلقائياً من الـRPC
+  const tenantId = await getCurrentTenantId()
   const { data: row, error } = await supabase
     .from('texts')
-    .insert(data)
+    .insert({ ...data, tenant_id: tenantId })
     .select('id')
     .single()
   if (error) throw error

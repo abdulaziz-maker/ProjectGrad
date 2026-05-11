@@ -1,375 +1,369 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { getStudents, getSupervisors, toggleFollowup, upsertSupervisor, DBStudent, DBSupervisor } from '@/lib/db'
-import { getWeekStart } from '@/lib/hijri'
-import { Star, Users, Plus, ChevronDown, ChevronUp, Check, X, Loader2 } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { getSupervisors, getStudents, getBatches, upsertSupervisor, type DBSupervisor, type DBStudent, type DBBatch } from '@/lib/db'
+import {
+  Users, Plus, Loader2, Search, GraduationCap, BookOpen, X, Save,
+  UserCheck, ChevronLeft,
+} from 'lucide-react'
+import Link from 'next/link'
 import { toast } from 'sonner'
 
-const TEACHERS = [
-  { id: 't1', name: 'عبدالله المطوع', batch: 'دفعة 46', cert: 'إجازة في القرآن', status: 'active', rating: 4.5 },
-  { id: 't2', name: 'سعد الغامدي', batch: 'دفعة 46', cert: 'بكالوريوس شريعة', status: 'active', rating: 4.0 },
-  { id: 't3', name: 'محمد الحازمي', batch: 'دفعة 48', cert: 'إجازة في القرآن', status: 'active', rating: 3.5 },
-  { id: 't4', name: 'خالد العتيبي', batch: 'دفعة 48', cert: 'ماجستير تربية', status: 'active', rating: 4.2 },
-  { id: 't5', name: 'فيصل الشمري', batch: 'دفعة 46', cert: 'إجازة في القرآن', status: 'inactive', rating: 3.0 },
-  { id: 't6', name: 'ياسر البلوي', batch: 'دفعة 46', cert: 'بكالوريوس تربية', status: 'active', rating: 4.8 },
-  { id: 't7', name: 'وائل الدوسري', batch: 'دفعة 48', cert: 'إجازة في القرآن', status: 'active', rating: 4.1 },
-  { id: 't8', name: 'أحمد الرشيدي', batch: 'دفعة 46', cert: 'ماجستير إسلامية', status: 'active', rating: 3.8 },
-  { id: 't9', name: 'تركي السبيعي', batch: 'دفعة 48', cert: 'إجازة في القرآن', status: 'active', rating: 4.3 },
-  { id: 't10', name: 'ناصر الحربي', batch: 'دفعة 46', cert: 'بكالوريوس شريعة', status: 'active', rating: 4.6 },
-]
-
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({ length: 5 }, (_, i) => (
-        <Star key={i} className={`w-3.5 h-3.5 ${i < Math.round(rating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`} />
-      ))}
-      <span className="text-xs mr-1" style={{ color: 'var(--text-muted)' }}>{rating}</span>
-    </div>
-  )
-}
+function toAr(n: number): string { return n.toLocaleString('ar-EG') }
 
 function isReportLate(date: string | null): boolean {
   if (!date) return true
   return (Date.now() - new Date(date).getTime()) / 86400000 > 7
 }
 
-interface AddSupervisorForm {
-  name: string; specialty: string; batch_id: '46' | '48'; experience_years: string; notes: string
-}
-const EMPTY_FORM: AddSupervisorForm = { name: '', specialty: '', batch_id: '46', experience_years: '', notes: '' }
-
-function SupervisorCard({
-  supervisor, students, followups, weekOf, onToggle,
-}: {
-  supervisor: DBSupervisor
-  students: DBStudent[]
-  followups: Record<string, boolean>
-  weekOf: string
-  onToggle: (supervisorId: string, studentId: string, weekOf: string) => void
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const assignedStudents = students.filter(s => s.supervisor_id === supervisor.id)
-  const followedCount = assignedStudents.filter(s => followups[`${supervisor.id}_${s.id}_${weekOf}`]).length
+// ─── بطاقة المشرف ────────────────────────────────────────────────────────
+function SupervisorCard({ supervisor, students }: { supervisor: DBSupervisor; students: DBStudent[] }) {
+  const myStudents = students.filter(s => s.supervisor_id === supervisor.id && (s.status === 'active' || !s.status))
+  const avgProgress = myStudents.length > 0
+    ? Math.round(myStudents.reduce((a, s) => a + (s.completion_percentage ?? 0), 0) / myStudents.length)
+    : 0
   const late = isReportLate(supervisor.last_report_date)
+  const initial = supervisor.name?.charAt(0) ?? 'م'
 
   return (
-    <div className="card-static overflow-hidden">
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>{supervisor.name}</h3>
-              {late && <span className="text-xs bg-red-50 text-red-600 rounded-full px-2 py-0.5 font-medium">تأخر في الرفع</span>}
-            </div>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>{supervisor.specialty}</p>
-          </div>
-          <StarRating rating={supervisor.rating} />
+    <div className="rounded-2xl p-4 transition-all hover:shadow-md"
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)' }}>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-lg shrink-0"
+          style={{ background: 'linear-gradient(135deg, var(--accent-warm), color-mix(in srgb, var(--accent-warm) 80%, black))' }}>
+          {initial}
         </div>
-
-        <div className="grid grid-cols-3 gap-3 mt-4">
-          <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <Users className="w-4 h-4 mx-auto mb-1" style={{ color: '#C08A48' }} />
-            <p className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{supervisor.student_count}</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>طالب</p>
-          </div>
-          <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <p className="font-bold text-xs mb-1" style={{ color: '#C08A48' }}>%</p>
-            <p className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{supervisor.avg_student_progress}</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>متوسط التقدم</p>
-          </div>
-          <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <p className="font-bold text-xs mb-1" style={{ color: '#C08A48' }}>تقرير</p>
-            <p className="text-xs font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>
-              {supervisor.last_report_date
-                ? new Date(supervisor.last_report_date).toLocaleDateString('ar-SA-u-nu-latn', { month: 'short', day: 'numeric' })
-                : 'لا يوجد'}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>آخر تقرير</p>
-          </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-base truncate" style={{ color: 'var(--text-primary)' }}>{supervisor.name}</h3>
+          <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{supervisor.specialty || 'مشرف'}</p>
         </div>
-
-        <button
-          onClick={() => setExpanded(v => !v)}
-          className="mt-4 w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-colors font-medium text-sm" style={{ background: 'rgba(192,138,72,0.06)', color: '#C08A48' }}
-        >
-          <span>متابعة الطلاب هذا الأسبوع</span>
-          <div className="flex items-center gap-2">
-            <span className="text-xs rounded-full px-2 py-0.5" style={{ background: 'rgba(192,138,72,0.1)', color: '#C08A48' }}>
-              تابع {followedCount} من {assignedStudents.length}
-            </span>
-            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </div>
-        </button>
+        {late && (
+          <span className="text-[10px] font-bold px-2 py-1 rounded-lg whitespace-nowrap"
+            style={{ background: 'rgba(185,72,56,0.1)', color: '#B94838' }}>
+            تأخر التقرير
+          </span>
+        )}
       </div>
 
-      {expanded && (
-        <div className="border-t border-gray-100 px-5 pb-5">
-          <div className="mt-3 space-y-2">
-            {assignedStudents.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-3">لا يوجد طلاب مسجلون</p>
-            ) : (
-              assignedStudents.map(student => {
-                const key = `${supervisor.id}_${student.id}_${weekOf}`
-                const followed = !!followups[key]
-                return (
-                  <div key={student.id} className="flex items-center justify-between gap-3 py-2 px-3 rounded-xl">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${student.status === 'active' ? 'bg-green-400' : 'bg-gray-300'}`} />
-                      <span className="text-sm truncate" style={{ color: 'var(--text-secondary)' }}>{student.name}</span>
-                      <span className="text-xs flex-shrink-0 font-mono" style={{ color: 'var(--text-muted)' }}>{student.completion_percentage}%</span>
-                    </div>
-                    <button
-                      onClick={() => onToggle(supervisor.id, student.id, weekOf)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0 ${
-                        followed ? 'text-white shadow-sm' : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
-                      style={followed ? { backgroundColor: '#C08A48' } : { color: 'var(--text-muted)' }}
-                    >
-                      {followed ? <><Check className="w-3.5 h-3.5" />تابعه</> : <><X className="w-3.5 h-3.5" />لم يتابعه</>}
-                    </button>
-                  </div>
-                )
-              })
-            )}
-          </div>
-          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs" style={{ color: 'var(--text-muted)' }}>
-            <span>أسبوع {weekOf}</span>
-            <span className={followedCount === assignedStudents.length && assignedStudents.length > 0 ? 'font-semibold' : ''}
-              style={followedCount === assignedStudents.length && assignedStudents.length > 0 ? { color: '#C08A48' } : undefined}>
-              {followedCount === assignedStudents.length && assignedStudents.length > 0
-                ? 'تابع جميع الطلاب'
-                : `تابع ${followedCount} من ${assignedStudents.length} طالب`}
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Stats — 3 columns */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <Stat icon={Users} value={myStudents.length} label="طالب" color="var(--accent-warm)" />
+        <Stat value={`${toAr(avgProgress)}%`} label="متوسط التقدم"
+          color={avgProgress >= 70 ? '#4ade80' : avgProgress >= 40 ? '#facc15' : '#f87171'} />
+        <Stat
+          value={supervisor.last_report_date
+            ? new Date(supervisor.last_report_date).toLocaleDateString('ar-SA-u-nu-latn', { month: 'short', day: 'numeric' })
+            : '—'}
+          label="آخر تقرير"
+          color="var(--text-secondary)"
+        />
+      </div>
+
+      {/* Action — link to followups */}
+      <Link href={`/followups/manager?supervisor=${supervisor.id}`}
+        className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+        style={{ background: 'rgba(192,138,72,0.06)', color: 'var(--accent-warm)' }}>
+        <span>عرض متابعات الطلاب</span>
+        <ChevronLeft className="w-3.5 h-3.5" />
+      </Link>
     </div>
   )
 }
 
+function Stat({ icon: Icon, value, label, color }: {
+  icon?: React.ElementType; value: string | number; label: string; color: string
+}) {
+  return (
+    <div className="rounded-xl p-2.5 text-center"
+      style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-faint)' }}>
+      {Icon && <Icon className="w-3.5 h-3.5 mx-auto mb-1" style={{ color }} />}
+      <p className="font-black text-base tabular-nums leading-none" style={{ color: 'var(--text-primary)' }}>
+        {typeof value === 'number' ? toAr(value) : value}
+      </p>
+      <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
+    </div>
+  )
+}
+
+// ─── Main ──────────────────────────────────────────────────────────────
 export default function SupervisorsPage() {
   const [activeTab, setActiveTab] = useState<'supervisors' | 'teachers'>('supervisors')
   const [supervisors, setSupervisors] = useState<DBSupervisor[]>([])
-  const [students, setStudents] = useState<DBStudent[]>([])
-  const [followups, setFollowups] = useState<Record<string, boolean>>({})
-  const [weekOf, setWeekOf] = useState('')
+  const [students, setStudents]       = useState<DBStudent[]>([])
+  const [batches, setBatches]         = useState<DBBatch[]>([])
+  const [search, setSearch]           = useState('')
+  const [loading, setLoading]         = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [form, setForm] = useState<AddSupervisorForm>(EMPTY_FORM)
-  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState({
+    name: '', specialty: 'حفظ القرآن الكريم', batch_id: '', experience_years: '', notes: '',
+  })
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    setWeekOf(getWeekStart())
-    Promise.all([getSupervisors(), getStudents()])
-      .then(([sups, studs]) => {
+    Promise.all([getSupervisors(), getStudents(), getBatches()])
+      .then(([sups, studs, bts]) => {
         setSupervisors(sups)
         setStudents(studs)
+        setBatches(bts)
+        if (bts.length > 0) setForm(f => ({ ...f, batch_id: String(bts[0].id) }))
       })
       .catch(() => toast.error('خطأ في تحميل البيانات'))
       .finally(() => setLoading(false))
   }, [])
 
-  async function handleToggle(supervisorId: string, studentId: string, week: string) {
-    const key = `${supervisorId}_${studentId}_${week}`
-    const newVal = !followups[key]
-    setFollowups(prev => ({ ...prev, [key]: newVal }))
-    try {
-      await toggleFollowup(supervisorId, studentId, week, newVal)
-    } catch {
-      setFollowups(prev => ({ ...prev, [key]: !newVal }))
-      toast.error('خطأ في الحفظ')
-    }
-  }
+  // فلتر بالاسم
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return q ? supervisors.filter(s => s.name?.toLowerCase().includes(q)) : supervisors
+  }, [supervisors, search])
 
-  async function handleAddSupervisor() {
-    if (!form.name.trim() || !form.specialty.trim()) return
+  // تجميع المشرفين حسب الدفعة (تلقائياً يعرض دفعات الـtenant الحالي فقط — RLS)
+  const groupedByBatch = useMemo(() => {
+    const map = new Map<number, DBSupervisor[]>()
+    for (const s of filtered) {
+      if (s.batch_id == null) continue
+      const list = map.get(s.batch_id) ?? []
+      list.push(s)
+      map.set(s.batch_id, list)
+    }
+    return [...map.entries()].sort((a, b) => a[0] - b[0])
+  }, [filtered])
+
+  // قائمة المعلمين (تستخدم نفس supervisors جدول لكن تختار التخصص "تعليم" أو حسب الـrating)
+  const teachers = filtered
+
+  async function handleAdd() {
+    if (!form.name.trim() || !form.batch_id) return
+    setSaving(true)
     const newSup: DBSupervisor = {
       id: `sup_${Date.now()}`,
       name: form.name.trim(),
-      specialty: form.specialty.trim(),
+      specialty: form.specialty.trim() || 'حفظ القرآن الكريم',
       experience_years: parseInt(form.experience_years) || 0,
       notes: form.notes.trim(),
       rating: 4,
       student_count: 0,
       last_report_date: null,
       avg_student_progress: 0,
-      age: 0,
-      strengths: '',
-      weaknesses: '',
+      age: 0, strengths: '', weaknesses: '',
       batch_id: parseInt(form.batch_id),
       user_id: null,
     }
     try {
       await upsertSupervisor(newSup)
       setSupervisors(prev => [...prev, newSup])
-      setForm(EMPTY_FORM)
+      setForm(f => ({ ...f, name: '', experience_years: '', notes: '' }))
       setShowAddForm(false)
-      toast.success('تم إضافة المشرف بنجاح')
+      toast.success('تم إضافة المشرف')
     } catch {
       toast.error('خطأ في الحفظ')
-    }
+    } finally { setSaving(false) }
   }
 
-  const supervisors46 = supervisors.filter(s => s.batch_id === 46 || (!s.batch_id && supervisors.indexOf(s) < 4))
-  const supervisors48 = supervisors.filter(s => s.batch_id === 48 || (!s.batch_id && supervisors.indexOf(s) >= 4))
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]" dir="rtl">
-        <div className="text-center space-y-3">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto" style={{ color: '#C08A48' }} />
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>جاري تحميل البيانات...</p>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent-warm)' }} />
+    </div>
+  )
 
   return (
-    <div className="space-y-6 animate-fade-in-up" dir="rtl">
+    <div className="space-y-5 pb-8 max-w-6xl mx-auto" dir="rtl">
+
+      {/* ─── الرأس ─── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold" style={{ color: 'var(--text-primary)' }}>المشرفون والمعلمون</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>متابعة أداء فريق البرنامج</p>
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
+            style={{ background: 'rgba(192,138,72,0.12)' }}>
+            <UserCheck className="w-5 h-5" style={{ color: 'var(--accent-warm)' }} />
+          </div>
+          <div>
+            <h1 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
+              المشرفون والمعلمون
+            </h1>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              متابعة فريق البرنامج · {toAr(supervisors.length)} مشرف
+            </p>
+          </div>
         </div>
-        {activeTab === 'supervisors' && (
-          <button onClick={() => setShowAddForm(v => !v)}
-            className="btn-primary btn-ripple flex items-center gap-2 px-4 py-2 text-white rounded-xl text-sm font-medium">
-            <Plus className="w-4 h-4" />
-            إضافة مشرف
-          </button>
-        )}
+        <button onClick={() => setShowAddForm(v => !v)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
+          style={{ background: 'var(--accent-warm)' }}>
+          <Plus className="w-4 h-4" />
+          إضافة مشرف
+        </button>
       </div>
 
-      {showAddForm && activeTab === 'supervisors' && (
-        <div className="card-static p-5">
-          <h2 className="font-bold mb-4" style={{ color: 'var(--text-primary)' }}>إضافة مشرف جديد</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>الاسم *</label>
-              <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="اسم المشرف"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C08A48]" />
-            </div>
-            <div>
-              <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>التخصص *</label>
-              <input type="text" value={form.specialty} onChange={e => setForm(f => ({ ...f, specialty: e.target.value }))}
-                placeholder="مثل: حفظ القرآن الكريم"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C08A48]" />
-            </div>
-            <div>
-              <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>الدفعة</label>
-              <select value={form.batch_id} onChange={e => setForm(f => ({ ...f, batch_id: e.target.value as '46' | '48' }))}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C08A48]">
-                <option value="46">دفعة 46</option>
-                <option value="48">دفعة 48</option>
+      {/* ─── شريط البحث + التبويبات ─── */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="ابحث عن مشرف بالاسم..."
+            className="w-full pr-9 pl-3 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }} />
+        </div>
+        <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-elevated)' }}>
+          {(['supervisors', 'teachers'] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+              style={{
+                background: activeTab === tab ? 'var(--bg-card)' : 'transparent',
+                color: activeTab === tab ? 'var(--accent-warm)' : 'var(--text-muted)',
+                boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+              }}>
+              {tab === 'supervisors' ? 'المشرفون' : 'المعلمون'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ─── نموذج الإضافة ─── */}
+      {showAddForm && (
+        <div className="rounded-2xl p-5 space-y-3"
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-soft)' }}>
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>إضافة مشرف جديد</h2>
+            <button onClick={() => setShowAddForm(false)} className="opacity-60 hover:opacity-100">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="الاسم *">
+              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="اسم المشرف" className="input" />
+            </Field>
+            <Field label="الدفعة *">
+              <select value={form.batch_id} onChange={e => setForm(f => ({ ...f, batch_id: e.target.value }))}
+                className="input">
+                {batches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>سنوات الخبرة</label>
+            </Field>
+            <Field label="التخصص">
+              <input value={form.specialty} onChange={e => setForm(f => ({ ...f, specialty: e.target.value }))}
+                placeholder="مثل: حفظ القرآن الكريم" className="input" />
+            </Field>
+            <Field label="سنوات الخبرة">
               <input type="number" min="0" value={form.experience_years}
                 onChange={e => setForm(f => ({ ...f, experience_years: e.target.value }))}
-                placeholder="عدد السنوات"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C08A48]" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>ملاحظات</label>
-              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C08A48] resize-none" />
-            </div>
+                placeholder="0" className="input" />
+            </Field>
           </div>
-          <div className="flex gap-3 mt-4 justify-end">
-            <button onClick={() => { setShowAddForm(false); setForm(EMPTY_FORM) }}
-              className="px-4 py-2 text-sm hover:bg-gray-100 rounded-xl" style={{ color: 'var(--text-secondary)' }}>إلغاء</button>
-            <button onClick={handleAddSupervisor} disabled={!form.name.trim() || !form.specialty.trim()}
-              className="btn-primary btn-ripple px-4 py-2 text-white rounded-xl text-sm font-medium disabled:opacity-40">حفظ</button>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowAddForm(false)}
+              className="px-4 py-2 rounded-xl text-sm font-semibold"
+              style={{ color: 'var(--text-secondary)' }}>إلغاء</button>
+            <button onClick={handleAdd} disabled={!form.name.trim() || !form.batch_id || saving}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+              style={{ background: 'var(--accent-warm)' }}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              حفظ
+            </button>
           </div>
         </div>
       )}
 
-      <div className="flex gap-2 bg-gray-100 p-1 rounded-xl w-fit">
-        {(['supervisors', 'teachers'] as const).map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab ? 'bg-white shadow-sm' : ''}`}
-            style={activeTab === tab ? { color: '#C08A48' } : { color: 'var(--text-muted)' }}>
-            {tab === 'supervisors' ? 'المشرفون' : 'المعلمون'}
-          </button>
-        ))}
+      {/* ─── المحتوى ─── */}
+      {filtered.length === 0 ? (
+        <EmptyState message={search ? 'لا توجد نتائج' : 'لا يوجد مشرفون بعد'} />
+      ) : activeTab === 'supervisors' ? (
+        <div className="space-y-6">
+          {groupedByBatch.map(([batchId, sups]) => {
+            const batch = batches.find(b => b.id === batchId)
+            return (
+              <section key={batchId}>
+                <div className="flex items-center gap-3 mb-3">
+                  <h2 className="text-sm font-black px-3 py-1.5 rounded-lg whitespace-nowrap"
+                    style={{ background: 'rgba(192,138,72,0.08)', color: 'var(--accent-warm)' }}>
+                    مشرفو {batch?.name ?? `دفعة ${batchId}`}
+                  </h2>
+                  <div className="h-px flex-1" style={{ background: 'var(--border-faint)' }} />
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{toAr(sups.length)}</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {sups.map(s => <SupervisorCard key={s.id} supervisor={s} students={students} />)}
+                </div>
+              </section>
+            )
+          })}
+        </div>
+      ) : (
+        // ─── تبويب المعلمين ─── (يستخدم نفس البيانات بـlist مدمج)
+        <div className="rounded-2xl overflow-hidden"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)' }}>
+          <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-faint)' }}>
+            <h2 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+              قائمة المعلمين
+            </h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{toAr(teachers.length)} معلم</p>
+          </div>
+          <div className="divide-y" style={{ borderColor: 'var(--border-faint)' }}>
+            {teachers.map((t, i) => {
+              const myStudents = students.filter(s => s.supervisor_id === t.id && (s.status === 'active' || !s.status))
+              const batch = batches.find(b => b.id === t.batch_id)
+              return (
+                <div key={t.id} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-elevated)]">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold"
+                    style={{ background: 'rgba(192,138,72,0.1)', color: 'var(--accent-warm)' }}>
+                    {toAr(i + 1)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{t.name}</p>
+                    <p className="text-xs mt-0.5 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+                      <BookOpen className="w-3 h-3" />
+                      {t.specialty || 'حفظ القرآن الكريم'} · {batch?.name ?? `دفعة ${t.batch_id}`}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-black text-sm tabular-nums" style={{ color: 'var(--text-primary)' }}>{toAr(myStudents.length)}</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>طالب</p>
+                  </div>
+                  <Link href={`/followups/manager?supervisor=${t.id}`}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95"
+                    style={{ background: 'rgba(192,138,72,0.08)', color: 'var(--accent-warm)' }}>
+                    عرض
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        .input {
+          width: 100%;
+          background: var(--bg-card);
+          border: 1px solid var(--border-color);
+          color: var(--text-primary);
+          border-radius: 0.75rem;
+          padding: 0.5rem 0.75rem;
+          font-size: 0.875rem;
+          outline: none;
+        }
+        .input:focus { border-color: var(--accent-warm); }
+      `}</style>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 gap-3 rounded-2xl"
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)' }}>
+      <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+        style={{ background: 'var(--bg-elevated)' }}>
+        <GraduationCap className="w-7 h-7" style={{ color: 'var(--text-muted)' }} />
       </div>
-
-      {activeTab === 'supervisors' && (
-        <div className="space-y-8">
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-px flex-1 bg-gray-200" />
-              <h2 className="text-sm font-bold px-4 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#C08A48', background: 'rgba(192,138,72,0.1)' }}>مشرفو دفعة 46</h2>
-              <div className="h-px flex-1 bg-gray-200" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children">
-              {supervisors46.map(sup => (
-                <SupervisorCard key={sup.id} supervisor={sup} students={students} followups={followups} weekOf={weekOf} onToggle={handleToggle} />
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-px flex-1 bg-gray-200" />
-              <h2 className="text-sm font-bold px-4 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#C08A48', background: 'rgba(192,138,72,0.1)' }}>مشرفو دفعة 48</h2>
-              <div className="h-px flex-1 bg-gray-200" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children">
-              {supervisors48.map(sup => (
-                <SupervisorCard key={sup.id} supervisor={sup} students={students} followups={followups} weekOf={weekOf} onToggle={handleToggle} />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'teachers' && (
-        <div className="card-static overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="font-bold" style={{ color: 'var(--text-primary)' }}>قائمة المعلمين</h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{TEACHERS.length} معلم</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                  <th className="text-right px-5 py-3 font-medium" style={{ color: 'var(--text-muted)' }}>#</th>
-                  <th className="text-right px-5 py-3 font-medium" style={{ color: 'var(--text-muted)' }}>الاسم</th>
-                  <th className="text-right px-5 py-3 font-medium" style={{ color: 'var(--text-muted)' }}>الدفعة</th>
-                  <th className="text-right px-5 py-3 font-medium" style={{ color: 'var(--text-muted)' }}>المؤهل</th>
-                  <th className="text-right px-5 py-3 font-medium" style={{ color: 'var(--text-muted)' }}>التقييم</th>
-                  <th className="text-right px-5 py-3 font-medium" style={{ color: 'var(--text-muted)' }}>الحالة</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {TEACHERS.map((teacher, i) => (
-                  <tr key={teacher.id} className="hover:bg-gray-50">
-                    <td className="px-5 py-3.5" style={{ color: 'var(--text-muted)' }}>{i + 1}</td>
-                    <td className="px-5 py-3.5 font-medium" style={{ color: 'var(--text-primary)' }}>{teacher.name}</td>
-                    <td className="px-5 py-3.5" style={{ color: 'var(--text-secondary)' }}>{teacher.batch}</td>
-                    <td className="px-5 py-3.5" style={{ color: 'var(--text-secondary)' }}>{teacher.cert}</td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-0.5">
-                        {Array.from({ length: 5 }, (_, i2) => (
-                          <Star key={i2} className={`w-3.5 h-3.5 ${i2 < Math.round(teacher.rating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`} />
-                        ))}
-                        <span className="text-xs mr-1" style={{ color: 'var(--text-muted)' }}>{teacher.rating}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${teacher.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {teacher.status === 'active' ? 'نشط' : 'غير نشط'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <p className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>{message}</p>
     </div>
   )
 }

@@ -24,6 +24,7 @@ interface NavItem {
   label: string
   badge: number
   roles?: UserRole[]
+  superAdminOnly?: boolean
 }
 
 // ملاحظة: التسميات الديناميكية حسب الدور (طلاب دفعتي / طلاب الدفع، إلخ)
@@ -77,7 +78,7 @@ const navItems: NavItem[] = [
   { href: '/notifications',   icon: Bell,         label: 'الإشعارات',              badge: 0 },
   { href: '/budget',      icon: Wallet,          label: 'الميزانية والعهد',       badge: 0,  roles: ['ceo'] },
   { href: '/admin/users',   icon: ShieldCheck,  label: 'إدارة الحسابات',         badge: 0,  roles: ['ceo'] },
-  { href: '/admin/tenants', icon: Building2,    label: 'إدارة الحلقات',          badge: 0,  roles: ['ceo'] },
+  { href: '/admin/tenants', icon: Building2,    label: 'إدارة الحلقات',          badge: 0,  roles: ['ceo'], superAdminOnly: true },
   { href: '/settings',    icon: Settings,        label: 'الإعدادات',              badge: 0,  roles: ['ceo'] },
 ]
 
@@ -131,7 +132,9 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
     '/programs': isMine ? 'برامج دفعتي'  : 'برامج الدفع',
   }
 
+  const isSuperAdmin = profile?.is_super_admin === true
   const visibleItems = navItems.filter(item => {
+    if (item.superAdminOnly && !isSuperAdmin) return false
     if (role === 'records_officer') return RECORDS_OFFICER_PATHS.has(item.href)
     return !item.roles || item.roles.includes(role)
   }).map(item => {
