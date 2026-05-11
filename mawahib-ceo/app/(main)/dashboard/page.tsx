@@ -1,38 +1,63 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import {
-  getDashboardStats, getDashboardBatches,
-  type DashboardStats,
-} from '@/lib/teacher-dashboard'
-import { localDateIso } from '@/lib/date'
-import { formatHijriWithDay } from '@/lib/hijri'
+  getBatches, getStudents, getAllAttendance, getExams, getMeetings,
+  getPrograms, getSupervisors, getJuzProgress,
+  type DBBatch, type DBStudent, type DBAttendanceRecord, type DBExam,
+  type DBMeeting, type DBProgram, type DBSupervisor, type DBJuzProgress,
+} from '@/lib/db'
+import { useAuth } from '@/contexts/AuthContext'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import {
-  BookOpen, Users, CheckCircle2, Clock, AlertTriangle,
-  ChevronLeft, RotateCw, Loader2, CalendarCheck,
-  ClipboardList, TrendingUp, BookMarked, ArrowLeft, Sparkles,
+  Users, CalendarCheck, BookOpen, AlertTriangle, Info, AlertCircle,
+  Calendar, ChevronLeft, TrendingUp, Activity, Zap, Loader2,
+  Target, Star, UserCheck, Clock,
 } from 'lucide-react'
-import type { DBBatch } from '@/lib/db'
+import Link from 'next/link'
+import CountUp from '@/components/ui/CountUp'
+import ProgressRing from '@/components/ui/ProgressRing'
+import WisdomCard from '@/components/ui/WisdomCard'
+import SupervisorTrackingAlert from '@/components/ui/SupervisorTrackingAlert'
+import { computeAllSupervisorStatuses } from '@/lib/supervisor-tracking'
 
-// ─── Helpers ─────────────────────────────────────────────────────
-function greeting(): string {
-  const h = new Date().getHours()
-  if (h < 12) return 'صباح الخير'
-  if (h < 17) return 'طاب مساؤك'
-  return 'مساء النور'
+// ── Constants ─────────────────────────────────────────────────────────────────
+const PROGRAM_START = new Date('2026-02-27') // ٢٩ رجب ١٤٤٧
+const WEEKLY_RATE = 16 // سطراً في الأسبوع
+const BATCH_IDS = [48, 46, 44, 42]
+const BATCH_COLORS: Record<number, string> = { 48: '#C08A48', 46: '#356B6E', 44: '#5A8F67', 42: '#C9972C' }
+
+const DAYS_AR = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+const SUPERVISOR_MEETING_TYPES = ['general_management', 'annual_planning', 'quarterly_teachers']
+const MEETING_LABELS: Record<string, string> = {
+  general_management: 'الإدارة العامة', executive: 'تنفيذية',
+  annual_planning: 'الخطة السنوية', quarterly_teachers: 'فصلي للمعلمين',
 }
-function toAr(n: number): string { return n.toLocaleString('ar-EG') }
 
-// ─── Main ─────────────────────────────────────────────────────────
-export default function TeacherDashboardPage() {
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function formatDateAr(iso: string) {
+  const d = new Date(iso)
+  return `${DAYS_AR[d.getDay()]} ${d.getDate()} ${MONTHS_AR[d.getMonth()]}`
+}
+
+function weeksElapsed(): number {
+  return (Date.now() - PROGRAM_START.getTime()) / (7 * 24 * 3600 * 1000)
+}
+
+function AlertIcon({ type }: { type: string }) {
+  if (type === 'danger') return <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--semantic-danger)' }} />
+  if (type === 'warning') return <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--semantic-warning)' }} />
+  return <Info className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--accent-teal)' }} />
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+export default function DashboardPage() {
+  const todayISO = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('ar-SA-u-nu-latn', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+
   const { profile, loading: authLoading } = useAuth()
   const router = useRouter()
-
-  const today = localDateIso(new Date())
-  const isCeo = profile?.role === 'ceo' || profile?.role === 'records_officer'
-  const isBatchManager = profile?.role === 'batch_manager'
 
   // قاعدة التوجيه: CEO → /admin/dashboard، مدير الدفعة → /manager/dashboard
   useEffect(() => {
@@ -44,287 +69,511 @@ export default function TeacherDashboardPage() {
     }
   }, [profile, authLoading, router])
 
-  // Batch selector (CEO فقط — يبقى للأمان حتى redirect)
-  const [batches, setBatches]       = useState<DBBatch[]>([])
-  const [selectedBatch, setSelectedBatch] = useState<number | null>(null)
+  const isCeo = profile?.role === 'ceo'
+  // ⚠️ NOTE: المتغيّر اسمه isSupervisor لكنه يشمل مدير الدفعة كذلك — يُستخدم لتقييد البيانات بنطاق الدفعة
+  const isSupervisor = profile?.role === 'supervisor' || profile?.role === 'teacher' || profile?.role === 'batch_manager'
+  // فقط الـCEO و مدير الدفعة يرون بطاقة "متابعة المشرفين" (تعرض حالات مشرفين آخرين)
+  const canSeeSupervisorTracking = profile?.role === 'ceo' || profile?.role === 'batch_manager'
+  const myBatchId = profile?.batch_id ?? null
+  // ⚠️ SECURITY: إذا لم يُحمَّل الملف بعد، نعتبر المستخدم مقيَّد ولا نُظهر بيانات
+  // خارج نطاقه. هذا يمنع السباق الذي كان يُظهر طلاب دفعة ٤٦ لمدير دفعة ٤٨
+  // لحظة التحميل الأول.
+  const profileLoaded = profile !== null
 
-  const [stats, setStats]     = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const activeBatchId = isCeo ? selectedBatch : (profile?.batch_id ?? null)
+  const [students, setStudents] = useState<DBStudent[]>([])
+  const [juzProgress, setJuzProgress] = useState<DBJuzProgress[]>([])
+  const [attendance, setAttendance] = useState<DBAttendanceRecord[]>([])
+  const [exams, setExams] = useState<DBExam[]>([])
+  const [meetings, setMeetings] = useState<DBMeeting[]>([])
+  const [programs, setPrograms] = useState<DBProgram[]>([])
+  const [supervisors, setSupervisors] = useState<DBSupervisor[]>([])
+  const [batches, setBatches] = useState<DBBatch[]>([])
 
   useEffect(() => {
-    if (!isCeo || authLoading) return
-    getDashboardBatches().then(bs => {
-      setBatches(bs)
-      if (bs.length > 0) setSelectedBatch(bs[0].id)
+    Promise.all([
+      getStudents(), getJuzProgress(), getAllAttendance(),
+      getExams(), getMeetings(), getPrograms(), getSupervisors(), getBatches(),
+    ]).then(([s, j, a, e, m, p, sv, b]) => {
+      setStudents(s); setJuzProgress(j); setAttendance(a)
+      setExams(e); setMeetings(m); setPrograms(p)
+      setSupervisors(sv); setBatches(b)
+    }).catch(console.error).finally(() => setLoading(false))
+  }, [])
+
+  // ── Derived data ─────────────────────────────────────────────────────────────
+  const activeStudents = useMemo(() => {
+    // لم يُحمَّل الملف الشخصي بعد → لا تُظهر شيء (أمان قبل الأداء)
+    if (!profileLoaded) return []
+    return students.filter(s => {
+      if (s.status !== 'active') return false
+      if (isCeo) return true // CEO يرى كل الدفعات
+      if (isSupervisor) return s.batch_id === myBatchId // مقيَّد بدفعته فقط
+      return true // أدوار أخرى — السلوك الافتراضي
     })
-  }, [isCeo, authLoading])
+  }, [students, profileLoaded, isCeo, isSupervisor, myBatchId])
 
-  const fetchStats = useCallback(async (force = false) => {
-    if (!activeBatchId) return
-    if (force) setRefreshing(true)
-    else setLoading(true)
-    const s = await getDashboardStats(activeBatchId, today, force)
-    setStats(s)
-    setLoading(false)
-    setRefreshing(false)
-  }, [activeBatchId, today])
+  // Memorized juz count per student (from source of truth: juz_progress)
+  const memorizedByStudent = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const p of juzProgress) {
+      if (p.status === 'memorized') map[p.student_id] = (map[p.student_id] || 0) + 1
+    }
+    return map
+  }, [juzProgress])
 
-  useEffect(() => { fetchStats() }, [fetchStats])
+  // juz activity this week
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+  const juzThisWeek = useMemo(() =>
+    juzProgress.filter(p =>
+      p.status === 'memorized' &&
+      p.updated_at && p.updated_at >= weekAgo &&
+      (!isSupervisor || !myBatchId || activeStudents.some(s => s.id === p.student_id))
+    ).length
+  , [juzProgress, weekAgo, isSupervisor, myBatchId, activeStudents])
 
-  if (authLoading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent-warm)' }} />
+  // Hero numbers
+  const totalActiveStudents = activeStudents.length
+  const totalMemorized = useMemo(() =>
+    activeStudents.reduce((sum, s) => sum + (memorizedByStudent[s.id] || 0), 0)
+  , [activeStudents, memorizedByStudent])
+
+  const todayAttRecs = attendance.filter(a => a.date === todayISO &&
+    (!isSupervisor || !myBatchId || a.batch_id === String(myBatchId)))
+  const presentToday = todayAttRecs.filter(a => a.status === 'present').length
+  const attendancePct = todayAttRecs.length > 0 ? Math.round((presentToday / todayAttRecs.length) * 100) : 0
+
+  const needsAttention = useMemo(() =>
+    activeStudents.filter(s => (memorizedByStudent[s.id] || 0) === 0 ||
+      (memorizedByStudent[s.id] || 0) / 30 < 0.1)
+  , [activeStudents, memorizedByStudent])
+
+  // ── المتابعة الأسبوعية للمشرفين ──
+  // للمدير التنفيذي: جميع المشرفين. لمدير الدفعة: مشرفو دفعته فقط.
+  const supervisorStatuses = useMemo(() => {
+    if (!profileLoaded) return []
+    const scopedSupervisors = isCeo
+      ? supervisors
+      : supervisors.filter(sv => myBatchId !== null && sv.batch_id === myBatchId)
+    return computeAllSupervisorStatuses(scopedSupervisors, activeStudents)
+  }, [profileLoaded, isCeo, supervisors, activeStudents, myBatchId])
+
+  // Program pace
+  const weeks = weeksElapsed()
+  const expectedLinesPerStudent = Math.round(weeks * WEEKLY_RATE)
+  const weekNumber = Math.ceil(weeks)
+
+  // Batch stats — للمقيَّد بدفعة: دفعته فقط. للمدير التنفيذي: كل الدفعات.
+  const visibleBatchIds = useMemo(() =>
+    (isSupervisor && myBatchId !== null) ? [myBatchId] : BATCH_IDS
+  , [isSupervisor, myBatchId])
+
+  const batchStats = useMemo(() => visibleBatchIds.map(batchId => {
+    const bs = students.filter(s => s.batch_id === batchId && s.status === 'active')
+    const mem = bs.reduce((sum, s) => sum + (memorizedByStudent[s.id] || 0), 0)
+    const possible = bs.length * 30
+    const pct = possible > 0 ? Math.round((mem / possible) * 100) : 0
+    const struggling = bs.filter(s => {
+      const m = memorizedByStudent[s.id] || 0
+      return m < 3 && weeks > 4
+    }).length
+    const batch = batches.find(b => b.id === batchId)
+    return { batchId, name: batch?.name || `دفعة ${batchId}`, students: bs.length, memorized: mem, pct, struggling, manager: batch?.manager_name || '' }
+  }), [visibleBatchIds, students, memorizedByStudent, batches, weeks])
+
+  const chartData = batchStats.map(b => ({ name: `دفعة ${b.batchId}`, محفوظ: b.memorized, طلاب: b.students }))
+
+  // Top 5 performers & 5 needs attention
+  const ranked = useMemo(() =>
+    [...activeStudents]
+      .map(s => ({ ...s, mem: memorizedByStudent[s.id] || 0 }))
+      .sort((a, b) => b.mem - a.mem)
+  , [activeStudents, memorizedByStudent])
+
+  const topPerformers = ranked.slice(0, 5)
+  const bottomStudents = ranked.filter(s => s.mem < 3).slice(0, 5)
+
+  // Supervisor health — للمقيَّد بدفعة: مشرفو دفعته فقط
+  const scopedSupervisors = useMemo(() =>
+    (isSupervisor && myBatchId !== null)
+      ? supervisors.filter(sup => sup.batch_id === myBatchId)
+      : supervisors
+  , [supervisors, isSupervisor, myBatchId])
+
+  const supervisorHealth = useMemo(() =>
+    scopedSupervisors.map(sup => {
+      const supStudents = activeStudents.filter(s =>
+        s.supervisor_id === sup.id || s.supervisor_name === sup.name)
+      const avgMem = supStudents.length > 0
+        ? supStudents.reduce((sum, s) => sum + (memorizedByStudent[s.id] || 0), 0) / supStudents.length
+        : 0
+      return { ...sup, studentCount: supStudents.length, avgMem: Math.round(avgMem * 10) / 10 }
+    }).filter(s => s.studentCount > 0)
+  , [scopedSupervisors, activeStudents, memorizedByStudent])
+
+  // Alerts (CEO only)
+  const alerts = useMemo(() => {
+    const list: { id: string; type: string; title: string; desc: string; link: string }[] = []
+    if (!isSupervisor && needsAttention.length > 0)
+      list.push({ id: 'attn', type: 'danger', title: `${needsAttention.length} طلاب بدون تقدم`, desc: 'لم يحفظوا أي جزء حتى الآن', link: '/batches' })
+    const suspended = activeStudents.filter(s => s.status === 'suspended')
+    if (suspended.length > 0)
+      list.push({ id: 'sus', type: 'warning', title: `${suspended.length} طلاب موقوفون`, desc: 'يحتاجون مراجعة الحالة', link: '/students' })
+    const upcomingExams = exams.filter(e => e.date >= todayISO && e.date <= new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0] &&
+      (!isSupervisor || myBatchId === null || e.batch_id === myBatchId))
+    if (upcomingExams.length > 0)
+      list.push({ id: 'exams', type: 'info', title: `${upcomingExams.length} اختبارات خلال ٣ أيام`, desc: upcomingExams.map(e => e.student_name).slice(0, 3).join('، '), link: '/exams' })
+    return list
+  }, [needsAttention, activeStudents, exams, todayISO, isSupervisor, myBatchId])
+
+  // Week schedule
+  const weekEnd = new Date(Date.now() + 6 * 86400000).toISOString().split('T')[0]
+  const weekEvents = useMemo(() => {
+    const events: { date: string; label: string; event: string; typeLabel: string; color: string; link: string }[] = []
+    for (const m of meetings) {
+      if (m.date < todayISO || m.date > weekEnd) continue
+      if (isSupervisor && !SUPERVISOR_MEETING_TYPES.includes(m.type)) continue
+      events.push({ date: m.date, label: formatDateAr(m.date), event: m.agenda || MEETING_LABELS[m.type] || 'اجتماع', typeLabel: 'اجتماع', color: '#C08A48', link: '/meetings' })
+    }
+    for (const e of exams) {
+      if (e.date < todayISO || e.date > weekEnd) continue
+      if (isSupervisor && myBatchId !== null && e.batch_id !== myBatchId) continue
+      events.push({ date: e.date, label: formatDateAr(e.date), event: `${e.student_name} — ج${e.juz_number}`, typeLabel: 'اختبار', color: '#C9972C', link: '/exams' })
+    }
+    for (const p of programs) {
+      if (p.start_date < todayISO || p.start_date > weekEnd) continue
+      if (isSupervisor && myBatchId !== null && p.batch_id !== String(myBatchId) && p.batch_id !== 'all') continue
+      events.push({ date: p.start_date, label: formatDateAr(p.start_date), event: p.name, typeLabel: 'برنامج', color: '#5A8F67', link: '/programs' })
+    }
+    return events.sort((a, b) => a.date.localeCompare(b.date))
+  }, [meetings, exams, programs, todayISO, weekEnd, isSupervisor, myBatchId])
+
+  // ── Render ────────────────────────────────────────────────────────────────────
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[60vh] gap-3">
+      <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+      <span className="text-sm" style={{ color: 'var(--text-muted)' }}>جاري تحميل لوحة التحكم...</span>
     </div>
   )
-  if (!profile) return null
-
-  const todayHijri = formatHijriWithDay(today)
-  const recordedPct = stats?.recordedPct ?? 0
-  const pctColor =
-    recordedPct >= 80 ? '#4ade80' :
-    recordedPct >= 50 ? '#facc15' : '#f87171'
-
-  const notRecordedList = stats?.notRecordedNames ?? []
 
   return (
-    <div className="max-w-3xl mx-auto pb-10 space-y-4">
+    <div className="space-y-5">
 
-      {/* ─── الترحيب (مدمج وأنيق) ─── */}
-      <header className="rounded-3xl p-5"
-        style={{
-          background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent-warm) 8%, var(--bg-card)), var(--bg-card))',
-          border: '1px solid var(--border-soft)',
-        }}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold mb-1" style={{ color: 'var(--accent-warm)' }}>
-              {todayHijri}
-            </p>
-            <h1 className="text-lg sm:text-xl font-black truncate"
-              style={{ color: 'var(--text-primary)' }}>
-              {greeting()}، {profile.name?.split(' ')[0] || 'أستاذ'} 👋
-            </h1>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              {stats && stats.totalStudents > 0
-                ? `لديك ${toAr(stats.totalStudents)} طالب${stats.notRecordedToday > 0 ? ` · ${toAr(stats.notRecordedToday)} لم يُسجَّل لهم اليوم` : ' · اكتمل التسجيل ✓'}`
-                : 'جارٍ التحميل...'}
-            </p>
+      {/* ── Header ── */}
+      <div className="flex items-end justify-between flex-wrap gap-3">
+        <div>
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold mb-2"
+            style={{
+              background: 'rgba(192,138,72,0.12)',
+              color: '#8B5A1E',
+              border: '1px solid rgba(192,138,72,0.30)',
+              letterSpacing: '0.04em',
+            }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--accent-warm)' }} />
+            {isCeo ? 'القيادة التنفيذية' : 'نظرة عامة'}{isCeo && ` • الأسبوع ${weekNumber}`}
           </div>
-          <button onClick={() => fetchStats(true)} disabled={refreshing}
-            className="w-9 h-9 rounded-xl flex items-center justify-center disabled:opacity-40 active:scale-90 transition-all shrink-0"
-            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-soft)' }}
-            aria-label="تحديث">
-            <RotateCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
-              style={{ color: 'var(--text-muted)' }} />
-          </button>
+          <h1
+            className="display-h1 m-0"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {isCeo ? 'لوحة المدير التنفيذي' : 'لوحة التحكم'}
+          </h1>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{today}</p>
         </div>
-      </header>
+        {isCeo && (
+          <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <Clock className="w-3.5 h-3.5" />
+            <span>الأسبوع <span className="font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{weekNumber}</span> من البرنامج</span>
+            <span className="mx-1">·</span>
+            <span>المستهدف: <span className="font-bold font-mono" style={{ color: 'var(--accent-warm)' }}>{expectedLinesPerStudent} سطراً</span> / طالب</span>
+          </div>
+        )}
+      </div>
 
-      {/* ─── Batch Selector (CEO فقط — fallback قبل redirect) ─── */}
-      {isCeo && batches.length > 0 && (
-        <div className="rounded-2xl px-4 py-3"
-          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-soft)' }}>
-          <label className="text-[10px] font-bold block mb-2" style={{ color: 'var(--text-muted)' }}>
-            اختر الدفعة
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {batches.map(b => (
-              <button key={b.id} onClick={() => setSelectedBatch(b.id)}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95"
-                style={{
-                  background: selectedBatch === b.id ? 'var(--accent-warm)' : 'var(--bg-card)',
-                  color: selectedBatch === b.id ? '#fff' : 'var(--text-secondary)',
-                  border: `1px solid ${selectedBatch === b.id ? 'var(--accent-warm)' : 'var(--border-soft)'}`,
-                }}>
-                {b.name}
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* ── Wisdom reminder ── */}
+      <WisdomCard />
+
+      {/* ── المتابعة الأسبوعية للمشرفين — للـCEO ومدير الدفعة فقط ── */}
+      {canSeeSupervisorTracking && (
+        <SupervisorTrackingAlert
+          statuses={supervisorStatuses}
+          title={isCeo ? 'المتابعة الأسبوعية للمشرفين' : 'المتابعة الأسبوعية لمشرفي دفعتي'}
+          alertsOnly
+          collapsible
+        />
       )}
 
-      {/* ─── زر تسجيل اليوم — متوسط الحجم ─── */}
-      <Link href="/quran-system/daily-records"
-        className="group flex items-center justify-between gap-3 p-4 rounded-2xl transition-all active:scale-[0.98]"
-        style={{
-          background: 'linear-gradient(135deg, var(--accent-warm) 0%, color-mix(in srgb, var(--accent-warm) 70%, #000) 100%)',
-          boxShadow: '0 8px 24px color-mix(in srgb, var(--accent-warm) 35%, transparent)',
-        }}>
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
-            style={{ background: 'rgba(255,255,255,0.18)' }}>
-            <BookOpen className="w-5 h-5 text-white" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-white/70 text-[10px] font-bold mb-0.5">الآن</p>
-            <p className="text-white text-base font-black truncate">تسجيل اليوم</p>
-          </div>
-        </div>
-        <ArrowLeft className="w-5 h-5 text-white/80 group-hover:-translate-x-1 transition-transform shrink-0" />
-      </Link>
-
-      {/* ─── 4 stat cards مدمجة ─── */}
-      {loading ? (
-        <div className="grid grid-cols-2 gap-2">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="rounded-2xl h-24 animate-pulse"
-              style={{ background: 'var(--bg-elevated)' }} />
-          ))}
-        </div>
-      ) : stats ? (
-        <div className="grid grid-cols-2 gap-2.5">
-          <CompactStat icon={Users}
-            label="طلابي" value={stats.totalStudents}
-            color="var(--accent-warm)" />
-          <CompactStat icon={CheckCircle2}
-            label="سُجِّل اليوم" value={`${toAr(stats.recordedPct)}%`}
-            sub={`${toAr(stats.recordedToday)}/${toAr(stats.totalStudents)}`}
-            color={pctColor} />
-          <CompactStat icon={Clock}
-            label="لم يُسجَّل" value={stats.notRecordedToday}
-            color={stats.notRecordedToday === 0 ? '#4ade80' : '#f87171'}
-            urgent={stats.notRecordedToday > 0} />
-          <CompactStat icon={AlertTriangle}
-            label="قريبو الاختبار" value={stats.nearExamCount}
-            sub={stats.nearExamCount > 0 ? '≤ 4 أوجه' : 'لا أحد'}
-            color={stats.nearExamCount > 0 ? '#facc15' : '#9ca3af'} />
-        </div>
-      ) : null}
-
-      {/* ─── أولوياتك اليوم — قائمة من لم يُسجَّل لهم ─── */}
-      {stats && notRecordedList.length > 0 && (
-        <section className="rounded-2xl p-4"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)' }}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                style={{ background: 'rgba(248,113,113,0.1)' }}>
-                <AlertTriangle className="w-4 h-4" style={{ color: '#f87171' }} />
-              </div>
-              <div>
-                <h2 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
-                  أولوياتك اليوم
-                </h2>
-                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                  لم يُسجَّل لهم بعد · {toAr(notRecordedList.length)} طالب
-                </p>
+      {/* ── Hero KPIs ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { icon: Users, label: 'الطلاب النشطون', value: totalActiveStudents, sub: `${visibleBatchIds.filter(b => students.some(s => s.batch_id === b)).length} دفعات`, color: '#C08A48' },
+          { icon: BookOpen, label: 'أجزاء محفوظة', value: totalMemorized, sub: `من ${totalActiveStudents * 30} إجمالي ممكن`, color: '#5A8F67' },
+          { icon: CalendarCheck, label: 'الحضور اليوم', value: attendancePct, suffix: '%', sub: `${presentToday} / ${todayAttRecs.length} طالب`, color: '#356B6E' },
+          { icon: AlertTriangle, label: 'يحتاجون متابعة', value: needsAttention.length, sub: 'لم يحفظوا بعد', color: needsAttention.length > 0 ? '#B94838' : '#5A8F67' },
+        ].map((stat, i) => {
+          const Icon = stat.icon
+          return (
+            <div key={i} className="card p-4 group cursor-pointer">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>{stat.label}</p>
+                  <p className="text-2xl font-bold font-mono" style={{ color: 'var(--text-primary)' }}>
+                    <CountUp end={stat.value} suffix={stat.suffix ?? ''} />
+                  </p>
+                  <p className="text-[11px] font-mono mt-1" style={{ color: 'var(--text-muted)' }}>{stat.sub}</p>
+                </div>
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${stat.color}18`, border: `1px solid ${stat.color}30` }}>
+                  <Icon size={18} style={{ color: stat.color }} />
+                </div>
               </div>
             </div>
-            <Link href="/quran-system/daily-records"
-              className="text-xs font-bold px-3 py-1.5 rounded-lg"
-              style={{ background: 'rgba(192,138,72,0.08)', color: 'var(--accent-warm)' }}>
-              سجِّل الآن
-            </Link>
+          )
+        })}
+      </div>
+
+      {/* ── Batch Progress Row ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {batchStats.map(b => {
+          const color = BATCH_COLORS[b.batchId] || '#C08A48'
+          const ringGlow = `${color}60`
+          return (
+            <div key={b.batchId} className="card-static p-4">
+              <div className="flex items-center gap-3">
+                <ProgressRing value={b.pct} size={60} strokeWidth={5} color={color} glowColor={ringGlow} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{b.name}</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{b.manager}</p>
+                  <div className="flex gap-3 mt-1.5 text-[11px] font-mono">
+                    <span style={{ color: 'var(--semantic-success)' }}>{b.memorized} ج</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{b.students} طالب</span>
+                    {b.struggling > 0 && <span style={{ color: 'var(--semantic-danger)' }}>{b.struggling} متعثر</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* ── Main grid ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {/* Left 2/3 */}
+        <div className="lg:col-span-2 space-y-4">
+
+          {/* Bar chart — juz memorized per batch */}
+          <div className="card-static p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                <TrendingUp className="w-4 h-4" style={{ color: '#C08A48' }} />
+                الأجزاء المحفوظة لكل دفعة
+              </h2>
+              <span className="text-xs px-2 py-1 rounded-md font-mono" style={{ background: 'rgba(192,138,72,0.12)', color: '#8B5A1E', border: '1px solid rgba(192,138,72,0.28)' }}>
+                هذا الأسبوع: {juzThisWeek} جزء
+              </span>
+            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-faint)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12, border: '1px solid var(--border-soft)', background: 'var(--bg-card)', color: 'var(--text-primary)', boxShadow: 'var(--shadow-card-hover)' }}
+                  formatter={(v) => [`${v} جزء`, '']}
+                />
+                <Bar dataKey="محفوظ" radius={[4, 4, 0, 0]}>
+                  {chartData.map((_, i) => (
+                    <Cell key={i} fill={BATCH_COLORS[visibleBatchIds[i]] || '#C08A48'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <ul className="space-y-1.5">
-            {notRecordedList.slice(0, 5).map((name, i) => (
-              <li key={i} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl"
-                style={{ background: 'var(--bg-elevated)' }}>
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#f87171' }} />
-                <span className="text-sm font-semibold truncate flex-1"
-                  style={{ color: 'var(--text-primary)' }}>{name}</span>
-                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>لم يُسجَّل</span>
-              </li>
-            ))}
-          </ul>
-          {notRecordedList.length > 5 && (
-            <p className="text-[11px] text-center mt-2.5" style={{ color: 'var(--text-muted)' }}>
-              + {toAr(notRecordedList.length - 5)} طالب آخر
-            </p>
+
+          {/* Students: top performers + needs attention */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            {/* Top performers */}
+            <div className="card-static p-4">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                <Star className="w-4 h-4" style={{ color: 'var(--accent-warm)' }} />
+                أبرز الطلاب
+              </h3>
+              <div className="space-y-2">
+                {topPerformers.length === 0
+                  ? <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>لا توجد بيانات بعد</p>
+                  : topPerformers.map((s, i) => (
+                    <div key={s.id} className="flex items-center gap-3">
+                      <span className="w-5 text-center text-[10px] font-bold font-mono" style={{ color: i === 0 ? '#C9972C' : 'var(--text-muted)' }}>
+                        {i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
+                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>دفعة {s.batch_id}</p>
+                      </div>
+                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full" style={{ background: 'rgba(90,143,103,0.14)', color: 'var(--semantic-success)', border: '1px solid rgba(90,143,103,0.28)' }}>
+                        {s.mem} ج
+                      </span>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+
+            {/* Needs attention */}
+            <div className="card-static p-4">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                <AlertCircle className="w-4 h-4" style={{ color: 'var(--semantic-danger)' }} />
+                يحتاجون تدخلاً
+              </h3>
+              <div className="space-y-2">
+                {bottomStudents.length === 0
+                  ? <p className="text-xs text-center py-4" style={{ color: 'var(--semantic-success)' }}>جميع الطلاب في المسار ✓</p>
+                  : bottomStudents.map(s => (
+                    <div key={s.id} className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
+                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{s.supervisor_name || 'دفعة ' + s.batch_id}</p>
+                      </div>
+                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full" style={{ background: 'rgba(185,72,56,0.12)', color: 'var(--semantic-danger)', border: '1px solid rgba(185,72,56,0.28)' }}>
+                        {s.mem} ج
+                      </span>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          </div>
+
+          {/* Supervisor health (CEO only) */}
+          {!isSupervisor && supervisorHealth.length > 0 && (
+            <div className="card-static p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                  <UserCheck className="w-4 h-4" style={{ color: '#356B6E' }} />
+                  المشرفون
+                </h2>
+                <Link href="/supervisors" className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                  عرض الكل <ChevronLeft className="w-3 h-3" />
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {supervisorHealth.slice(0, 8).map(sup => {
+                  const pct = sup.studentCount > 0 ? Math.round((sup.avgMem / 30) * 100) : 0
+                  const color = pct >= 60 ? '#5A8F67' : pct >= 30 ? '#C9972C' : '#B94838'
+                  return (
+                    <div key={sup.id} className="rounded-xl p-3 text-center" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mx-auto mb-1.5 text-white"
+                        style={{ background: color }}>
+                        {sup.name.charAt(0)}
+                      </div>
+                      <p className="text-[11px] font-medium leading-tight truncate" style={{ color: 'var(--text-primary)' }}>{sup.name.split(' ').slice(0, 2).join(' ')}</p>
+                      <p className="text-[10px] mt-0.5 font-mono" style={{ color }}>معدل {sup.avgMem} ج</p>
+                      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{sup.studentCount} طالب</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           )}
-        </section>
-      )}
+        </div>
 
-      {/* ─── حالة الإنجاز الكامل ─── */}
-      {stats && stats.totalStudents > 0 && stats.notRecordedToday === 0 && (
-        <section className="rounded-2xl p-5 text-center"
-          style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)' }}>
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-2"
-            style={{ background: 'rgba(74,222,128,0.15)' }}>
-            <Sparkles className="w-6 h-6" style={{ color: '#4ade80' }} />
+        {/* Right 1/3 */}
+        <div className="space-y-4">
+
+          {/* Pace tracker */}
+          {isCeo && (
+            <div className="card-static p-4">
+              <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                <Target className="w-4 h-4" style={{ color: '#C9972C' }} />
+                مؤشر التقدم
+              </h2>
+              <div className="space-y-3">
+                <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                  <span>الأسابيع المنقضية</span>
+                  <span className="font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{weekNumber} أسبوع</span>
+                </div>
+                <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                  <span>المستهدف التراكمي / طالب</span>
+                  <span className="font-mono font-bold" style={{ color: '#C08A48' }}>{expectedLinesPerStudent} سطراً</span>
+                </div>
+                <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                  <span>إجمالي الأجزاء المحفوظة</span>
+                  <span className="font-mono font-bold" style={{ color: '#5A8F67' }}>{totalMemorized}</span>
+                </div>
+                <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                  <span>نشاط هذا الأسبوع</span>
+                  <span className="font-mono font-bold" style={{ color: '#356B6E' }}>{juzThisWeek} جزء</span>
+                </div>
+                {/* overall progress bar */}
+                <div className="mt-2">
+                  <div className="flex justify-between text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>
+                    <span>إنجاز المشروع</span>
+                    <span className="font-mono">{totalActiveStudents > 0 ? Math.round((totalMemorized / (totalActiveStudents * 30)) * 100) : 0}%</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--progress-track)' }}>
+                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${totalActiveStudents > 0 ? Math.round((totalMemorized / (totalActiveStudents * 30)) * 100) : 0}%`, background: 'linear-gradient(90deg, var(--accent-warm), var(--accent-teal))' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Alerts */}
+          <div className="card-static p-4">
+            <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+              <Activity className="w-4 h-4" style={{ color: '#B94838' }} />
+              التنبيهات
+            </h2>
+            <div className="space-y-2">
+              {alerts.length === 0
+                ? <p className="text-center text-xs py-3" style={{ color: 'var(--text-muted)' }}>لا توجد تنبيهات</p>
+                : alerts.map(a => (
+                  <Link key={a.id} href={a.link} className="flex items-start gap-2.5 p-2.5 rounded-xl border transition-all hover:opacity-90 block"
+                    style={{
+                      background: a.type === 'danger' ? 'rgba(185,72,56,0.08)' : a.type === 'warning' ? 'rgba(201,151,44,0.10)' : 'rgba(53,107,110,0.08)',
+                      borderColor: a.type === 'danger' ? 'rgba(185,72,56,0.24)' : a.type === 'warning' ? 'rgba(201,151,44,0.28)' : 'rgba(53,107,110,0.24)',
+                    }}>
+                    <AlertIcon type={a.type} />
+                    <div>
+                      <p className="text-xs font-semibold" style={{ color: a.type === 'danger' ? 'var(--semantic-danger)' : a.type === 'warning' ? 'var(--semantic-warning)' : 'var(--accent-teal)' }}>{a.title}</p>
+                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{a.desc}</p>
+                    </div>
+                  </Link>
+                ))
+              }
+            </div>
           </div>
-          <p className="text-sm font-black" style={{ color: '#16a34a' }}>
-            أحسنت! تم تسجيل جميع الطلاب اليوم
-          </p>
-          <p className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>
-            بارك الله في جهدك
-          </p>
-        </section>
-      )}
 
-      {/* ─── روابط سريعة 4 أعمدة ─── */}
-      <section>
-        <p className="text-[11px] font-bold mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
-          روابط سريعة
-        </p>
-        <div className="grid grid-cols-4 gap-2">
-          <QuickLink href="/followups"         icon={ClipboardList} label="المتابعات"   color="#C08A48" />
-          <QuickLink href="/quran-system/batch-progress" icon={TrendingUp} label="التقدم" color="#356B6E" />
-          <QuickLink href="/exams"             icon={CalendarCheck} label="الاختبارات"  color="#5A8F67" />
-          <QuickLink href="/quran-system/daily-records" icon={BookMarked} label="السجلات" color="#8B5A82" />
+          {/* Week schedule */}
+          <div className="card-static p-4">
+            <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+              <Calendar className="w-4 h-4" style={{ color: '#356B6E' }} />
+              جدول الأسبوع
+            </h2>
+            <div className="space-y-1.5">
+              {weekEvents.length === 0
+                ? <p className="text-center text-xs py-3" style={{ color: 'var(--text-muted)' }}>لا توجد أحداث</p>
+                : weekEvents.slice(0, 6).map((item, i) => (
+                  <Link key={i} href={item.link} className="flex items-center gap-2.5 p-2 rounded-xl transition-all block" style={{ background: 'transparent' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--hover-bg)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <div className="w-1 h-7 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs truncate" style={{ color: 'var(--text-primary)' }}>{item.event}</p>
+                      <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>{item.label}</p>
+                    </div>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: `${item.color}15`, color: item.color }}>{item.typeLabel}</span>
+                  </Link>
+                ))
+              }
+            </div>
+          </div>
         </div>
-      </section>
-
-      {/* ─── رابط للوحة الكاملة (للـmanager/CEO قبل redirect) ─── */}
-      {(isBatchManager || isCeo) && (
-        <Link href={isCeo ? '/admin/dashboard' : '/manager/dashboard'}
-          className="flex items-center justify-between px-4 py-3 rounded-2xl transition-all active:scale-[0.99]"
-          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-soft)' }}>
-          <span className="text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>
-            {isCeo ? 'لوحة المدير التنفيذي الكاملة' : 'لوحة مدير الدفعة الكاملة'}
-          </span>
-          <ChevronLeft className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-        </Link>
-      )}
-    </div>
-  )
-}
-
-// ─── Sub-components ──────────────────────────────────────────────
-function CompactStat({
-  icon: Icon, label, value, sub, color, urgent,
-}: {
-  icon: React.ElementType; label: string; value: string | number; sub?: string
-  color: string; urgent?: boolean
-}) {
-  return (
-    <div className="rounded-2xl p-3 transition-all"
-      style={{
-        background: urgent ? `${color}10` : 'var(--bg-card)',
-        border: `1px solid ${urgent ? `${color}40` : 'var(--border-soft)'}`,
-      }}>
-      <div className="flex items-center gap-2 mb-1.5">
-        <div className="w-6 h-6 rounded-lg flex items-center justify-center"
-          style={{ background: `${color}18` }}>
-          <Icon className="w-3.5 h-3.5" style={{ color }} />
-        </div>
-        <span className="text-[10px] font-bold" style={{ color }}>{label}</span>
       </div>
-      <p className="text-2xl font-black leading-none tabular-nums"
-        style={{ color: 'var(--text-primary)' }}>
-        {typeof value === 'number' ? toAr(value) : value}
-      </p>
-      {sub && <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
     </div>
-  )
-}
-
-function QuickLink({ href, icon: Icon, label, color }: {
-  href: string; icon: React.ElementType; label: string; color: string
-}) {
-  return (
-    <Link href={href}
-      className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-2xl transition-all active:scale-95"
-      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)' }}>
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-        style={{ background: `${color}15` }}>
-        <Icon className="w-4 h-4" style={{ color }} />
-      </div>
-      <span className="text-[10px] font-bold text-center leading-tight"
-        style={{ color: 'var(--text-secondary)' }}>{label}</span>
-    </Link>
   )
 }
