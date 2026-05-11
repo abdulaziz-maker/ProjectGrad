@@ -1554,25 +1554,15 @@ export async function getTenants(): Promise<DBTenant[]> {
 }
 
 export async function getTenantStats(): Promise<DBTenantStats[]> {
-  const [stuRes, batRes, usrRes] = await Promise.all([
-    supabase.from('students').select('tenant_id').eq('status', 'active'),
-    supabase.from('batches').select('tenant_id'),
-    supabase.from('profiles').select('tenant_id'),
-  ])
-  const count = <T extends { tenant_id: number }>(rows: T[]) =>
-    rows.reduce<Record<number, number>>((acc, r) => {
-      acc[r.tenant_id] = (acc[r.tenant_id] ?? 0) + 1
-      return acc
-    }, {})
-  const stuMap = count((stuRes.data ?? []) as { tenant_id: number }[])
-  const batMap = count((batRes.data ?? []) as { tenant_id: number }[])
-  const usrMap = count((usrRes.data ?? []) as { tenant_id: number }[])
-  const allIds = new Set([...Object.keys(stuMap), ...Object.keys(batMap), ...Object.keys(usrMap)].map(Number))
-  return Array.from(allIds).map(id => ({
-    tenant_id: id,
-    student_count: stuMap[id] ?? 0,
-    batch_count:   batMap[id] ?? 0,
-    user_count:    usrMap[id] ?? 0,
+  // RLS يفلتر كل جدول بـtenant_id الحالي (RESTRICTIVE policy `tenant_isolation`).
+  // لذا نستخدم RPC SECURITY DEFINER يتجاوز RLS لـsuper_admin فقط.
+  const { data, error } = await supabase.rpc('get_all_tenant_stats')
+  if (error) { console.error('getTenantStats:', error); return [] }
+  return (data ?? []).map((r: { tenant_id: number; student_count: number; batch_count: number; user_count: number }) => ({
+    tenant_id:     r.tenant_id,
+    student_count: Number(r.student_count) || 0,
+    batch_count:   Number(r.batch_count)   || 0,
+    user_count:    Number(r.user_count)    || 0,
   }))
 }
 
