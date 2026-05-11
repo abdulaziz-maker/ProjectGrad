@@ -1585,3 +1585,58 @@ export async function toggleTenantActive(id: number, isActive: boolean): Promise
   const { error } = await supabase.from('tenants').update({ is_active: isActive }).eq('id', id)
   if (error) throw error
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// EXTRA QUERIES — للوحات والتقارير (range-scoped)
+// ════════════════════════════════════════════════════════════════════════
+
+export async function getJuzProgressForStudents(studentIds: string[]): Promise<DBJuzProgress[]> {
+  if (studentIds.length === 0) return []
+  const tid = await getCurrentTenantId()
+  return await paginateAll<DBJuzProgress>(() =>
+    supabase
+      .from('juz_progress')
+      .select('student_id,juz_number,status')
+      .eq('tenant_id', tid)
+      .in('student_id', studentIds)
+  )
+}
+
+export async function getExamsInRange(fromIso: string, toIso?: string): Promise<DBExam[]> {
+  const cacheKey = `exams_range:${fromIso}:${toIso ?? 'open'}`
+  return cachedFetch(cacheKey, async () => {
+    const data = await paginateAll<DBExam>(() => {
+      let q = supabase
+        .from('exams')
+        .select('id,student_id,student_name,batch_id,juz_number,examiner,date,time,status,score,notes,remaining_pages')
+        .gte('date', fromIso)
+      if (toIso) q = q.lte('date', toIso)
+      return q
+    })
+    return parseExamEwh(data)
+  })
+}
+
+export async function getAttendanceInRange(fromIso: string, toIso: string): Promise<DBAttendanceRecord[]> {
+  const tid = await getCurrentTenantId()
+  return cachedFetch(`attendance_range:${tid}:${fromIso}:${toIso}`, async () => {
+    return await paginateAll<DBAttendanceRecord>(() =>
+      supabase
+        .from('attendance')
+        .select('date,batch_id,student_id,status')
+        .eq('tenant_id', tid)
+        .gte('date', fromIso)
+        .lte('date', toIso)
+    )
+  })
+}
+
+export async function getAllSupervisorAttendanceForDate(date: string): Promise<DBSupervisorAttendance[]> {
+  const { data, error } = await supabase
+    .from('supervisor_attendance')
+    .select('supervisor_id,batch_id,date,status')
+    .eq('date', date)
+  if (error) throw error
+  return (data ?? []) as DBSupervisorAttendance[]
+}
+
