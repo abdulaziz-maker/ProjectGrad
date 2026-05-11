@@ -1613,7 +1613,7 @@ export async function getExamsInRange(fromIso: string, toIso?: string): Promise<
       if (toIso) q = q.lte('date', toIso)
       return q
     })
-    return parseExamEwh(data)
+    return data
   })
 }
 
