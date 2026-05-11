@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useDeferredValue, useCallback } from 'rea
 import { createPortal } from 'react-dom'
 import { getStudents, getBatches, getQuranPlans, getBatchSchedule, getQuranDailyRecords, getLastQuranRecord, upsertQuranDailyRecord, getStudentJuzProgress, DBStudent, DBBatch, DBQuranDailyRecord } from '@/lib/db'
 import { getFarReviewProgress, buildFarReviewSummary, JUZ_PAGE_RANGES } from '@/lib/quran-far-review'
+import { formatPageRangeAsJuz } from '@/lib/quran-page-range'
 // NOTE: getQuranPlans is also called per-student inside RecordSheet for reliability
 import { todayStr, addDays, toHijriDisplay } from '@/lib/hijri'
 import { calculateExpectedPosition, type QuranPlan, type BatchScheduleEntry } from '@/lib/quran-followup'
@@ -181,7 +182,9 @@ function PageRangeCard({ icon, title, iconColor, fromVal, toVal, onFromChange, o
   const fromNum = parseInt(fromVal) || null
   const toNum   = parseInt(toVal)   || null
   const pages   = pagesDiff(fromNum, toNum)
-  const hasRange = fromNum && toNum && toNum >= fromNum
+  const hasRange = !!(fromNum && toNum && toNum >= fromNum)
+  // وصف الأجزاء الذي يغطيها النطاق (مثلاً: "جزءان + نصف")
+  const juzCoverage = hasRange ? formatPageRangeAsJuz(fromNum!, toNum!) : ''
 
   return (
     <div className="rounded-2xl p-4" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-soft)' }}>
@@ -192,7 +195,7 @@ function PageRangeCard({ icon, title, iconColor, fromVal, toVal, onFromChange, o
         {hasRange && (
           <span className="text-xs font-bold px-2 py-0.5 rounded-full mr-auto"
             style={{ background: `${iconColor}22`, color: iconColor }}>
-            {toAr(pages)} {pages === 1 ? 'وجه' : 'أوجه'} · {juzLabel(toNum)}
+            {toAr(pages)} {pages === 1 ? 'وجه' : 'أوجه'}
           </span>
         )}
       </div>
@@ -211,6 +214,18 @@ function PageRangeCard({ icon, title, iconColor, fromVal, toVal, onFromChange, o
           </div>
         ))}
       </div>
+      {/* تقدير الأجزاء — يظهر فوراً مع كل تغيير */}
+      {juzCoverage && (
+        <div className="mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-xl"
+          style={{ background: `${iconColor}10`, border: `1px dashed ${iconColor}40` }}>
+          <span className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>
+            ≈ يعادل
+          </span>
+          <span className="text-sm font-black" style={{ color: iconColor }}>
+            {juzCoverage}
+          </span>
+        </div>
+      )}
       {children}
     </div>
   )
@@ -624,6 +639,34 @@ function RecordSheet({ student, date, existing, recordedBy, batchId, scheduleMap
 
 // ─── StudentCard ──────────────────────────────────
 
+function ErrorBadges({ mistakes, corrections, hesitations }: {
+  mistakes: number; corrections: number; hesitations: number
+}) {
+  if (!mistakes && !corrections && !hesitations) return null
+  return (
+    <div className="flex flex-wrap items-center gap-1 mt-1">
+      {hesitations > 0 && (
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+          style={{ background: 'rgba(167,139,250,0.15)', color: '#7c3aed' }}>
+          {toAr(hesitations)} تردد
+        </span>
+      )}
+      {corrections > 0 && (
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+          style={{ background: 'rgba(250,204,21,0.18)', color: '#a16207' }}>
+          {toAr(corrections)} تنبيه
+        </span>
+      )}
+      {mistakes > 0 && (
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+          style={{ background: 'rgba(248,113,113,0.15)', color: '#b91c1c' }}>
+          {toAr(mistakes)} خطأ
+        </span>
+      )}
+    </div>
+  )
+}
+
 function StudentCard({ student, rec, onOpen }: { student: DBStudent; rec: DBQuranDailyRecord | undefined; onOpen: () => void }) {
   const recorded = !!rec
   const memPages = pagesDiff(rec?.memorization_from_page ?? null, rec?.memorization_to_page ?? null)
@@ -651,39 +694,56 @@ function StudentCard({ student, rec, onOpen }: { student: DBStudent; rec: DBQura
         <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{student.name}</p>
 
         {recorded && rec ? (
-          <div className="mt-1.5 space-y-1">
+          <div className="mt-1.5 space-y-1.5">
             {/* حفظ */}
             {rec.memorization_from_page && rec.memorization_to_page && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <BookOpen className="w-3 h-3 flex-shrink-0" style={{ color: '#C08A48' }} />
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  ص {rec.memorization_from_page}–{rec.memorization_to_page}
-                  <span className="mr-1 opacity-70">({toAr(memPages)} أوجه · {juzLabel(rec.memorization_to_page)})</span>
-                </span>
-                {(rec.memorization_mistakes > 0 || rec.memorization_hesitations > 0) && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(217,107,90,0.15)', color: '#D96B5A' }}>
-                    {rec.memorization_mistakes > 0 && `${toAr(rec.memorization_mistakes)} خطأ`}
-                    {rec.memorization_hesitations > 0 && ` ${toAr(rec.memorization_hesitations)} تردد`}
+              <div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <BookOpen className="w-3 h-3 flex-shrink-0" style={{ color: '#C08A48' }} />
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    ص {rec.memorization_from_page}–{rec.memorization_to_page}
+                    <span className="mr-1 opacity-70">
+                      ({formatPageRangeAsJuz(rec.memorization_from_page, rec.memorization_to_page) || `${toAr(memPages)} أوجه`})
+                    </span>
                   </span>
-                )}
+                </div>
+                <ErrorBadges
+                  mistakes={rec.memorization_mistakes || 0}
+                  corrections={rec.memorization_corrections || 0}
+                  hesitations={rec.memorization_hesitations || 0}
+                />
               </div>
             )}
             {/* قريبة */}
             {rec.close_review_from_page && rec.close_review_to_page && (
-              <div className="flex items-center gap-1.5">
-                <BookMarked className="w-3 h-3 flex-shrink-0" style={{ color: '#a78bfa' }} />
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  قريبة: {toAr(closePages)} أوجه · {juzLabel(rec.close_review_to_page)}
-                </span>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <BookMarked className="w-3 h-3 flex-shrink-0" style={{ color: '#a78bfa' }} />
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    قريبة: {formatPageRangeAsJuz(rec.close_review_from_page, rec.close_review_to_page) || `${toAr(closePages)} أوجه`}
+                  </span>
+                </div>
+                <ErrorBadges
+                  mistakes={rec.close_review_mistakes || 0}
+                  corrections={rec.close_review_corrections || 0}
+                  hesitations={rec.close_review_hesitations || 0}
+                />
               </div>
             )}
             {/* بعيدة */}
             {rec.far_review_from_page && rec.far_review_to_page && (
-              <div className="flex items-center gap-1.5">
-                <BookMarked className="w-3 h-3 flex-shrink-0" style={{ color: '#38bdf8' }} />
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  بعيدة: {toAr(farPages)} أوجه · {juzLabel(rec.far_review_to_page)}
-                </span>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <BookMarked className="w-3 h-3 flex-shrink-0" style={{ color: '#38bdf8' }} />
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    بعيدة: {formatPageRangeAsJuz(rec.far_review_from_page, rec.far_review_to_page) || `${toAr(farPages)} أوجه`}
+                  </span>
+                </div>
+                <ErrorBadges
+                  mistakes={rec.far_review_mistakes || 0}
+                  corrections={rec.far_review_corrections || 0}
+                  hesitations={rec.far_review_hesitations || 0}
+                />
               </div>
             )}
             {/* تفسير / تكرار */}
