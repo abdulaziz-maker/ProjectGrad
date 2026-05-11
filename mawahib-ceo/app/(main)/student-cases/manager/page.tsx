@@ -9,30 +9,26 @@
  *   - Close the case permanently
  *   - Add actions (parent meeting, plan adjustment, etc.)
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
-import { STUDENT_CASES_ENABLED } from '@/lib/student-cases/flag'
 import ManagerBoard from '@/components/student-cases/ManagerBoard'
+import NewCaseModal from '@/components/student-cases/NewCaseModal'
+import { Plus } from 'lucide-react'
 
 export default function ManagerCasesPage() {
   const router = useRouter()
   const { profile, loading } = useAuth()
-
-  useEffect(() => {
-    if (!STUDENT_CASES_ENABLED) router.replace('/dashboard')
-  }, [router])
+  const [showNew, setShowNew] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     if (loading || !profile) return
-    // Gate: only batch_manager + ceo (CEO can drill into a specific batch view)
     if (profile.role !== 'batch_manager' && profile.role !== 'ceo') {
       router.replace('/student-cases')
     }
   }, [profile, loading, router])
 
-  if (!STUDENT_CASES_ENABLED) return null
   if (loading) return <div className="p-6 text-center text-[var(--text-muted)]">جارٍ التحميل…</div>
   if (!profile) return null
   if (profile.role !== 'batch_manager' && profile.role !== 'ceo') return null
@@ -55,5 +51,25 @@ export default function ManagerCasesPage() {
     )
   }
 
-  return <ManagerBoard profile={profile} />
+  return (
+    <>
+      {/* زر عائم لرفع تصعيد جديد */}
+      <button
+        onClick={() => setShowNew(true)}
+        className="fixed bottom-6 left-6 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl text-white font-bold shadow-lg active:scale-95 transition-all"
+        style={{ background: 'var(--accent-warm)', boxShadow: '0 8px 24px rgba(192,138,72,0.35)' }}
+        aria-label="رفع تصعيد جديد">
+        <Plus className="w-5 h-5" />
+        <span className="text-sm">تصعيد جديد</span>
+      </button>
+
+      <ManagerBoard key={refreshKey} profile={profile} />
+
+      <NewCaseModal
+        open={showNew}
+        onClose={() => setShowNew(false)}
+        onCreated={() => setRefreshKey(k => k + 1)}
+      />
+    </>
+  )
 }

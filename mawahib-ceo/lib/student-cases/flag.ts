@@ -9,5 +9,7 @@
  *
  * Rollback: unset the env var — routes vanish, zero code deletion.
  */
+// مفعّل بشكل دائم — لم يعد behind feature flag.
+// إذا احتجنا الإطفاء مؤقتاً، نضع NEXT_PUBLIC_STUDENT_CASES_ENABLED=false
 export const STUDENT_CASES_ENABLED =
-  process.env.NEXT_PUBLIC_STUDENT_CASES_ENABLED === 'true'
+  process.env.NEXT_PUBLIC_STUDENT_CASES_ENABLED !== 'false'

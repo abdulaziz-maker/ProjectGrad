@@ -12,17 +12,11 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { STUDENT_CASES_ENABLED } from '@/lib/student-cases/flag'
 import SupervisorBoard from '@/components/student-cases/SupervisorBoard'
 
 export default function StudentCasesPage() {
   const router = useRouter()
   const { profile, loading } = useAuth()
-
-  // Feature flag
-  useEffect(() => {
-    if (!STUDENT_CASES_ENABLED) router.replace('/dashboard')
-  }, [router])
 
   // Role-based redirect
   useEffect(() => {
@@ -34,7 +28,6 @@ export default function StudentCasesPage() {
     }
   }, [profile, loading, router])
 
-  if (!STUDENT_CASES_ENABLED) return null
   if (loading) return <div className="p-6 text-center text-[var(--text-muted)]">جارٍ التحميل…</div>
   if (!profile) return null
 

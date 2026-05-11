@@ -63,9 +63,8 @@ const navItems: NavItem[] = [
   { href: '/programs',    icon: Sparkles,        label: 'برامج الدفع',            badge: 0 },
   { href: '/meetings',    icon: Users,           label: 'الاجتماعات',             badge: 0 },
   { href: '/admin/bulk-plan', icon: Target,      label: 'إنشاء خطة جماعي',        badge: 0, roles: ['ceo'] },
-  ...(STUDENT_CASES_ENABLED ? [
-    { href: '/student-cases', icon: ShieldAlert, label: 'التصعيدات الواردة لي', badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher', 'records_officer'] as UserRole[] },
-  ] : []),
+  // حالات التصعيد — متاحة لكل الأدوار التشغيلية (الـSidebar label يتغيّر حسب الدور)
+  { href: '/student-cases', icon: ShieldAlert, label: 'التصعيدات الواردة لي', badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher', 'records_officer'] as UserRole[] },
   { href: '/reminders/saved', icon: Bookmark,    label: 'التذكيرات المحفوظة',    badge: 0 },
   { href: '/notifications',   icon: Bell,        label: 'الإشعارات',              badge: 0 },
   { href: '/budget',          icon: Wallet,      label: 'الميزانية والعهد',       badge: 0, roles: ['ceo'] },
