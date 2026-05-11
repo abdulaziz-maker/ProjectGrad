@@ -188,17 +188,28 @@ function PageRangeCard({ icon, title, iconColor, fromVal, toVal, onFromChange, o
 
   return (
     <div className="rounded-2xl p-4" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-soft)' }}>
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span style={{ color: iconColor }}>{icon}</span>
         <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</span>
-        {optional && <span className="text-xs mr-auto" style={{ color: 'var(--text-muted)' }}>اختياري</span>}
-        {hasRange && (
-          <span className="text-xs font-bold px-2 py-0.5 rounded-full mr-auto"
-            style={{ background: `${iconColor}22`, color: iconColor }}>
-            {toAr(pages)} {pages === 1 ? 'وجه' : 'أوجه'}
-          </span>
-        )}
+        {optional && <span className="text-[10px] mr-auto" style={{ color: 'var(--text-muted)' }}>اختياري</span>}
       </div>
+      {/* خانتان: مجموع الأوجه + قائمة الأجزاء (تظهران عند إدخال نطاق صحيح) */}
+      {hasRange && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          {/* الخانة 1: مجموع الأوجه — مهمة جداً (للتقرير) */}
+          <span className="text-xs font-black px-2.5 py-1 rounded-lg tabular-nums"
+            style={{ background: `${iconColor}22`, color: iconColor, boxShadow: `0 0 0 1px ${iconColor}30` }}>
+            {toAr(pages)} {pages === 1 ? 'وجه' : pages === 2 ? 'وجهان' : 'أوجه'}
+          </span>
+          {/* الخانة 2: قائمة الأجزاء المختصرة */}
+          {juzCoverage && (
+            <span className="text-xs font-bold px-2.5 py-1 rounded-lg"
+              style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-soft)' }}>
+              {juzCoverage}
+            </span>
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         {[{ label: 'من صفحة', val: fromVal, set: onFromChange }, { label: 'إلى صفحة', val: toVal, set: onToChange }].map(f => (
           <div key={f.label}>
@@ -214,18 +225,6 @@ function PageRangeCard({ icon, title, iconColor, fromVal, toVal, onFromChange, o
           </div>
         ))}
       </div>
-      {/* تقدير الأجزاء — يظهر فوراً مع كل تغيير */}
-      {juzCoverage && (
-        <div className="mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-xl"
-          style={{ background: `${iconColor}10`, border: `1px dashed ${iconColor}40` }}>
-          <span className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>
-            ≈ يعادل
-          </span>
-          <span className="text-sm font-black" style={{ color: iconColor }}>
-            {juzCoverage}
-          </span>
-        </div>
-      )}
       {children}
     </div>
   )
@@ -703,7 +702,7 @@ function StudentCard({ student, rec, onOpen }: { student: DBStudent; rec: DBQura
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     ص {rec.memorization_from_page}–{rec.memorization_to_page}
                     <span className="mr-1 opacity-70">
-                      ({formatPageRangeAsJuz(rec.memorization_from_page, rec.memorization_to_page) || `${toAr(memPages)} أوجه`})
+                      ({formatPageRangeAsJuz(rec.memorization_from_page, rec.memorization_to_page) || `${toAr(memPages)} ${memPages === 1 ? 'وجه' : memPages === 2 ? 'وجهان' : 'أوجه'}`})
                     </span>
                   </span>
                 </div>
@@ -720,7 +719,7 @@ function StudentCard({ student, rec, onOpen }: { student: DBStudent; rec: DBQura
                 <div className="flex items-center gap-1.5">
                   <BookMarked className="w-3 h-3 flex-shrink-0" style={{ color: '#a78bfa' }} />
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    قريبة: {formatPageRangeAsJuz(rec.close_review_from_page, rec.close_review_to_page) || `${toAr(closePages)} أوجه`}
+                    قريبة: {formatPageRangeAsJuz(rec.close_review_from_page, rec.close_review_to_page) || `${toAr(closePages)} ${closePages === 1 ? 'وجه' : closePages === 2 ? 'وجهان' : 'أوجه'}`}
                   </span>
                 </div>
                 <ErrorBadges
@@ -736,7 +735,7 @@ function StudentCard({ student, rec, onOpen }: { student: DBStudent; rec: DBQura
                 <div className="flex items-center gap-1.5">
                   <BookMarked className="w-3 h-3 flex-shrink-0" style={{ color: '#38bdf8' }} />
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    بعيدة: {formatPageRangeAsJuz(rec.far_review_from_page, rec.far_review_to_page) || `${toAr(farPages)} أوجه`}
+                    بعيدة: {formatPageRangeAsJuz(rec.far_review_from_page, rec.far_review_to_page) || `${toAr(farPages)} ${farPages === 1 ? 'وجه' : farPages === 2 ? 'وجهان' : 'أوجه'}`}
                   </span>
                 </div>
                 <ErrorBadges
@@ -765,7 +764,7 @@ function StudentCard({ student, rec, onOpen }: { student: DBStudent; rec: DBQura
       {recorded && memPages > 0 && (
         <div className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-xl self-start"
           style={{ background: 'rgba(192,138,72,0.12)', color: '#C08A48' }}>
-          {toAr(memPages)} أوجه
+          {toAr(memPages)} {memPages === 1 ? 'وجه' : memPages === 2 ? 'وجهان' : 'أوجه'}
         </div>
       )}
     </button>
