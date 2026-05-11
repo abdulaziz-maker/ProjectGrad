@@ -416,10 +416,16 @@ export default function DashboardPage() {
           <Activity className="w-4 h-4" style={{ color: 'var(--accent-teal)' }} />
           نبض اليوم
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+        <div className={`grid gap-2 sm:gap-3 ${
+          profile.role === 'ceo' || profile.role === 'records_officer' || profile.role === 'batch_manager'
+            ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'
+        }`}>
           <PulseCard icon={<UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />} color="#5A8F67" value={todayStats.presentStudents} total={todayStats.expectedToday} label="طلاب حاضرون" href="/attendance" />
           <PulseCard icon={<XCircle className="w-4 h-4 sm:w-5 sm:h-5" />} color="#B94838" value={todayStats.absentStudents} label="غائبون اليوم" urgent={todayStats.absentStudents > 5} href="/attendance" />
-          <PulseCard icon={<UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />} color="#356B6E" value={todayStats.supPresent} total={todayStats.supTotal} label="مشرفون حاضرون" href="/supervisors" />
+          {/* مشرفون حاضرون — للمدير التنفيذي ومدير الدفعة فقط */}
+          {(profile.role === 'ceo' || profile.role === 'records_officer' || profile.role === 'batch_manager') && (
+            <PulseCard icon={<UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />} color="#356B6E" value={todayStats.supPresent} total={todayStats.supTotal} label="مشرفون حاضرون" href="/supervisors" />
+          )}
           <PulseCard icon={<ClipboardCheck className="w-4 h-4 sm:w-5 sm:h-5" />} color="#C08A48" value={todayStats.followedToday} label="متابعات اليوم" href="/followups" />
         </div>
       </section>
@@ -659,14 +665,25 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* متابعات المشرفين بأرقام حقيقية (مهمة ٢٥) */}
+        {/* متابعات المشرفين — للمشرف: أداؤه فقط. للمدير: كل المشرفين */}
         <div className="card-static p-3 sm:p-4">
           <h3 className="font-bold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
             <Users className="w-4 h-4" style={{ color: '#C08A48' }} />
-            متابعات المشرفين الأسبوعية
+            {profile.role === 'supervisor' || profile.role === 'teacher'
+              ? 'أدائي في المتابعات الأسبوعية'
+              : 'متابعات المشرفين الأسبوعية'}
           </h3>
           <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-            {supervisorTracking.map(s => {
+            {supervisorTracking
+              .filter(s => {
+                // المشرف/المعلم: يرى متابعاته فقط (مطابقة باسم المستخدم في user_id)
+                if (profile.role === 'supervisor' || profile.role === 'teacher') {
+                  const sup = supervisors.find(sv => sv.id === s.id)
+                  return sup?.user_id === profile.id
+                }
+                return true
+              })
+              .map(s => {
               const c = batchColor(s.batchId ?? 0)
               const allDone = s.notFollowedCount === 0
               return (
