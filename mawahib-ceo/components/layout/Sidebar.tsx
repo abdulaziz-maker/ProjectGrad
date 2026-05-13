@@ -8,7 +8,7 @@ import {
   Wallet, Settings, X, Database,
   ClipboardCheck, ListTodo, LogOut, ShieldCheck, ChevronLeft, Bell,
   NotebookPen, TrendingUp, Bookmark, Archive, AlertOctagon, ShieldAlert,
-  Building2, Target, Activity,
+  Building2, Target, Activity, ArrowLeftRight,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { signOut } from '@/lib/auth'
@@ -40,6 +40,7 @@ const navItems: NavItem[] = [
   // === مدير الدفعة ===
   { href: '/manager/dashboard',    icon: LayoutDashboard, label: 'لوحة الدفعة',        badge: 0, roles: ['batch_manager'] },
   { href: '/manager/supervisors',  icon: UserCog,         label: 'مشرفو دفعتي',        badge: 0, roles: ['batch_manager'] },
+  { href: '/manager/assignments',  icon: ArrowLeftRight,  label: 'توزيع الطلاب',       badge: 0, roles: ['batch_manager', 'ceo'] },
   { href: '/followups/manager',    icon: NotebookPen,     label: 'متابعات الدفعة',      badge: 0, roles: ['batch_manager'] },
 
   // === المشرف / المعلم ===
