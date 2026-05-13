@@ -38,6 +38,8 @@ export interface DBSupervisor {
   strengths: string; weaknesses: string; rating: number; student_count: number
   last_report_date: string | null; avg_student_progress: number; notes: string; batch_id: number | null
   user_id: string | null
+  /** نوع السجل: 'supervisor' | 'teacher' | 'batch_manager' | 'ceo' — الافتراضي 'supervisor' */
+  role?: string
 }
 
 export interface DBBatch {
@@ -112,7 +114,7 @@ export async function getSupervisors(): Promise<DBSupervisor[]> {
   return cachedFetch(CACHE_KEYS.SUPERVISORS, async () => {
     const { data, error } = await supabase
       .from('supervisors')
-      .select('id,name,age,specialty,experience_years,strengths,weaknesses,rating,student_count,last_report_date,avg_student_progress,notes,batch_id,user_id')
+      .select('id,name,age,specialty,experience_years,strengths,weaknesses,rating,student_count,last_report_date,avg_student_progress,notes,batch_id,user_id,role')
       .order('name', { ascending: true })
     if (error) throw error
     return data as DBSupervisor[]

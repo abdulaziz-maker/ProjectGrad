@@ -12,7 +12,7 @@ import {
   type DBStudent, type DBSupervisor, type DBAssignmentHistory,
 } from '@/lib/db'
 import { toast } from 'sonner'
-import { Users, UserCheck, GripVertical, History, AlertCircle, CheckCircle2, ArrowLeftRight } from 'lucide-react'
+import { Users, UserCheck, GripVertical, History, AlertCircle, CheckCircle2, ArrowLeftRight, UserCog, ShieldCheck, AlertTriangle, GraduationCap } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 // ── Draggable Student Card ─────────────────────────────────────────
@@ -63,12 +63,22 @@ function DraggableStudent({ student, isOverlay }: { student: DBStudent; isOverla
 }
 
 // ── Droppable Column ───────────────────────────────────────────────
+const ROLE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  ceo:             { label: 'مدير تنفيذي', color: '#7A4E1E', bg: 'rgba(192,138,72,0.18)' },
+  batch_manager:   { label: 'مدير دفعة',   color: '#8B2F23', bg: 'rgba(185,72,56,0.14)'  },
+  supervisor:      { label: 'مشرف',        color: '#235052', bg: 'rgba(53,107,110,0.12)' },
+  teacher:         { label: 'معلم',        color: '#5B21B6', bg: 'rgba(91,33,182,0.12)'  },
+}
+
 function DroppableColumn({
-  id, title, subtitle, students, color, icon: Icon, isOver,
+  id, title, subtitle, students, color, icon: Icon, isOver, role, warningThreshold,
 }: {
   id: string; title: string; subtitle: string
   students: DBStudent[]; color: string
   icon: React.ElementType; isOver: boolean
+  role?: string
+  /** لو تجاوز عدد الطلاب هذا الحد → نعرض تحذيراً */
+  warningThreshold?: number
 }) {
   const { setNodeRef } = useDroppable({ id })
 
@@ -91,7 +101,15 @@ function DroppableColumn({
           <Icon size={17} style={{ color }} />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="font-bold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+            {role && ROLE_BADGE[role] && role !== 'supervisor' && (
+              <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                style={{ background: ROLE_BADGE[role].bg, color: ROLE_BADGE[role].color }}>
+                {ROLE_BADGE[role].label}
+              </span>
+            )}
+          </div>
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>
         </div>
         <span
@@ -101,6 +119,14 @@ function DroppableColumn({
           {students.length}
         </span>
       </div>
+      {/* تحذير الحمل الزائد */}
+      {warningThreshold != null && students.length > warningThreshold && (
+        <div className="px-4 py-2 flex items-center gap-2 text-[11px] font-bold"
+          style={{ background: 'rgba(201,151,44,0.10)', color: '#8A6A20', borderBottom: '1px solid rgba(201,151,44,0.30)' }}>
+          <AlertTriangle size={13} />
+          {students.length} طالباً — تجاوزت الحد المُوصى به ({warningThreshold})
+        </div>
+      )}
 
       {/* Students */}
       <div className="flex-1 p-3 space-y-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 340px)' }}>
@@ -212,8 +238,26 @@ export default function AssignmentsPage() {
     () => students.filter(s => s.batch_id === selectedBatch).sort((a, b) => a.name.localeCompare(b.name, 'ar')),
     [students, selectedBatch]
   )
+  // ── المسؤولون المتاحون للإسناد في هذه الدفعة ──
+  // يشمل: المشرفين/المعلمين في الدفعة + مدير الدفعة + CEO (حتى لو batch_id = null)
+  // ترتيب الأعمدة: ceo → batch_manager → supervisor → teacher → أبجدياً داخل كل فئة
+  const ROLE_ORDER: Record<string, number> = { ceo: 0, batch_manager: 1, supervisor: 2, teacher: 3 }
   const batchSupervisors = useMemo(
-    () => supervisors.filter(s => s.batch_id === selectedBatch).sort((a, b) => a.name.localeCompare(b.name, 'ar')),
+    () => supervisors
+      .filter(s => {
+        const r = s.role ?? 'supervisor'
+        // أي مسؤول مرتبط بالدفعة المختارة
+        if (s.batch_id === selectedBatch) return true
+        // CEO بدون batch_id يظهر في كل الدفعات (RLS يفلتر الـtenant)
+        if (r === 'ceo' && s.batch_id == null) return true
+        return false
+      })
+      .sort((a, b) => {
+        const ra = ROLE_ORDER[a.role ?? 'supervisor'] ?? 99
+        const rb = ROLE_ORDER[b.role ?? 'supervisor'] ?? 99
+        if (ra !== rb) return ra - rb
+        return a.name.localeCompare(b.name, 'ar')
+      }),
     [supervisors, selectedBatch]
   )
 
@@ -364,10 +408,10 @@ export default function AssignmentsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-extrabold" style={{ color: 'var(--text-primary)' }}>
-            توزيع المشرفين
+            توزيع الطلاب
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            توزيع الطلاب على المشرفين — اسحب اسم الطالب من عمود لآخر لتعيينه
+            توزيع الطلاب على المشرفين / المعلمين / مدير الدفعة / المدير التنفيذي
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -429,7 +473,7 @@ export default function AssignmentsPage() {
           </div>
           <div>
             <p className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{totalSupervisors}</p>
-            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>مشرفين</p>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>مسؤولون</p>
           </div>
         </div>
       </div>
@@ -468,19 +512,29 @@ export default function AssignmentsPage() {
               isOver={overTarget === 'unassigned'}
             />
 
-            {/* Supervisor columns */}
-            {batchSupervisors.map((sup, i) => (
-              <DroppableColumn
-                key={sup.id}
-                id={`supervisor-${sup.id}`}
-                title={sup.name}
-                subtitle={`${(studentsBySupervisor.get(sup.id) ?? []).length} طالب`}
-                students={studentsBySupervisor.get(sup.id) ?? []}
-                color={COLORS[i % COLORS.length]}
-                icon={UserCheck}
-                isOver={overTarget === `supervisor-${sup.id}`}
-              />
-            ))}
+            {/* Supervisor / manager / CEO columns */}
+            {batchSupervisors.map((sup, i) => {
+              const r = sup.role ?? 'supervisor'
+              const icon = r === 'ceo' ? ShieldCheck : r === 'batch_manager' ? UserCog : r === 'teacher' ? GraduationCap : UserCheck
+              // ألوان ثابتة للأدوار المميزة، باقي الكروت تأخذ لون من الـpalette
+              const baseColor = r === 'ceo' ? '#7A4E1E' : r === 'batch_manager' ? '#8B2F23' : r === 'teacher' ? '#5B21B6' : COLORS[i % COLORS.length]
+              // تحذير الحمل: 10 طلاب للمدير/CEO، 25 طالباً للمشرف/المعلم
+              const threshold = (r === 'ceo' || r === 'batch_manager') ? 10 : 25
+              return (
+                <DroppableColumn
+                  key={sup.id}
+                  id={`supervisor-${sup.id}`}
+                  title={sup.name}
+                  subtitle={`${(studentsBySupervisor.get(sup.id) ?? []).length} طالب`}
+                  students={studentsBySupervisor.get(sup.id) ?? []}
+                  color={baseColor}
+                  icon={icon}
+                  isOver={overTarget === `supervisor-${sup.id}`}
+                  role={r}
+                  warningThreshold={threshold}
+                />
+              )
+            })}
           </div>
 
           {/* Drag Overlay */}
