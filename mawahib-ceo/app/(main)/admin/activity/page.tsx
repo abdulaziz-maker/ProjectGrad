@@ -144,25 +144,25 @@ export default function ActivityPage() {
       {/* Header */}
       <header className="flex items-start justify-between flex-wrap gap-3">
         <div className="min-w-0">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold mb-2"
-            style={{ background: 'rgba(53,107,110,0.10)', color: '#235052' }}>
-            <Activity className="w-3 h-3" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-extrabold mb-2 tracking-wide"
+            style={{ background: 'rgba(53,107,110,0.12)', color: '#1a4042' }}>
+            <Activity className="w-3.5 h-3.5" />
             <span>SUPER ADMIN</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+          <h1 className="text-2xl sm:text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>
             آخر نشاط في الموقع
           </h1>
-          <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm mt-1.5 font-medium" style={{ color: 'var(--text-secondary)' }}>
             تتبّع المستخدمين النشطين والجلسات اليومية والذروة.
           </p>
         </div>
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition active:scale-95 disabled:opacity-50"
-          style={{ background: 'rgba(53,107,110,0.10)', color: '#235052', border: '1px solid rgba(53,107,110,0.35)' }}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition active:scale-95 disabled:opacity-50"
+          style={{ background: 'rgba(53,107,110,0.12)', color: '#1a4042', border: '1px solid rgba(53,107,110,0.40)' }}
         >
-          {refreshing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+          {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
           {refreshing ? 'يحدّث…' : 'إعادة التحميل'}
         </button>
       </header>
@@ -173,12 +173,12 @@ export default function ActivityPage() {
         {/* نشاط اليوم */}
         <section className="rounded-2xl p-4 sm:p-5"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)' }}>
-          <header className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(192,138,72,0.12)' }}>
-              <Users className="w-4 h-4" style={{ color: '#8B5A1E' }} />
+          <header className="flex items-center gap-2.5 mb-4">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: 'rgba(192,138,72,0.15)' }}>
+              <Users className="w-5 h-5" style={{ color: '#7A4E1E' }} />
             </div>
-            <h2 className="font-bold text-sm sm:text-base" style={{ color: 'var(--text-primary)' }}>
+            <h2 className="font-extrabold text-base sm:text-lg" style={{ color: 'var(--text-primary)' }}>
               نشاط اليوم
             </h2>
           </header>
@@ -191,20 +191,20 @@ export default function ActivityPage() {
         {/* أعلى المتزامنين */}
         <section className="rounded-2xl p-4 sm:p-5"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)' }}>
-          <header className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(91,33,182,0.10)' }}>
-              <Zap className="w-4 h-4" style={{ color: '#5B21B6' }} />
+          <header className="flex items-center gap-2.5 mb-4">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: 'rgba(91,33,182,0.12)' }}>
+              <Zap className="w-5 h-5" style={{ color: '#4C1D95' }} />
             </div>
-            <h2 className="font-bold text-sm sm:text-base" style={{ color: 'var(--text-primary)' }}>
+            <h2 className="font-extrabold text-base sm:text-lg" style={{ color: 'var(--text-primary)' }}>
               أعلى متصلين متزامنين
             </h2>
           </header>
           <div className="grid grid-cols-2 gap-3">
-            <BigNumber label="اليوم"     value={concurrent.max_today} accent="#5B21B6" />
-            <BigNumber label="آخر ٣٠ يوم" value={concurrent.max_30d}   accent="#235052" />
+            <BigNumber label="اليوم"     value={concurrent.max_today} accent="#4C1D95" />
+            <BigNumber label="آخر ٣٠ يوم" value={concurrent.max_30d}   accent="#1a4042" />
           </div>
-          <p className="text-[10px] mt-3 pt-3" style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--border-faint)' }}>
+          <p className="text-xs mt-3 pt-3 font-medium" style={{ color: 'var(--text-secondary)', borderTop: '1px solid var(--border-faint)' }}>
             يُحسب على نوافذ زمنية مدتها ٥ دقائق.
           </p>
         </section>
@@ -213,49 +213,49 @@ export default function ActivityPage() {
       {/* آخر المتصلين */}
       <section className="rounded-2xl p-4 sm:p-5"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)' }}>
-        <header className="flex items-center justify-between gap-3 mb-3 sm:mb-4">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#5A8F67' }} />
-            <h2 className="font-bold text-sm sm:text-base truncate" style={{ color: 'var(--text-primary)' }}>
-              آخر المتصلين <span className="font-mono text-xs opacity-70">({online.length})</span>
+        <header className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: '#5A8F67', boxShadow: '0 0 0 3px rgba(90,143,103,0.20)' }} />
+            <h2 className="font-extrabold text-base sm:text-lg truncate" style={{ color: 'var(--text-primary)' }}>
+              آخر المتصلين <span className="font-mono text-sm opacity-80">({online.length})</span>
             </h2>
           </div>
           <button
             onClick={() => setShowHalqa(v => !v)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition active:scale-95 shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition active:scale-95 shrink-0"
             style={{
-              background: showHalqa ? 'rgba(192,138,72,0.12)' : 'var(--bg-elevated)',
-              color: showHalqa ? '#8B5A1E' : 'var(--text-muted)',
+              background: showHalqa ? 'rgba(192,138,72,0.15)' : 'var(--bg-elevated)',
+              color: showHalqa ? '#7A4E1E' : 'var(--text-secondary)',
               border: '1px solid var(--border-soft)',
             }}>
-            {showHalqa ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+            {showHalqa ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
             {showHalqa ? 'إخفاء الحلقة' : 'إظهار الحلقة'}
           </button>
         </header>
 
         {online.length === 0 ? (
-          <p className="text-center text-xs py-8" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-center text-sm py-8 font-medium" style={{ color: 'var(--text-secondary)' }}>
             لا توجد جلسات نشطة في آخر ٢٤ ساعة.
           </p>
         ) : (
-          <ul className="space-y-1.5">
+          <ul className="space-y-2">
             {online.map((u, i) => (
-              <li key={u.user_id} className="flex items-center gap-3 px-3 py-2 rounded-xl"
+              <li key={u.user_id} className="flex items-center gap-3 px-3.5 py-3 rounded-xl"
                 style={{
                   background: i % 2 === 0 ? 'var(--bg-subtle)' : 'transparent',
                   border: '1px solid var(--border-faint)',
                 }}>
-                <span className="font-mono text-[10px] w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                  style={{ background: 'rgba(53,107,110,0.10)', color: '#235052' }}>
+                <span className="font-mono text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(53,107,110,0.12)', color: '#1a4042' }}>
                   {i + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+                  <p className="text-[15px] font-bold truncate" style={{ color: 'var(--text-primary)' }}>
                     {u.name}
                   </p>
                   {showHalqa && (
-                    <p className="text-[10.5px] flex items-center gap-1.5 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                      <GraduationCap className="w-3 h-3 shrink-0" />
+                    <p className="text-xs flex items-center gap-1.5 mt-1 font-medium" style={{ color: 'var(--text-secondary)' }}>
+                      <GraduationCap className="w-3.5 h-3.5 shrink-0" />
                       <span>{roleLabelAr(u.role)}</span>
                       {u.batch_id != null && (
                         <>
@@ -266,9 +266,9 @@ export default function ActivityPage() {
                     </p>
                   )}
                 </div>
-                <span className="inline-flex items-center gap-1 text-[10.5px] font-bold shrink-0"
-                  style={{ color: 'var(--text-muted)' }} title={u.page_path}>
-                  <Clock className="w-3 h-3" />
+                <span className="inline-flex items-center gap-1 text-xs font-bold shrink-0"
+                  style={{ color: 'var(--text-secondary)' }} title={u.page_path}>
+                  <Clock className="w-3.5 h-3.5" />
                   {timeAgoAr(u.last_activity)}
                 </span>
               </li>
@@ -277,7 +277,7 @@ export default function ActivityPage() {
         )}
       </section>
 
-      <p className="text-[10px] text-center pt-2" style={{ color: 'var(--text-muted)' }}>
+      <p className="text-xs text-center pt-2 font-medium" style={{ color: 'var(--text-secondary)' }}>
         آخر تحديث: <span className="font-mono">{new Date(snap.generated_at).toLocaleTimeString('ar-SA')}</span>
         {' · '}
         نشاط 30 يوم كاملة + ملخصات سنة. السجل الأقدم يُحذف تلقائياً.
@@ -296,20 +296,20 @@ function Metric({ Icon, label, value, delta, hint }: {
 }) {
   const DeltaIcon = delta.Icon
   return (
-    <div className="rounded-xl p-3" style={{ background: 'var(--bg-subtle)' }}>
-      <div className="flex items-center gap-1.5 mb-1.5" style={{ color: 'var(--text-muted)' }}>
-        <Icon className="w-3 h-3" />
-        <span className="text-[10.5px]">{label}</span>
+    <div className="rounded-xl p-3.5" style={{ background: 'var(--bg-subtle)' }}>
+      <div className="flex items-center gap-1.5 mb-2 font-semibold" style={{ color: 'var(--text-secondary)' }}>
+        <Icon className="w-3.5 h-3.5" />
+        <span className="text-xs">{label}</span>
       </div>
-      <p className="text-2xl sm:text-3xl font-bold font-mono leading-none mb-1.5" style={{ color: 'var(--text-primary)' }}>
+      <p className="text-3xl sm:text-4xl font-extrabold font-mono leading-none mb-2" style={{ color: 'var(--text-primary)' }}>
         {value}
       </p>
-      <div className="flex items-center gap-1 text-[10px]">
-        <DeltaIcon className="w-3 h-3" style={{ color: delta.color }} />
-        <span className="font-mono font-bold" style={{ color: delta.color }}>
+      <div className="flex items-center gap-1 text-[11px]">
+        <DeltaIcon className="w-3.5 h-3.5" style={{ color: delta.color }} />
+        <span className="font-mono font-extrabold" style={{ color: delta.color }}>
           {delta.sign}{delta.value}
         </span>
-        <span className="opacity-60" style={{ color: 'var(--text-muted)' }}>· {hint}</span>
+        <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>· {hint}</span>
       </div>
     </div>
   )
@@ -317,9 +317,9 @@ function Metric({ Icon, label, value, delta, hint }: {
 
 function BigNumber({ label, value, accent }: { label: string; value: number; accent: string }) {
   return (
-    <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg-subtle)' }}>
-      <p className="text-[10.5px] mb-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
-      <p className="text-3xl sm:text-4xl font-bold font-mono leading-none" style={{ color: accent }}>
+    <div className="rounded-xl p-3.5 text-center" style={{ background: 'var(--bg-subtle)' }}>
+      <p className="text-xs mb-1.5 font-semibold" style={{ color: 'var(--text-secondary)' }}>{label}</p>
+      <p className="text-4xl sm:text-5xl font-extrabold font-mono leading-none" style={{ color: accent }}>
         {value}
       </p>
     </div>
