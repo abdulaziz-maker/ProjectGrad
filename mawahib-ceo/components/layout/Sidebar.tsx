@@ -8,7 +8,7 @@ import {
   Wallet, Settings, X, Database,
   ClipboardCheck, ListTodo, LogOut, ShieldCheck, ChevronLeft, Bell,
   NotebookPen, TrendingUp, Bookmark, Archive, AlertOctagon, ShieldAlert,
-  Building2, Target,
+  Building2, Target, Activity,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { signOut } from '@/lib/auth'
@@ -71,6 +71,8 @@ const navItems: NavItem[] = [
   { href: '/admin/users',     icon: ShieldCheck, label: 'إدارة الحسابات',         badge: 0, roles: ['ceo'] },
   { href: '/admin/tenants',   icon: Building2,   label: 'إدارة الحلقات',          badge: 0, roles: ['ceo'], superAdminOnly: true },
   { href: '/settings',        icon: Settings,    label: 'الإعدادات',              badge: 0, roles: ['ceo'] },
+  // ← آخر نشاط: super_admin فقط (آخر القائمة)
+  { href: '/admin/activity',  icon: Activity,    label: 'آخر نشاط',               badge: 0, superAdminOnly: true },
 ]
 
 interface SidebarProps {
