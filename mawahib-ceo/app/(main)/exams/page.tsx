@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { getExams, upsertExam, deleteExam as deleteExamDB, getStudents, getSupervisors, upsertJuzProgress, getExamCandidates, upsertExamCandidate, deleteExamCandidate as deleteExamCandidateDB, type DBExam, type DBStudent, type DBSupervisor, type DBExamCandidate } from '@/lib/db'
-import { CalendarCheck, Plus, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Bell, PauseCircle, Pencil, Save, BookOpen, Sparkles, Trash2, Eye, ChevronDown, ChevronUp } from 'lucide-react'
+import { CalendarCheck, Plus, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Bell, PauseCircle, Pencil, Save, BookOpen, Sparkles, Trash2, Eye, ChevronDown, ChevronUp, Loader2, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { getBatchName } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -107,6 +107,10 @@ export default function ExamsPage() {
     notes: '',
   })
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null)
+  // ─── ملاحظات مضمَّنة — تعديل مباشر على البطاقة ───
+  const [editingNotesId, setEditingNotesId] = useState<string | null>(null)
+  const [draftNote, setDraftNote] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
   const [candidateEditForm, setCandidateEditForm] = useState({
     juzNumber: '1',
     remainingPages: '',
@@ -400,6 +404,32 @@ export default function ExamsPage() {
     } catch (err) {
       console.error(err)
       toast.error('حدث خطأ أثناء حذف الاختبار')
+    }
+  }
+
+  // ─── حفظ الملاحظة المضمَّنة ───
+  const openNoteEdit = (exam: DBExam) => {
+    setEditingNotesId(exam.id)
+    setDraftNote(exam.notes || '')
+  }
+  const saveNote = async (examId: string) => {
+    const exam = exams.find(e => e.id === examId)
+    if (!exam) return
+    const newNote = draftNote.trim()
+    // لا نحفظ لو لم يتغيّر شيء
+    if (newNote === (exam.notes || '').trim()) { setEditingNotesId(null); return }
+    setSavingNote(true)
+    try {
+      const updated: DBExam = { ...exam, notes: newNote || '' }
+      await upsertExam(updated)
+      setExams(prev => prev.map(e => e.id === examId ? updated : e))
+      toast.success('تم حفظ الملاحظة')
+    } catch (err) {
+      console.error(err)
+      toast.error('حدث خطأ أثناء حفظ الملاحظة')
+    } finally {
+      setSavingNote(false)
+      setEditingNotesId(null)
     }
   }
 
@@ -984,7 +1014,57 @@ export default function ExamsPage() {
                           ) : null}
                         </div>
                       )}
-                      {exam.notes && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{exam.notes}</p>}
+                      {/* ─── ملاحظات المختبر — قابلة للتعديل مباشرة ─── */}
+                      <div className="mt-2">
+                        {editingNotesId === exam.id ? (
+                          <div className="flex flex-col gap-1.5">
+                            <textarea
+                              autoFocus
+                              rows={2}
+                              value={draftNote}
+                              onChange={e => setDraftNote(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Escape') setEditingNotesId(null) }}
+                              placeholder="أضف ملاحظة على الطالب..."
+                              className="w-full px-2.5 py-2 text-xs rounded-lg outline-none resize-none focus:ring-2 focus:ring-[#C08A48]/30"
+                              style={{ background: 'rgba(192,138,72,0.06)', border: '1px solid rgba(192,138,72,0.40)', color: 'var(--text-primary)', lineHeight: '1.5' }}
+                            />
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => saveNote(exam.id)}
+                                disabled={savingNote}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-white transition active:scale-95 disabled:opacity-50"
+                                style={{ background: 'linear-gradient(135deg, #C08A48, #9A6A2E)' }}
+                              >
+                                {savingNote ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                حفظ
+                              </button>
+                              <button
+                                onClick={() => setEditingNotesId(null)}
+                                className="text-[11px] px-2.5 py-1 rounded-lg border transition hover:bg-white/5"
+                                style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                              >
+                                إلغاء
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => !readOnly && openNoteEdit(exam)}
+                            disabled={readOnly}
+                            className={`w-full text-right flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg transition group ${!readOnly ? 'hover:bg-[rgba(192,138,72,0.06)] cursor-text' : 'cursor-default'}`}
+                            style={{ border: readOnly ? 'none' : '1px dashed rgba(192,138,72,0.30)' }}
+                            title={readOnly ? '' : 'اضغط لإضافة أو تعديل الملاحظة'}
+                          >
+                            <MessageSquare className="w-3 h-3 mt-0.5 shrink-0 opacity-50" style={{ color: exam.notes ? '#8B5A1E' : 'var(--text-muted)' }} />
+                            <span className="text-xs leading-relaxed" style={{ color: exam.notes ? 'var(--text-secondary)' : 'var(--text-muted)', fontStyle: exam.notes ? 'normal' : 'italic' }}>
+                              {exam.notes || (!readOnly ? 'أضف ملاحظة...' : '—')}
+                            </span>
+                            {!readOnly && exam.notes && (
+                              <Pencil className="w-2.5 h-2.5 mr-auto shrink-0 opacity-0 group-hover:opacity-40 transition-opacity mt-0.5" style={{ color: '#8B5A1E' }} />
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Status + top-level actions */}
