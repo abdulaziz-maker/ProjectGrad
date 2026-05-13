@@ -9,8 +9,20 @@ import { formatHijri, toHijriShort } from '@/lib/hijri'
 import PageHeader from '@/components/ui/PageHeader'
 import {
   CalendarRange, Plus, X, Pin, Repeat, CheckCircle2, ChevronRight, ChevronLeft,
-  Users, Sparkles, AlertCircle,
+  Users, Sparkles, AlertCircle, Layers, UserCheck,
 } from 'lucide-react'
+
+// palette ثابت لتلوين الطلاب حسب مشرفهم في العرض الموحّد
+const SUPERVISOR_PALETTE = [
+  { bg: 'rgba(192,138,72,0.18)', border: 'rgba(192,138,72,0.50)', text: '#7A4E1E' },
+  { bg: 'rgba(53,107,110,0.18)', border: 'rgba(53,107,110,0.50)', text: '#1a4042' },
+  { bg: 'rgba(90,143,103,0.18)', border: 'rgba(90,143,103,0.50)', text: '#3F6E4B' },
+  { bg: 'rgba(185,72,56,0.16)',  border: 'rgba(185,72,56,0.45)',  text: '#8B2F23' },
+  { bg: 'rgba(91,33,182,0.18)',  border: 'rgba(91,33,182,0.50)',  text: '#5B21B6' },
+  { bg: 'rgba(201,151,44,0.22)', border: 'rgba(201,151,44,0.50)', text: '#8A6A20' },
+  { bg: 'rgba(20,184,166,0.18)', border: 'rgba(20,184,166,0.50)', text: '#0f766e' },
+  { bg: 'rgba(236,72,153,0.16)', border: 'rgba(236,72,153,0.45)', text: '#9d174d' },
+] as const
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -32,6 +44,10 @@ export default function SchedulePage() {
   // المدير يختار أي مشرف يعرض جدوله
   const [viewSupervisorId, setViewSupervisorId] = useState<string | null>(null)
   const [weekOffset, setWeekOffset] = useState(0) // 0 = هذا الأسبوع، -1 = السابق، +1 = القادم
+  // ── العرض الموحَّد لكل المشرفين (CEO/manager فقط) ──
+  const [viewMode, setViewMode] = useState<'single' | 'all'>('single')
+  const [allSchedule, setAllSchedule] = useState<FollowupScheduleEntry[]>([])
+  const canViewAll = isCeo || isManager
 
   // اعرف الـsupervisor.id الخاص بالمشرف الحالي
   const mySupervisorId = useMemo(() => {
@@ -90,6 +106,56 @@ export default function SchedulePage() {
     }
     load()
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── جلب الجدول الموحَّد (للعرض الموحَّد) — يخضع لـRLS تلقائياً ──
+  useEffect(() => {
+    if (viewMode !== 'all' || !canViewAll) return
+    let cancelled = false
+    Promise.all([
+      getFollowupSchedule(),  // بلا supervisorId = الكل (RLS يفلتر)
+      getDailyFollowups({ dateFrom: weekRange.start, dateTo: weekRange.end }),
+    ]).then(([sch, fups]) => {
+      if (cancelled) return
+      setAllSchedule(sch)
+      const set = new Set<string>()
+      for (const f of fups) {
+        if (f.actual_position != null) set.add(`${f.student_id}:${f.followup_date}`)
+      }
+      setFollowupDates(set)
+    }).catch(err => {
+      if (cancelled) return
+      console.error(err)
+      toast.error('خطأ في تحميل الجدول الموحَّد')
+    })
+    return () => { cancelled = true }
+  }, [viewMode, canViewAll, weekRange.start, weekRange.end])
+
+  // قائمة المشرفين الفاعلين في النطاق المرئي + ألوانهم (ثابتة حسب الترتيب الأبجدي)
+  const visibleSupervisors = useMemo(() => {
+    if (!isManager && !isCeo) return supervisors
+    return supervisors
+      .filter(s => isCeo || s.batch_id === profile?.batch_id || (s.role === 'ceo' && s.batch_id == null))
+  }, [supervisors, isManager, isCeo, profile?.batch_id])
+
+  const supervisorColor = useMemo(() => {
+    const m = new Map<string, typeof SUPERVISOR_PALETTE[number]>()
+    const sorted = [...visibleSupervisors].sort((a, b) => a.id.localeCompare(b.id))
+    sorted.forEach((s, i) => m.set(s.id, SUPERVISOR_PALETTE[i % SUPERVISOR_PALETTE.length]))
+    return m
+  }, [visibleSupervisors])
+
+  // schedule موحَّد مُجمَّع حسب اليوم (للـall mode)
+  const allScheduleByDay = useMemo(() => {
+    if (viewMode !== 'all') return new Map<number, FollowupScheduleEntry[]>()
+    const m = new Map<number, FollowupScheduleEntry[]>()
+    for (const e of allSchedule) {
+      if (!e.is_repeating && e.week_start && e.week_start !== weekRange.start) continue
+      const list = m.get(e.day_of_week) ?? []
+      list.push(e)
+      m.set(e.day_of_week, list)
+    }
+    return m
+  }, [viewMode, allSchedule, weekRange.start])
 
   // أعد تحميل الجدول والمتابعات عند تغيّر المشرف أو الأسبوع
   useEffect(() => {
@@ -205,7 +271,8 @@ export default function SchedulePage() {
     )
   }
 
-  if (!activeSupervisorId) {
+  // في single mode للمدير/المدير التنفيذي، يجب اختيار مشرف
+  if (!activeSupervisorId && viewMode === 'single') {
     return (
       <div className="space-y-5 animate-fade-in-up">
         <PageHeader
@@ -213,6 +280,13 @@ export default function SchedulePage() {
           title="جدول الأسبوع"
           subtitle="نظّم متابعاتك لطلابك على مدار الأسبوع — السبت إلى الخميس"
         />
+        {canViewAll && (
+          <button onClick={() => setViewMode('all')}
+            className="card-static p-4 text-sm font-bold w-full text-center"
+            style={{ color: 'var(--accent-teal)' }}>
+            عرض جدول كل المشرفين معاً →
+          </button>
+        )}
         <div className="card-static p-6 text-center" style={{ color: 'var(--text-muted)' }}>
           {isCeo || isManager ? 'اختر مشرفاً لعرض جدوله' : 'لم يُحدَّد ملف المشرف لحسابك بعد'}
         </div>
@@ -237,8 +311,34 @@ export default function SchedulePage() {
         }
       />
 
-      {/* اختيار المشرف للمدراء */}
-      {(isCeo || isManager) && (
+      {/* tab toggle: مشرف واحد / كل المشرفين (CEO/manager فقط) */}
+      {canViewAll && (
+        <div className="card-static p-1 flex gap-1">
+          <button
+            onClick={() => setViewMode('single')}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all"
+            style={{
+              background: viewMode === 'single' ? 'var(--accent-warm)' : 'transparent',
+              color: viewMode === 'single' ? '#fff' : 'var(--text-secondary)',
+            }}>
+            <UserCheck className="w-3.5 h-3.5" />
+            مشرف واحد
+          </button>
+          <button
+            onClick={() => setViewMode('all')}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all"
+            style={{
+              background: viewMode === 'all' ? 'var(--accent-teal)' : 'transparent',
+              color: viewMode === 'all' ? '#fff' : 'var(--text-secondary)',
+            }}>
+            <Layers className="w-3.5 h-3.5" />
+            كل المشرفين
+          </button>
+        </div>
+      )}
+
+      {/* اختيار المشرف للمدراء (mode = single فقط) */}
+      {(isCeo || isManager) && viewMode === 'single' && (
         <div className="card-static p-3">
           <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>
             عرض جدول المشرف:
@@ -249,15 +349,40 @@ export default function SchedulePage() {
             className="w-full px-3 py-2 text-sm rounded-lg border"
             style={{ background: 'var(--bg-body)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
           >
-            {supervisors
-              .filter(s => isCeo || s.batch_id === profile?.batch_id)
-              .map(s => (
-                <option key={s.id} value={s.id}>
-                  {s.name} {s.batch_id ? `— دفعة ${s.batch_id}` : ''}
-                </option>
-              ))
-            }
+            {visibleSupervisors.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.name}{s.batch_id ? ` — دفعة ${s.batch_id}` : ''}{s.role && s.role !== 'supervisor' ? ` (${s.role === 'ceo' ? 'مدير تنفيذي' : s.role === 'batch_manager' ? 'مدير دفعة' : s.role === 'teacher' ? 'معلم' : s.role})` : ''}
+              </option>
+            ))}
           </select>
+        </div>
+      )}
+
+      {/* legend ألوان المشرفين (في الـall mode) */}
+      {viewMode === 'all' && canViewAll && (
+        <div className="card-static p-3">
+          <p className="text-xs font-bold mb-2" style={{ color: 'var(--text-secondary)' }}>
+            <Layers className="inline w-3.5 h-3.5 ml-1" />
+            دليل الألوان ({visibleSupervisors.length} مسؤول)
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {visibleSupervisors.map(s => {
+              const c = supervisorColor.get(s.id)
+              if (!c) return null
+              return (
+                <span key={s.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10.5px] font-bold"
+                  style={{ background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.text }} />
+                  {s.name}
+                  {s.role && s.role !== 'supervisor' && (
+                    <span className="opacity-70 text-[9px]">
+                      ({s.role === 'ceo' ? 'م.تنفيذي' : s.role === 'batch_manager' ? 'م.دفعة' : s.role === 'teacher' ? 'معلم' : s.role})
+                    </span>
+                  )}
+                </span>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -298,30 +423,32 @@ export default function SchedulePage() {
         )}
       </div>
 
-      {/* إحصائية المتابعات */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="card-static p-4 text-center">
-          <Users className="w-5 h-5 text-emerald-600 mx-auto mb-1.5" />
-          <p className="font-mono font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>{supStudents.length}</p>
-          <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>إجمالي الطلاب</p>
+      {/* إحصائية المتابعات (single mode فقط) */}
+      {viewMode === 'single' && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="card-static p-4 text-center">
+            <Users className="w-5 h-5 text-emerald-600 mx-auto mb-1.5" />
+            <p className="font-mono font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>{supStudents.length}</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>إجمالي الطلاب</p>
+          </div>
+          <div className="card-static p-4 text-center">
+            <CheckCircle2 className="w-5 h-5 text-green-600 mx-auto mb-1.5" />
+            <p className="font-mono font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>{followedCount}</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>تمت متابعتهم</p>
+          </div>
+          <div className="card-static p-4 text-center">
+            <AlertCircle className="w-5 h-5 text-amber-600 mx-auto mb-1.5" />
+            <p className="font-mono font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>{supStudents.length - followedCount}</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>متبقّي</p>
+          </div>
         </div>
-        <div className="card-static p-4 text-center">
-          <CheckCircle2 className="w-5 h-5 text-green-600 mx-auto mb-1.5" />
-          <p className="font-mono font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>{followedCount}</p>
-          <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>تمت متابعتهم</p>
-        </div>
-        <div className="card-static p-4 text-center">
-          <AlertCircle className="w-5 h-5 text-amber-600 mx-auto mb-1.5" />
-          <p className="font-mono font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>{supStudents.length - followedCount}</p>
-          <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>متبقّي</p>
-        </div>
-      </div>
+      )}
 
       {/* الجدول الأسبوعي */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {FOLLOWUP_WEEK_DAYS.map((dow, idx) => {
           const dayInfo = weekDates[idx]
-          const entries = scheduleByDay.get(dow) ?? []
+          const entries = viewMode === 'all' ? (allScheduleByDay.get(dow) ?? []) : (scheduleByDay.get(dow) ?? [])
           const isToday = dayInfo?.isToday
 
           return (
@@ -359,44 +486,63 @@ export default function SchedulePage() {
                   const student = students.find(s => s.id === entry.student_id)
                   if (!student) return null
                   const wasFollowed = dayInfo && followupDates.has(`${student.id}:${dayInfo.date}`)
+                  // في all mode: لون المشرف يطغى. في single mode: الـwasFollowed.
+                  const supColor = viewMode === 'all' ? supervisorColor.get(entry.supervisor_id) : null
+                  const supervisor = viewMode === 'all' ? supervisors.find(s => s.id === entry.supervisor_id) : null
                   return (
                     <div
                       key={entry.id}
                       className="flex items-center gap-2 p-2 rounded-lg group transition-all"
-                      style={{
-                        background: wasFollowed ? 'rgba(90,143,103,0.08)' : 'var(--bg-elevated)',
-                        border: wasFollowed ? '1px solid rgba(90,143,103,0.30)' : '1px solid transparent',
-                      }}
+                      style={
+                        supColor
+                          ? { background: supColor.bg, border: `1px solid ${supColor.border}` }
+                          : {
+                              background: wasFollowed ? 'rgba(90,143,103,0.08)' : 'var(--bg-elevated)',
+                              border: wasFollowed ? '1px solid rgba(90,143,103,0.30)' : '1px solid transparent',
+                            }
+                      }
                     >
                       {wasFollowed ? (
                         <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
                       ) : (
                         <span className="w-4 h-4 rounded-full border-2 flex-shrink-0"
-                          style={{ borderColor: 'var(--border-color)' }} />
+                          style={{ borderColor: supColor?.border ?? 'var(--border-color)' }} />
                       )}
-                      <span className="text-xs font-medium flex-1 truncate" style={{ color: 'var(--text-primary)' }}>
-                        {student.name}
-                      </span>
-                      <button
-                        onClick={() => handleToggleRepeat(entry)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        title={entry.is_repeating ? 'متكرر — اضغط لجعله مرة واحدة' : 'مرة واحدة — اضغط للتكرار'}
-                      >
-                        {entry.is_repeating ? (
-                          <Repeat className="w-3.5 h-3.5" style={{ color: 'var(--accent-warm)' }} />
-                        ) : (
-                          <Pin className="w-3.5 h-3.5" style={{ color: 'var(--accent-teal)' }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold truncate" style={{ color: supColor?.text ?? 'var(--text-primary)' }}>
+                          {student.name}
+                        </p>
+                        {viewMode === 'all' && supervisor && (
+                          <p className="text-[10px] mt-0.5 truncate font-medium" style={{ color: supColor?.text ?? 'var(--text-muted)', opacity: 0.75 }}>
+                            {supervisor.name}
+                          </p>
                         )}
-                      </button>
-                      {!isSupervisor || activeSupervisorId === mySupervisorId ? (
-                        <button
-                          onClick={() => handleDelete(entry)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700"
-                          title="حذف"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      ) : null}
+                      </div>
+                      {/* الأزرار تظهر في single mode فقط */}
+                      {viewMode === 'single' && (
+                        <>
+                          <button
+                            onClick={() => handleToggleRepeat(entry)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            title={entry.is_repeating ? 'متكرر — اضغط لجعله مرة واحدة' : 'مرة واحدة — اضغط للتكرار'}
+                          >
+                            {entry.is_repeating ? (
+                              <Repeat className="w-3.5 h-3.5" style={{ color: 'var(--accent-warm)' }} />
+                            ) : (
+                              <Pin className="w-3.5 h-3.5" style={{ color: 'var(--accent-teal)' }} />
+                            )}
+                          </button>
+                          {!isSupervisor || activeSupervisorId === mySupervisorId ? (
+                            <button
+                              onClick={() => handleDelete(entry)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700"
+                              title="حذف"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          ) : null}
+                        </>
+                      )}
                     </div>
                   )
                 })}
@@ -407,8 +553,8 @@ export default function SchedulePage() {
                   </p>
                 )}
 
-                {/* زر إضافة */}
-                {(activeSupervisorId === mySupervisorId || !isSupervisor) && (
+                {/* زر إضافة (single mode فقط) */}
+                {viewMode === 'single' && (activeSupervisorId === mySupervisorId || !isSupervisor) && (
                   <button
                     onClick={() => { setAddingDay(dow); setSelectedStudent(''); setIsRepeating(true) }}
                     className="w-full mt-2 py-2 text-xs font-semibold rounded-lg border-2 border-dashed transition-colors flex items-center justify-center gap-1.5"
@@ -424,7 +570,7 @@ export default function SchedulePage() {
       </div>
 
       {/* تنبيه استخدام */}
-      {weekOffset === 0 && supStudents.length > 0 && followedCount < supStudents.length && (
+      {viewMode === 'single' && weekOffset === 0 && supStudents.length > 0 && followedCount < supStudents.length && (
         <div className="flex items-start gap-2 px-4 py-3 rounded-xl text-sm font-medium"
           style={{ background: 'rgba(192,138,72,0.10)', border: '1px solid rgba(192,138,72,0.30)', color: '#8a5e1a' }}>
           <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0" />
