@@ -6,8 +6,8 @@ import {
   LayoutDashboard, GraduationCap, UserCog, BookOpenCheck, ScrollText,
   CalendarCheck, CalendarDays, Sparkles, Users, FileBarChart,
   Wallet, Settings, X, Database,
-  ClipboardCheck, ListTodo, LogOut, ShieldCheck, ChevronLeft, Bell,
-  NotebookPen, TrendingUp, Bookmark, Archive, AlertOctagon, ShieldAlert,
+  ClipboardCheck, ListTodo, LogOut, ShieldCheck, ChevronLeft,
+  NotebookPen, TrendingUp, Archive, AlertOctagon, ShieldAlert,
   Building2, Target, Activity, ArrowLeftRight,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -28,52 +28,70 @@ interface NavItem {
   superAdminOnly?: boolean
 }
 
-// ملاحظة: التسميات الديناميكية حسب الدور (طلاب دفعتي / طلاب الدفع، إلخ)
-// تتم في useMemo داخل المكوّن. هنا نضع تسميات افتراضية يستخدمها المدير التنفيذي.
-const navItems: NavItem[] = [
-  // === المدير التنفيذي ===
-  { href: '/admin/dashboard', icon: LayoutDashboard, label: 'لوحة التحكم',      badge: 0, roles: ['ceo'] },
-  { href: '/tasks',           icon: ListTodo,        label: 'مهامي اليومية',     badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher'] },
-  // التقارير في الأعلى — تسمية ديناميكية حسب الدور
-  { href: '/reports',         icon: FileBarChart,    label: 'تقارير الدفعات',   badge: 0 },
+interface NavGroup {
+  /** عنوان القسم — اختياري. لو ناقص، يظهر بدون header */
+  label?: string
+  items: NavItem[]
+}
 
-  // === مدير الدفعة ===
-  { href: '/manager/dashboard',    icon: LayoutDashboard, label: 'لوحة الدفعة',        badge: 0, roles: ['batch_manager'] },
-  { href: '/manager/supervisors',  icon: UserCog,         label: 'مشرفو دفعتي',        badge: 0, roles: ['batch_manager'] },
-  { href: '/manager/assignments',  icon: ArrowLeftRight,  label: 'توزيع الطلاب',       badge: 0, roles: ['batch_manager', 'ceo'] },
-  { href: '/followups/manager',    icon: NotebookPen,     label: 'متابعات الدفعة',      badge: 0, roles: ['batch_manager'] },
+// التسميات الديناميكية حسب الدور تُطبَّق داخل المكوّن.
+const navGroups: NavGroup[] = [
+  // ─── أعلى القائمة: لوحة + مهام (بلا عنوان قسم) ───
+  { items: [
+    { href: '/admin/dashboard',   icon: LayoutDashboard, label: 'لوحة التحكم',   badge: 0, roles: ['ceo'] },
+    { href: '/dashboard',         icon: LayoutDashboard, label: 'لوحة التحكم',   badge: 0, roles: ['supervisor', 'teacher'] },
+    { href: '/manager/dashboard', icon: LayoutDashboard, label: 'لوحة الدفعة',   badge: 0, roles: ['batch_manager'] },
+    { href: '/tasks',             icon: ListTodo,        label: 'مهامي اليومية', badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher'] },
+  ]},
 
-  // === المشرف / المعلم ===
-  { href: '/dashboard',       icon: LayoutDashboard, label: 'لوحة التحكم',      badge: 0, roles: ['supervisor', 'teacher'] },
-  { href: '/followups',       icon: NotebookPen,     label: 'المتابعات',         badge: 0, roles: ['supervisor', 'teacher', 'ceo'] },
+  // ─── قرآني ───
+  { label: 'قرآني', items: [
+    { href: '/quran-system/daily-records',  icon: BookOpenCheck, label: 'سجلات الحفظ',     badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+    { href: '/exams',                       icon: ClipboardCheck, label: 'جدول الاختبارات', badge: 0 },
+    { href: '/batches',                     icon: Database,       label: 'قاعدة البيانات',   badge: 0 },
+    { href: '/quran-system/batch-progress', icon: TrendingUp,     label: 'تقدم الحفظ',       badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+  ]},
 
-  // === نظام القرآن ===
-  { href: '/quran-system/daily-records',  icon: BookOpenCheck, label: 'سجلات الحفظ',     badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
-  { href: '/quran-system/batch-progress', icon: TrendingUp,    label: 'تقدم الحفظ',      badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
-  { href: '/followups/schedule',          icon: CalendarDays,  label: 'جدول الأسبوع',     badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
-  { href: '/followups/history',           icon: Archive,       label: 'أرشيف المتابعات', badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
-  { href: '/followups/violations',        icon: AlertOctagon,  label: 'إخلالات المتابعة', badge: 0, roles: ['ceo', 'batch_manager'] },
+  // ─── المتابعات ───
+  { label: 'المتابعات', items: [
+    { href: '/followups',            icon: NotebookPen,    label: 'متابعات الطلاب',    badge: 0, roles: ['supervisor', 'teacher', 'ceo'] },
+    { href: '/followups/manager',    icon: NotebookPen,    label: 'متابعات الدفعة',    badge: 0, roles: ['batch_manager'] },
+    { href: '/followups/schedule',   icon: CalendarDays,   label: 'جدول الأسبوع',      badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+    { href: '/followups/violations', icon: AlertOctagon,   label: 'إخلالات المتابعة',  badge: 0, roles: ['ceo', 'batch_manager'] },
+    { href: '/followups/history',    icon: Archive,        label: 'أرشيف المتابعات',   badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
+    { href: '/student-cases',        icon: ShieldAlert,    label: 'التصعيدات',         badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher', 'records_officer'] as UserRole[] },
+  ]},
 
-  // === مشترك ===
-  { href: '/batches',     icon: Database,        label: 'قاعدة البيانات',         badge: 0 },
-  { href: '/matn',        icon: ScrollText,      label: 'رصد المتون',             badge: 0 },
-  { href: '/exams',       icon: ClipboardCheck,  label: 'جدول الاختبارات',        badge: 0 },
-  { href: '/students',    icon: GraduationCap,   label: 'طلاب الدفع',             badge: 0 },
-  { href: '/supervisors', icon: UserCog,         label: 'المشرفون والمعلمون',     badge: 0, roles: ['ceo'] },
-  { href: '/attendance',  icon: CalendarCheck,   label: 'الحضور والغياب',         badge: 0 },
-  { href: '/programs',    icon: Sparkles,        label: 'برامج الدفع',            badge: 0 },
-  { href: '/meetings',    icon: Users,           label: 'الاجتماعات',             badge: 0 },
-  { href: '/admin/bulk-plan', icon: Target,      label: 'إنشاء خطة جماعي',        badge: 0, roles: ['ceo'] },
-  // حالات التصعيد — متاحة لكل الأدوار التشغيلية (الـSidebar label يتغيّر حسب الدور)
-  { href: '/student-cases', icon: ShieldAlert, label: 'التصعيدات الواردة لي', badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher', 'records_officer'] as UserRole[] },
-  { href: '/reminders/saved', icon: Bookmark,    label: 'التذكيرات المحفوظة',    badge: 0 },
-  { href: '/notifications',   icon: Bell,        label: 'الإشعارات',              badge: 0 },
-  { href: '/budget',          icon: Wallet,      label: 'الميزانية والعهد',       badge: 0, roles: ['ceo'] },
-  { href: '/admin/users',     icon: ShieldCheck, label: 'إدارة الحسابات',         badge: 0, roles: ['ceo'] },
-  { href: '/admin/tenants',   icon: Building2,   label: 'إدارة الحلقات',          badge: 0, roles: ['ceo'], superAdminOnly: true },
-  { href: '/settings',        icon: Settings,    label: 'الإعدادات',              badge: 0, roles: ['ceo'] },
-  // ← آخر نشاط: super_admin فقط (آخر القائمة)
-  { href: '/admin/activity',  icon: Activity,    label: 'آخر نشاط',               badge: 0, superAdminOnly: true },
+  // ─── (بلا عنوان) — تقارير ───
+  { items: [
+    { href: '/reports', icon: FileBarChart, label: 'تقارير الدفعات', badge: 0 },
+  ]},
+
+  // ─── (بلا عنوان) — متون + برامج ───
+  { items: [
+    { href: '/matn',     icon: ScrollText, label: 'رصد المتون',  badge: 0 },
+    { href: '/programs', icon: Sparkles,    label: 'برامج الدفع', badge: 0 },
+  ]},
+
+  // ─── إداري ───
+  { label: 'إداري', items: [
+    { href: '/students',            icon: GraduationCap, label: 'طلاب الدفع',           badge: 0 },
+    { href: '/manager/supervisors', icon: UserCog,       label: 'مشرفو دفعتي',          badge: 0, roles: ['batch_manager'] },
+    { href: '/supervisors',         icon: UserCog,       label: 'المشرفون والمعلمون',   badge: 0, roles: ['ceo'] },
+    { href: '/manager/assignments', icon: ArrowLeftRight, label: 'توزيع الطلاب',         badge: 0, roles: ['batch_manager', 'ceo'] },
+    { href: '/attendance',          icon: CalendarCheck, label: 'الحضور والغياب',       badge: 0 },
+    { href: '/meetings',            icon: Users,         label: 'الاجتماعات',           badge: 0 },
+  ]},
+
+  // ─── النظام ───
+  { label: 'النظام', items: [
+    { href: '/admin/users',     icon: ShieldCheck, label: 'إدارة الحسابات',  badge: 0, roles: ['ceo'] },
+    { href: '/admin/bulk-plan', icon: Target,      label: 'إنشاء خطة جماعي', badge: 0, roles: ['ceo'] },
+    { href: '/admin/tenants',   icon: Building2,   label: 'إدارة الحلقات',    badge: 0, roles: ['ceo'], superAdminOnly: true },
+    { href: '/budget',          icon: Wallet,      label: 'الميزانية والعهد', badge: 0, roles: ['ceo'] },
+    { href: '/admin/activity',  icon: Activity,    label: 'آخر نشاط',        badge: 0, superAdminOnly: true },
+    { href: '/settings',        icon: Settings,    label: 'الإعدادات',       badge: 0, roles: ['ceo'] },
+  ]},
 ]
 
 interface SidebarProps {
@@ -113,11 +131,8 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
   // ─── تسميات ديناميكية حسب الدور ───
   const isMine = role === 'batch_manager' || role === 'supervisor' || role === 'teacher'
 
-  // الحالات الطلابية:
-  const studentCasesLabel =
-    role === 'supervisor' || role === 'teacher' ? 'متابعتي الأسبوعية والتصعيد'
-    : role === 'batch_manager'                  ? 'التصعيدات الواردة لي'
-    : 'الحالات الطلابية'
+  // التصعيدات — التسمية موحَّدة الآن
+  const studentCasesLabel = 'التصعيدات'
 
   // باقي البنود الديناميكية:
   const labelOverrides: Record<string, string> = {
@@ -127,19 +142,28 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
   }
 
   const isSuperAdmin = profile?.is_super_admin === true
-  const visibleItems = navItems.filter(item => {
-    if (item.superAdminOnly && !isSuperAdmin) return false
-    if (role === 'records_officer') return RECORDS_OFFICER_PATHS.has(item.href)
-    return !item.roles || item.roles.includes(role)
-  }).map(item => {
-    if (item.href === '/student-cases') {
-      return { ...item, label: studentCasesLabel, badge: inboxCount > 0 ? inboxCount : 0 }
-    }
-    if (labelOverrides[item.href]) {
-      return { ...item, label: labelOverrides[item.href] }
-    }
-    return item
-  })
+
+  // فلترة العناصر داخل كل قسم + إزالة الأقسام الفارغة
+  const visibleGroups = navGroups
+    .map(group => ({
+      label: group.label,
+      items: group.items
+        .filter(item => {
+          if (item.superAdminOnly && !isSuperAdmin) return false
+          if (role === 'records_officer') return RECORDS_OFFICER_PATHS.has(item.href)
+          return !item.roles || item.roles.includes(role)
+        })
+        .map(item => {
+          if (item.href === '/student-cases') {
+            return { ...item, label: studentCasesLabel, badge: inboxCount > 0 ? inboxCount : 0 }
+          }
+          if (labelOverrides[item.href]) {
+            return { ...item, label: labelOverrides[item.href] }
+          }
+          return item
+        }),
+    }))
+    .filter(group => group.items.length > 0)
 
   // ⚡️ نتنقّل أولاً ثم نستدعي signOut في الخلفية — على الجوال تبدو العملية
   // فورية حتى لو تأخّرت شبكة Supabase.
@@ -249,8 +273,32 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
         <div style={{ height: 1, margin: '0 16px', background: 'linear-gradient(90deg, transparent, var(--border-color), transparent)' }} />
 
         {/* ── NAV ── */}
-        <nav className="flex-1 px-2 py-3 overflow-y-auto overflow-x-hidden space-y-0.5">
-          {visibleItems.map(item => {
+        <nav className="flex-1 px-2 py-3 overflow-y-auto overflow-x-hidden">
+          {visibleGroups.map((group, gIdx) => (
+            <div key={`group-${gIdx}`} className={gIdx > 0 ? 'mt-3' : ''}>
+              {/* عنوان القسم (لو موجود وليس collapsed) */}
+              {group.label && !collapsed && (
+                <div
+                  className="px-3 pt-1 pb-1.5 sidebar-label"
+                  style={{
+                    fontSize: '0.62rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.12em',
+                    color: 'var(--text-muted)',
+                    textTransform: 'none',
+                  }}>
+                  {group.label}
+                </div>
+              )}
+              {/* فاصل دقيق للأقسام في collapsed mode */}
+              {group.label && collapsed && gIdx > 0 && (
+                <div style={{
+                  height: 1, margin: '6px 12px 8px',
+                  background: 'linear-gradient(90deg, transparent, var(--border-color), transparent)',
+                }} />
+              )}
+              <div className="space-y-0.5">
+              {group.items.map(item => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
             const Icon = item.icon
             return (
@@ -343,6 +391,9 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
               </Link>
             )
           })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* ── COLLAPSE TOGGLE (desktop only) ── */}
