@@ -31,6 +31,8 @@ interface NavItem {
 interface NavGroup {
   /** عنوان القسم — اختياري. لو ناقص، يظهر بدون header */
   label?: string
+  /** أيقونة القسم — تظهر في الـheader */
+  icon?: React.ElementType
   items: NavItem[]
 }
 
@@ -45,15 +47,20 @@ const navGroups: NavGroup[] = [
   ]},
 
   // ─── قرآني ───
-  { label: 'قرآني', items: [
+  { label: 'قرآني', icon: BookOpenCheck, items: [
     { href: '/quran-system/daily-records',  icon: BookOpenCheck, label: 'سجلات الحفظ',     badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
     { href: '/exams',                       icon: ClipboardCheck, label: 'جدول الاختبارات', badge: 0 },
     { href: '/batches',                     icon: Database,       label: 'قاعدة البيانات',   badge: 0 },
     { href: '/quran-system/batch-progress', icon: TrendingUp,     label: 'تقدم الحفظ',       badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
   ]},
 
+  // ─── علمي ───
+  { label: 'علمي', icon: ScrollText, items: [
+    { href: '/matn', icon: ScrollText, label: 'رصد المتون', badge: 0 },
+  ]},
+
   // ─── المتابعات ───
-  { label: 'المتابعات', items: [
+  { label: 'المتابعات', icon: NotebookPen, items: [
     { href: '/followups',            icon: NotebookPen,    label: 'متابعات الطلاب',    badge: 0, roles: ['supervisor', 'teacher', 'ceo'] },
     { href: '/followups/manager',    icon: NotebookPen,    label: 'متابعات الدفعة',    badge: 0, roles: ['batch_manager'] },
     { href: '/followups/schedule',   icon: CalendarDays,   label: 'جدول الأسبوع',      badge: 0, roles: ['supervisor', 'teacher', 'batch_manager', 'ceo'] },
@@ -62,19 +69,18 @@ const navGroups: NavGroup[] = [
     { href: '/student-cases',        icon: ShieldAlert,    label: 'التصعيدات',         badge: 0, roles: ['ceo', 'batch_manager', 'supervisor', 'teacher', 'records_officer'] as UserRole[] },
   ]},
 
-  // ─── (بلا عنوان) — تقارير ───
-  { items: [
+  // ─── التقارير ───
+  { label: 'التقارير', icon: FileBarChart, items: [
     { href: '/reports', icon: FileBarChart, label: 'تقارير الدفعات', badge: 0 },
   ]},
 
-  // ─── (بلا عنوان) — متون + برامج ───
-  { items: [
-    { href: '/matn',     icon: ScrollText, label: 'رصد المتون',  badge: 0 },
-    { href: '/programs', icon: Sparkles,    label: 'برامج الدفع', badge: 0 },
+  // ─── تربوي ───
+  { label: 'تربوي', icon: Sparkles, items: [
+    { href: '/programs', icon: Sparkles, label: 'برامج الدفع', badge: 0 },
   ]},
 
   // ─── إداري ───
-  { label: 'إداري', items: [
+  { label: 'إداري', icon: UserCog, items: [
     { href: '/students',            icon: GraduationCap, label: 'طلاب الدفع',           badge: 0 },
     { href: '/manager/supervisors', icon: UserCog,       label: 'مشرفو دفعتي',          badge: 0, roles: ['batch_manager'] },
     { href: '/supervisors',         icon: UserCog,       label: 'المشرفون والمعلمون',   badge: 0, roles: ['ceo'] },
@@ -84,7 +90,7 @@ const navGroups: NavGroup[] = [
   ]},
 
   // ─── النظام ───
-  { label: 'النظام', items: [
+  { label: 'النظام', icon: Settings, items: [
     { href: '/admin/users',     icon: ShieldCheck, label: 'إدارة الحسابات',  badge: 0, roles: ['ceo'] },
     { href: '/admin/bulk-plan', icon: Target,      label: 'إنشاء خطة جماعي', badge: 0, roles: ['ceo'] },
     { href: '/admin/tenants',   icon: Building2,   label: 'إدارة الحلقات',    badge: 0, roles: ['ceo'], superAdminOnly: true },
@@ -168,6 +174,7 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
   const visibleGroups = navGroups
     .map(group => ({
       label: group.label,
+      icon: group.icon,
       items: group.items
         .filter(item => {
           if (item.superAdminOnly && !isSuperAdmin) return false
@@ -303,65 +310,95 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
             )
             return (
             <div key={`group-${gIdx}`} className={gIdx > 0 ? 'mt-2.5' : ''}>
-              {/* عنوان القسم — زر toggle مع بروز بصري (لو موجود وليس collapsed sidebar) */}
-              {group.label && !collapsed && (
+              {/* عنوان القسم — تصميم نظيف مع أيقونة وبروز خفيف */}
+              {group.label && !collapsed && (() => {
+                const SectionIcon = group.icon
+                return (
                 <button
                   onClick={() => toggleSection(group.label!)}
-                  className="w-full sidebar-label group flex items-center justify-between gap-2 transition-all active:scale-[0.98]"
+                  className="w-full sidebar-label flex items-center justify-between gap-2 transition-all active:scale-[0.98] group/sec relative overflow-hidden"
                   style={{
-                    padding: '8px 12px',
-                    marginBottom: '4px',
-                    borderRadius: 10,
-                    minHeight: 36,  // mobile-first: hit target كبير
-                    background: sectionHasActive
-                      ? 'linear-gradient(90deg, rgba(192,138,72,0.10), rgba(192,138,72,0.02))'
-                      : 'rgba(192,138,72,0.04)',
-                    border: '1px solid',
-                    borderColor: sectionHasActive ? 'rgba(192,138,72,0.35)' : 'rgba(192,138,72,0.15)',
-                    color: sectionHasActive ? 'var(--accent-warm)' : 'var(--text-secondary)',
-                    fontWeight: 800,
-                    fontSize: '0.72rem',
-                    letterSpacing: '0.06em',
+                    padding: '11px 14px 10px',
+                    marginTop: '2px',
+                    marginBottom: '6px',
+                    minHeight: 42,  // Mobile-first tap target
+                    background: 'transparent',
+                    color: sectionHasActive ? 'var(--accent-warm)' : 'var(--text-primary)',
                     cursor: 'pointer',
+                    borderBottom: sectionHasActive
+                      ? '1.5px solid rgba(192,138,72,0.55)'
+                      : '1px solid rgba(192,138,72,0.15)',
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.background = sectionHasActive
-                      ? 'linear-gradient(90deg, rgba(192,138,72,0.16), rgba(192,138,72,0.04))'
-                      : 'rgba(192,138,72,0.10)'
+                    e.currentTarget.style.background = 'rgba(192,138,72,0.05)'
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.background = sectionHasActive
-                      ? 'linear-gradient(90deg, rgba(192,138,72,0.10), rgba(192,138,72,0.02))'
-                      : 'rgba(192,138,72,0.04)'
+                    e.currentTarget.style.background = 'transparent'
                   }}
                   aria-expanded={!isSectionCollapsed}
                   aria-label={`${isSectionCollapsed ? 'فتح' : 'طي'} قسم ${group.label}`}
                 >
-                  <span className="flex items-center gap-1.5">
+                  {/* شريط ذهبي على الحافة عند النشاط — يميل من فوق لتحت */}
+                  {sectionHasActive && (
                     <span style={{
-                      display: 'inline-block', width: 4, height: 4, borderRadius: '50%',
-                      background: sectionHasActive ? 'var(--accent-warm)' : 'rgba(192,138,72,0.50)',
+                      position: 'absolute', right: 0, top: 6, bottom: 6,
+                      width: 3, borderRadius: '2px 0 0 2px',
+                      background: 'linear-gradient(180deg, var(--accent-warm), var(--accent-gold))',
+                      boxShadow: '-3px 0 10px rgba(192,138,72,0.40)',
                     }} />
-                    {group.label}
+                  )}
+
+                  {/* الأيقونة + الاسم */}
+                  <span className="flex items-center gap-2">
+                    {SectionIcon && (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: 26, height: 26, borderRadius: 7,
+                        background: sectionHasActive
+                          ? 'linear-gradient(135deg, rgba(192,138,72,0.22), rgba(212,162,76,0.10))'
+                          : 'rgba(192,138,72,0.10)',
+                        color: sectionHasActive ? 'var(--accent-warm)' : 'var(--text-secondary)',
+                        boxShadow: sectionHasActive ? '0 1px 4px rgba(192,138,72,0.20)' : undefined,
+                        transition: 'all 200ms',
+                      }}>
+                        <SectionIcon size={14} strokeWidth={2.2} />
+                      </span>
+                    )}
+                    <span style={{
+                      fontWeight: 800,
+                      fontSize: '0.83rem',
+                      letterSpacing: '-0.005em',
+                      fontFamily: 'var(--font-noto-kufi, "Noto Kufi Arabic")',
+                    }}>
+                      {group.label}
+                    </span>
                   </span>
+
+                  {/* الـchevron */}
                   <span className="flex items-center gap-1.5">
                     <span style={{
-                      fontSize: '0.62rem', fontWeight: 600,
-                      color: 'var(--text-muted)', opacity: 0.7,
+                      fontSize: '0.65rem', fontWeight: 700,
+                      color: sectionHasActive ? 'var(--accent-warm)' : 'var(--text-muted)',
+                      opacity: 0.85,
                       fontFamily: 'var(--font-ibm-plex-mono, monospace)',
+                      padding: '1px 6px', borderRadius: 6,
+                      background: sectionHasActive ? 'rgba(192,138,72,0.10)' : 'transparent',
                     }}>
                       {group.items.length}
                     </span>
                     <ChevronDown
-                      size={13}
+                      size={15}
+                      strokeWidth={2.5}
                       style={{
-                        transition: 'transform 200ms ease',
+                        transition: 'transform 220ms cubic-bezier(0.4, 0, 0.2, 1)',
                         transform: isSectionCollapsed ? 'rotate(-90deg)' : 'rotate(0)',
-                        opacity: 0.7,
+                        color: sectionHasActive ? 'var(--accent-warm)' : 'var(--text-muted)',
+                        opacity: 0.85,
                       }} />
                   </span>
                 </button>
-              )}
+                )
+              })()}
               {/* فاصل دقيق للأقسام في collapsed mode */}
               {group.label && collapsed && gIdx > 0 && (
                 <div style={{
