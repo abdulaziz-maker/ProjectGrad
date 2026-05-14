@@ -114,15 +114,19 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
   const role = profile?.role ?? 'ceo'
 
   // ─── حالة الأقسام المطوية ───
-  // المفتاح = عنوان القسم (التصعيدات، قرآني، إلخ)
+  // الافتراضي: كل الأقسام مطوية (للترتيب البصري النظيف)
+  const ALL_SECTION_LABELS = ['قرآني', 'علمي', 'المتابعات', 'التقارير', 'تربوي', 'إداري', 'النظام']
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => {
-    if (typeof window === 'undefined') return new Set()
+    if (typeof window === 'undefined') return new Set(ALL_SECTION_LABELS)
     try {
       const raw = localStorage.getItem('sidebar-collapsed-sections')
-      if (!raw) return new Set()
+      if (raw === null) {
+        // أول زيارة — كل الأقسام مطوية
+        return new Set(ALL_SECTION_LABELS)
+      }
       const arr = JSON.parse(raw) as string[]
       return new Set(arr)
-    } catch { return new Set() }
+    } catch { return new Set(ALL_SECTION_LABELS) }
   })
   const toggleSection = useCallback((label: string) => {
     setCollapsedSections(prev => {
