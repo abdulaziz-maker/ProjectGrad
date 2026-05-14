@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -8,7 +8,7 @@ import {
   Wallet, Settings, X, Database,
   ClipboardCheck, ListTodo, LogOut, ShieldCheck, ChevronLeft,
   NotebookPen, TrendingUp, Archive, AlertOctagon, ShieldAlert,
-  Building2, Target, Activity, ArrowLeftRight,
+  Building2, Target, Activity, ArrowLeftRight, ChevronDown,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { signOut } from '@/lib/auth'
@@ -106,6 +106,27 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
   const router   = useRouter()
   const { profile } = useAuth()
   const role = profile?.role ?? 'ceo'
+
+  // ─── حالة الأقسام المطوية ───
+  // المفتاح = عنوان القسم (التصعيدات، قرآني، إلخ)
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const raw = localStorage.getItem('sidebar-collapsed-sections')
+      if (!raw) return new Set()
+      const arr = JSON.parse(raw) as string[]
+      return new Set(arr)
+    } catch { return new Set() }
+  })
+  const toggleSection = useCallback((label: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev)
+      if (next.has(label)) next.delete(label)
+      else next.add(label)
+      try { localStorage.setItem('sidebar-collapsed-sections', JSON.stringify([...next])) } catch {}
+      return next
+    })
+  }, [])
 
   // موظف السجلات: يرى فقط ٣ صفحات (خريطة الحفظ + الاختبارات + الطلاب)
   const RECORDS_OFFICER_PATHS = new Set(['/batches', '/exams', '/students'])
@@ -274,21 +295,72 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
 
         {/* ── NAV ── */}
         <nav className="flex-1 px-2 py-3 overflow-y-auto overflow-x-hidden">
-          {visibleGroups.map((group, gIdx) => (
-            <div key={`group-${gIdx}`} className={gIdx > 0 ? 'mt-3' : ''}>
-              {/* عنوان القسم (لو موجود وليس collapsed) */}
+          {visibleGroups.map((group, gIdx) => {
+            const isSectionCollapsed = group.label ? collapsedSections.has(group.label) : false
+            // هل القسم يحتوي على الـactive route؟ (نُبرز العنوان حينها)
+            const sectionHasActive = group.items.some(it =>
+              pathname === it.href || pathname.startsWith(it.href + '/')
+            )
+            return (
+            <div key={`group-${gIdx}`} className={gIdx > 0 ? 'mt-2.5' : ''}>
+              {/* عنوان القسم — زر toggle مع بروز بصري (لو موجود وليس collapsed sidebar) */}
               {group.label && !collapsed && (
-                <div
-                  className="px-3 pt-1 pb-1.5 sidebar-label"
+                <button
+                  onClick={() => toggleSection(group.label!)}
+                  className="w-full sidebar-label group flex items-center justify-between gap-2 transition-all active:scale-[0.98]"
                   style={{
-                    fontSize: '0.62rem',
+                    padding: '8px 12px',
+                    marginBottom: '4px',
+                    borderRadius: 10,
+                    minHeight: 36,  // mobile-first: hit target كبير
+                    background: sectionHasActive
+                      ? 'linear-gradient(90deg, rgba(192,138,72,0.10), rgba(192,138,72,0.02))'
+                      : 'rgba(192,138,72,0.04)',
+                    border: '1px solid',
+                    borderColor: sectionHasActive ? 'rgba(192,138,72,0.35)' : 'rgba(192,138,72,0.15)',
+                    color: sectionHasActive ? 'var(--accent-warm)' : 'var(--text-secondary)',
                     fontWeight: 800,
-                    letterSpacing: '0.12em',
-                    color: 'var(--text-muted)',
-                    textTransform: 'none',
-                  }}>
-                  {group.label}
-                </div>
+                    fontSize: '0.72rem',
+                    letterSpacing: '0.06em',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = sectionHasActive
+                      ? 'linear-gradient(90deg, rgba(192,138,72,0.16), rgba(192,138,72,0.04))'
+                      : 'rgba(192,138,72,0.10)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = sectionHasActive
+                      ? 'linear-gradient(90deg, rgba(192,138,72,0.10), rgba(192,138,72,0.02))'
+                      : 'rgba(192,138,72,0.04)'
+                  }}
+                  aria-expanded={!isSectionCollapsed}
+                  aria-label={`${isSectionCollapsed ? 'فتح' : 'طي'} قسم ${group.label}`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span style={{
+                      display: 'inline-block', width: 4, height: 4, borderRadius: '50%',
+                      background: sectionHasActive ? 'var(--accent-warm)' : 'rgba(192,138,72,0.50)',
+                    }} />
+                    {group.label}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span style={{
+                      fontSize: '0.62rem', fontWeight: 600,
+                      color: 'var(--text-muted)', opacity: 0.7,
+                      fontFamily: 'var(--font-ibm-plex-mono, monospace)',
+                    }}>
+                      {group.items.length}
+                    </span>
+                    <ChevronDown
+                      size={13}
+                      style={{
+                        transition: 'transform 200ms ease',
+                        transform: isSectionCollapsed ? 'rotate(-90deg)' : 'rotate(0)',
+                        opacity: 0.7,
+                      }} />
+                  </span>
+                </button>
               )}
               {/* فاصل دقيق للأقسام في collapsed mode */}
               {group.label && collapsed && gIdx > 0 && (
@@ -297,6 +369,8 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
                   background: 'linear-gradient(90deg, transparent, var(--border-color), transparent)',
                 }} />
               )}
+              {/* عناصر القسم — تختفي عند الطي (في collapsed mode تبقى مرئية) */}
+              {(!group.label || collapsed || !isSectionCollapsed) && (
               <div className="space-y-0.5">
               {group.items.map(item => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
@@ -392,8 +466,10 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
             )
           })}
               </div>
+              )}
             </div>
-          ))}
+            )
+          })}
         </nav>
 
         {/* ── COLLAPSE TOGGLE (desktop only) ── */}
